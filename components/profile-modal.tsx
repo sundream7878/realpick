@@ -1,0 +1,123 @@
+"use client"
+
+import { useState } from "react"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Edit2, LogOut, UserX } from "lucide-react"
+
+interface ProfileModalProps {
+  isOpen: boolean
+  onClose: () => void
+  nickname: string
+  onNicknameChange?: (newNickname: string) => void
+}
+
+export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChange }: ProfileModalProps) {
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedNickname, setEditedNickname] = useState(nickname)
+
+  const handleSaveNickname = () => {
+    if (onNicknameChange && editedNickname.trim()) {
+      onNicknameChange(editedNickname.trim())
+    }
+    setIsEditing(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditedNickname(nickname)
+    setIsEditing(false)
+  }
+
+  const handleLogout = () => {
+    // TODO: 로그아웃 로직 구현
+    console.log("로그아웃")
+    onClose()
+  }
+
+  const handleDeleteAccount = () => {
+    // TODO: 탈퇴 확인 다이얼로그 및 로직 구현
+    if (confirm("정말로 탈퇴하시겠습니까? 이 작업은 되돌릴 수 없습니다.")) {
+      console.log("계정 탈퇴")
+      onClose()
+    }
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-md bg-gradient-to-br from-rose-50 to-pink-50 border-rose-200">
+        <DialogHeader>
+          <DialogTitle className="text-xl font-semibold text-gray-900">프로필</DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-6">
+          {/* 닉네임 섹션 */}
+          <div className="bg-white/80 p-4 rounded-lg border border-rose-200 space-y-3">
+            <Label className="text-sm font-medium text-gray-700">닉네임</Label>
+            {isEditing ? (
+              <div className="space-y-3">
+                <Input
+                  value={editedNickname}
+                  onChange={(e) => setEditedNickname(e.target.value)}
+                  placeholder="닉네임을 입력하세요"
+                  className="border-rose-300 focus:border-rose-500"
+                />
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
+                    onClick={handleCancelEdit}
+                  >
+                    취소
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="flex-1 bg-gradient-to-r from-rose-500 to-purple-500 hover:from-rose-600 hover:to-purple-600 text-white"
+                    onClick={handleSaveNickname}
+                  >
+                    저장
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold text-gray-900">{nickname}님</span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-rose-300 text-rose-600 hover:bg-rose-50 bg-transparent"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Edit2 className="w-4 h-4 mr-1" />
+                  변경
+                </Button>
+              </div>
+            )}
+          </div>
+
+          {/* 계정 관리 섹션 */}
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start border-gray-300 text-gray-700 hover:bg-gray-50 bg-white/80"
+              onClick={handleLogout}
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              로그아웃
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full justify-start border-red-300 text-red-600 hover:bg-red-50 bg-white/80"
+              onClick={handleDeleteAccount}
+            >
+              <UserX className="w-4 h-4 mr-2" />
+              탈퇴
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
