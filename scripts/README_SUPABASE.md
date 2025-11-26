@@ -93,3 +93,4 @@ SQL 실행 후 Supabase Dashboard → **Table Editor**에서 다음 테이블들
 
 
 
+
