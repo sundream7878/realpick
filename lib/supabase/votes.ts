@@ -239,11 +239,13 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
   try {
     const supabase = createClient()
 
+    // f_selected_option은 JSONB이지만, binary/multi의 경우 단순 문자열로 저장
+    // 스키마: binary는 "옵션1", multi는 ["옵션1", "옵션2"]
+    // 현재는 단일 선택만 지원하므로 문자열로 저장
     const voteData = {
       f_user_id: submission.userId,
       f_mission_id: submission.missionId,
-      f_selected_option: { option: submission.choice },
-      f_submitted: true,
+      f_selected_option: submission.choice, // 단순 문자열로 저장
       f_submitted_at: submission.submittedAt || new Date().toISOString(),
     }
 
@@ -260,7 +262,8 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
         message: error.message,
         details: error.details,
         hint: error.hint,
-        submission
+        submission,
+        voteData
       })
       return false
     }
