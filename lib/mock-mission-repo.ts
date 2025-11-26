@@ -1,22 +1,8 @@
-export interface MissionData {
-  id: string
-  title: string
-  type: "prediction" | "majority"
-  status: "live" | "onclose" | "done"
-  imageUrl: string
-  choices: {
-    id: string
-    text: string
-    percentage?: number
-  }[]
-  timeLeft?: string
-  distribution?: { [key: string]: number }
-  userChoice?: string
-  correct?: string
-  majority?: string
-}
+// ⚠️ DEPRECATED: 이 파일은 하위 호환성을 위해 유지됩니다.
+// 새 코드는 lib/utils/u-mock-mission-repo/mock-mission-repo.util.ts에서 import하세요.
+export * from "./utils/u-mock-mission-repo/mock-mission-repo.util"
 
-const mockMissions: Record<string, MissionData> = {
+const mockMissions: Record<string, TMissionData> = {
   live: {
     id: "live",
     title: "광수의 리액션, 매너 좋다 vs 눈치 없다",
@@ -72,7 +58,7 @@ const mockMissions: Record<string, MissionData> = {
 }
 
 export class MockMissionRepo {
-  static getMission(id: string): MissionData | null {
+  static getMission(id: string): TMissionData | null {
     return mockMissions[id] || null
   }
 

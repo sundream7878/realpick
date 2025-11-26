@@ -1,6 +1,8 @@
-import type { Mission, SuccessComment, VoteSubmission } from "./vote-types"
+// ⚠️ DEPRECATED: 이 파일은 하위 호환성을 위해 유지됩니다.
+// 새 코드는 lib/utils/u-mock-vote-data/mock-vote-data.util.ts에서 import하세요.
+export * from "./utils/u-mock-vote-data/mock-vote-data.util"
 
-export const mockMissions: Record<string, Mission> = {
+export const mockMissions: Record<string, TMission> = {
   "1": {
     id: "1",
     kind: "predict",
@@ -14,10 +16,60 @@ export const mockMissions: Record<string, Mission> = {
     status: "open", // Changed from "settled" to "open"
     options: ["커플 성사", "커플 실패"],
     result: {
-      correct: "커플 성사",
+      correctAnswer: "커플 성사",
       distribution: { "커플 성사": 62, "커플 실패": 38 },
+      totalVotes: 8432,
     },
     stats: { participants: 8432 },
+  },
+  "27기-커플매칭": {
+    id: "27기-커플매칭",
+    kind: "predict",
+    form: "match",
+    title: "나는솔로 27기 커플 매칭 예측",
+    description: "최종 커플을 예측해보세요",
+    seasonType: "기수별",
+    seasonNumber: 27,
+    revealPolicy: "realtime",
+    deadline: new Date(Date.now() + 364 * 24 * 60 * 60 * 1000).toISOString(), // 364일 후 (마감일은 의미없음)
+    status: "settled", // 마감됨 (모든 회차 완료)
+    episodes: 8,
+    episodeStatuses: {
+      1: "settled", // 모든 회차 완료
+      2: "settled", 
+      3: "settled",
+      4: "settled",
+      5: "settled",
+      6: "settled",
+      7: "settled",
+      8: "settled",
+    },
+    options: {
+      left: ["광수", "영수", "영식", "영철", "상철", "민수"],
+      right: ["영순", "정숙", "순자", "영자", "옥순", "현숙"],
+    },
+    finalAnswer: [
+      { left: "광수", right: "영순" },
+      { left: "영수", right: "정숙" },
+      { left: "상철", right: "현숙" },
+    ],
+    result: {
+      finalAnswer: [
+        { left: "광수", right: "영순" },
+        { left: "영수", right: "정숙" },
+        { left: "상철", right: "현숙" },
+      ],
+      distribution: {
+        "광수-영순": 45,
+        "영수-정숙": 38,
+        "상철-현숙": 42,
+        "영식-순자": 25,
+        "영철-영자": 18,
+        "민수-옥순": 12,
+      }
+    },
+    stats: { participants: 1247 },
+    createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
   },
   "3": {
     id: "3",
@@ -28,18 +80,18 @@ export const mockMissions: Record<string, Mission> = {
     seasonType: "기수별",
     seasonNumber: 29,
     revealPolicy: "realtime",
-    deadline: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString(),
-    status: "settled", // Changed from "settled" to "open"
+    deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // Past date for settled status
+    status: "settled",
     episodes: 8,
     episodeStatuses: {
       1: "settled",
       2: "settled",
-      3: "settled", // Changed from "settled" to "open" for current episode
+      3: "settled",
       4: "settled",
       5: "settled",
-      6: "open",
-      7: "preview",
-      8: "preview",
+      6: "settled",
+      7: "settled",
+      8: "settled",
     },
     matchPairs: {
       left: ["영수", "영호", "영식", "영철", "광수", "상철"],
@@ -51,6 +103,11 @@ export const mockMissions: Record<string, Mission> = {
       { left: "상철", right: "현숙" },
     ],
     result: {
+      finalAnswer: [
+        { left: "광수", right: "영순" },
+        { left: "영수", right: "정숙" },
+        { left: "상철", right: "현숙" },
+      ],
       distribution: {
         "광수-영순": 28,
         "영수-정숙": 24,
@@ -59,6 +116,7 @@ export const mockMissions: Record<string, Mission> = {
         "영철-옥순": 10,
         "상철-현숙": 3,
       },
+      totalVotes: 12847,
     },
     stats: { participants: 12847 },
   },
@@ -74,8 +132,9 @@ export const mockMissions: Record<string, Mission> = {
     status: "open", // Changed from "settled" to "open"
     options: ["1기 현우-지영", "3기 대훈-미정", "5기 상철-지현", "8기 정식-현숙"],
     result: {
-      majority: "1기 현우-지영",
+      majorityOption: "1기 현우-지영",
       distribution: { "1기 현우-지영": 40, "3기 대훈-미정": 30, "5기 상철-지현": 20, "8기 정식-현숙": 10 },
+      totalVotes: 7123,
     },
     stats: { participants: 7123 },
   },
@@ -93,6 +152,7 @@ export const mockMissions: Record<string, Mission> = {
     options: ["광수의 고백 장면", "영숙의 눈물 장면"],
     result: {
       distribution: { "광수의 고백 장면": 55, "영숙의 눈물 장면": 45 },
+      totalVotes: 4567,
     },
     stats: { participants: 4567 },
   },
@@ -110,6 +170,7 @@ export const mockMissions: Record<string, Mission> = {
     options: ["광수", "영숙", "민호", "지은", "태현"],
     result: {
       distribution: { 광수: 25, 영숙: 35, 민호: 20, 지은: 15, 태현: 5 },
+      totalVotes: 6789,
     },
     stats: { participants: 6789 },
   },
@@ -273,11 +334,12 @@ export function generateMockUserRanking(
 
   const getScoreByRound = (round: number) => Math.max(100 - (round - 1) * 10, 30)
 
-  const calculateScore = (predictions: Record<number, Array<{ left: string; right: string }>>) => {
+  const calculateScore = (predictions: Partial<Record<number, Array<{ left: string; right: string }>>>) => {
     let totalScore = 0
     const correctRounds: number[] = []
 
     for (const [roundStr, couples] of Object.entries(predictions)) {
+      if (!couples) continue
       const round = Number.parseInt(roundStr)
       const pointsForRound = getScoreByRound(round)
       let hasCorrectInRound = false
@@ -333,26 +395,26 @@ export function generateMockUserRanking(
 }
 
 export class MockVoteRepo {
-  private static userVotes: Record<string, VoteSubmission> = {
+  private static userVotes: Record<string, TVoteSubmission> = {
     "user123:1": {
       userId: "user123",
       missionId: "1",
       choice: "커플 성사",
-      timestamp: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
+      submittedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
     },
     "user123:4": {
       userId: "user123",
       missionId: "4",
       choice: "1기 현우-지영",
-      timestamp: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
+      submittedAt: new Date(Date.now() - 4 * 24 * 60 * 60 * 1000).toISOString(),
     },
   }
 
-  static getMission(id: string): Mission | null {
+  static getMission(id: string): TMission | null {
     return mockMissions[id] || null
   }
 
-  static async submitVote(submission: VoteSubmission): Promise<boolean> {
+  static async submitVote(submission: TVoteSubmission): Promise<boolean> {
     return new Promise((resolve) => {
       setTimeout(() => {
         this.userVotes[`${submission.userId}:${submission.missionId}`] = submission
@@ -361,7 +423,7 @@ export class MockVoteRepo {
     })
   }
 
-  static getUserVote(userId: string, missionId: string): VoteSubmission | null {
+  static getUserVote(userId: string, missionId: string): TVoteSubmission | null {
     return this.userVotes[`${userId}:${missionId}`] || null
   }
 
@@ -369,7 +431,7 @@ export class MockVoteRepo {
     return !!this.userVotes[`${userId}:${missionId}`]
   }
 
-  static updateUserVote(userId: string, missionId: string, updatedVote: VoteSubmission): void {
+  static updateUserVote(userId: string, missionId: string, updatedVote: TVoteSubmission): void {
     this.userVotes[`${userId}:${missionId}`] = updatedVote
   }
 }

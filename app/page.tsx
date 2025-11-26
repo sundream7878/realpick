@@ -1,263 +1,357 @@
 "use client"
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Clock, Star, Plus, Home, User, AlertCircle, ChevronDown, ChevronRight } from "lucide-react"
-import MissionCreationModal from "@/components/mission-creation-modal"
-import ProfileModal from "@/components/profile-modal"
-import MyPickViewModal from "@/components/my-pick-view-modal"
-import { BottomNavigation } from "@/components/bottom-navigation"
+import { Button } from "@/components/c-ui/button"
+import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
+import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
+import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
+import { AppHeader } from "@/components/c-layout/AppHeader"
+import { MissionCard } from "@/components/c-mission/MissionCard"
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { MockVoteRepo, mockMissions } from "@/lib/mock-vote-data"
-import { getTierFromPoints } from "@/lib/tier-system"
-import type { Mission } from "@/lib/vote-types"
-
-function getGradeFromPoints(points: number): string {
-  if (points >= 5000) return "연애고수"
-  if (points >= 3000) return "연애중수"
-  if (points >= 2000) return "연애초보"
-  if (points >= 1000) return "썸"
-  if (points >= 500) return "짝사랑"
-  if (points >= 200) return "솔로"
-  return "모솔"
-}
-
-function getSeasonBadge(mission: any) {
-  if (mission.seasonType === "기수별" && mission.seasonNumber) {
-    return `${mission.seasonNumber}기`
-  }
-  return null
-}
+import { getMissions, getMissions2 } from "@/lib/supabase/missions"
+import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
+import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import type { TMission } from "@/types/t-vote/vote.types"
+import { getUser } from "@/lib/supabase/users"
+import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 export default function HomePage() {
-  const userPoints = 1250
-  const userTier = getTierFromPoints(userPoints)
-  const [userNickname, setUserNickname] = useState("Sundream")
-  const [isProfileModalOpen, setIsProfileModalOpen] = useState(false)
+  const router = useRouter()
+  const [userNickname, setUserNickname] = useState("")
+  const [userPoints, setUserPoints] = useState(0)
+  const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
+  const [userAvatarUrl, setUserAvatarUrl] = useState<string | undefined>(undefined)
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
-  const [selectedMissionForView, setSelectedMissionForView] = useState<Mission | null>(null)
-  const userId = "user123"
+  const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
+  const [missions, setMissions] = useState<TMission[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
+  const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
+  const userId = getUserId() || "user123"
 
+  // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합
   useEffect(() => {
-    const keysToRemove = []
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i)
-      if (key && key.startsWith("rp_picked_")) {
-        keysToRemove.push(key)
+    const loadMissions = async () => {
+      setIsLoading(true)
+      try {
+        // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
+        const result = await getMissions(10)
+        let realMissions: TMission[] = []
+        
+        if (result.success && result.missions) {
+          // Supabase 데이터를 TMission 형태로 변환
+          realMissions = result.missions.map((mission: any) => ({
+            id: mission.f_id,
+            title: mission.f_title,
+            kind: mission.f_kind,
+            form: mission.f_form,
+            seasonType: mission.f_season_type || "전체",
+            seasonNumber: mission.f_season_number || undefined,
+            options: mission.f_options || [],
+            subjectivePlaceholder: mission.f_subjective_placeholder || undefined,
+            deadline: mission.f_deadline,
+            revealPolicy: mission.f_reveal_policy,
+            status: mission.f_status,
+            stats: {
+              participants: mission.f_stats_participants || 0,
+              totalVotes: mission.f_stats_total_votes || 0
+            },
+            result: {
+              distribution: mission.f_option_vote_counts || {},
+              correct: mission.f_correct_answer || undefined,
+              majority: mission.f_majority_option || undefined
+            },
+            createdAt: mission.f_created_at
+          }))
+        }
+
+        // 2. Supabase에서 커플매칭 미션 가져오기
+        const coupleResult = await getMissions2(10)
+        let coupleMissions: TMission[] = []
+        
+        console.log("🔍 커플매칭 미션 조회 결과:", coupleResult)
+        
+        if (coupleResult.success && coupleResult.missions) {
+          console.log("📋 원본 커플매칭 데이터:", coupleResult.missions)
+          
+          // t_missions2 데이터를 TMission 형태로 변환
+          coupleMissions = coupleResult.missions.map((mission: any) => ({
+            id: mission.f_id,
+            title: mission.f_title,
+            kind: mission.f_kind,
+            form: "match",
+            seasonType: mission.f_season_type || "전체",
+            seasonNumber: mission.f_season_number || undefined,
+            options: mission.f_match_pairs, // TMatchPairs 형식
+            deadline: mission.f_deadline,
+            revealPolicy: mission.f_reveal_policy,
+            status: mission.f_status,
+            episodes: mission.f_total_episodes || 8,
+            episodeStatuses: mission.f_episode_statuses || {}, // 누락된 필드 추가
+            finalAnswer: mission.f_final_answer || undefined,
+            stats: {
+              participants: mission.f_stats_participants || 0
+            },
+            result: {
+              distribution: {},
+              finalAnswer: mission.f_final_answer || undefined
+            },
+            createdAt: mission.f_created_at
+          }))
+          
+          console.log("✅ 변환된 커플매칭 미션:", coupleMissions)
+        } else {
+          console.log("❌ 커플매칭 미션 로드 실패 또는 데이터 없음")
+        }
+
+        // 3. 임시로 27기 Mock 데이터 추가 (실제 DB에 27기가 없을 경우)
+        const mock27Mission = mockMissions["27기-커플매칭"]
+        const has27Mission = coupleMissions.some(m => m.seasonNumber === 27)
+        
+        // 4. 두 데이터 합치기
+        const combinedMissions = [...realMissions, ...coupleMissions]
+        if (!has27Mission && mock27Mission) {
+          combinedMissions.push(mock27Mission)
+          console.log("📝 27기 Mock 미션 추가됨 (실제 DB에 없음)")
+        }
+        
+        console.log("🎯 최종 미션 목록:", combinedMissions.map(m => ({
+          id: m.id,
+          title: m.title,
+          form: m.form,
+          seasonNumber: m.seasonNumber,
+          status: m.status,
+          episodeStatuses: m.episodeStatuses
+        })))
+        
+        setMissions(combinedMissions)
+
+        // 5. 인증된 사용자의 경우 투표 여부 확인
+        if (isAuthenticated()) {
+          const voted = new Set<string>()
+          for (const mission of combinedMissions) {
+            const hasVoted = await checkUserVoted(userId, mission.id)
+            if (hasVoted) {
+              voted.add(mission.id)
+            }
+          }
+          setVotedMissions(voted)
+        } else {
+          // 비인증 사용자는 localStorage 확인
+          const voted = new Set<string>()
+          combinedMissions.forEach((mission) => {
+            const localVote = localStorage.getItem(`rp_picked_${mission.id}`)
+            if (localVote) {
+              voted.add(mission.id)
+            }
+          })
+          setVotedMissions(voted)
+        }
+      } catch (error) {
+        console.error("미션 로딩 실패:", error)
+        // 에러 시 Mock 데이터 사용
+        setMissions(Object.values(mockMissions))
+      } finally {
+        setIsLoading(false)
       }
     }
-    keysToRemove.forEach((key) => localStorage.removeItem(key))
-  }, [])
 
-  const getSidebarTitle = () => {
-    if (selectedSeason === "전체") {
-      return `${selectedShow} 미션현황`
-    }
-    return `${selectedShow} 미션현황(${selectedSeason})`
+    loadMissions()
+  }, [userId, refreshKey])
+
+  // 미션 생성 성공 후 목록 새로고침
+  const handleMissionCreated = () => {
+    setRefreshKey(prev => prev + 1)
   }
+
+  // 유저 데이터 로드
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (isAuthenticated()) {
+        const currentUserId = getUserId()
+        if (currentUserId) {
+          try {
+            const user = await getUser(currentUserId)
+            if (user) {
+              setUserNickname(user.nickname)
+              setUserPoints(user.points)
+              setUserTier(getTierFromPoints(user.points))
+              setUserAvatarUrl(user.avatarUrl)
+            }
+          } catch (error) {
+            console.error("유저 데이터 로딩 실패:", error)
+          }
+        }
+      } else {
+        // 비로그인 상태일 때 기본값
+        setUserNickname("")
+        setUserPoints(0)
+        setUserTier(getTierFromPoints(0))
+        setUserAvatarUrl(undefined)
+      }
+    }
+
+    loadUserData()
+
+    // 인증 상태 변경 감지
+    const handleAuthChange = () => {
+      loadUserData()
+    }
+
+    // 실시간 투표 업데이트 감지
+    const handleVoteUpdate = () => {
+      console.log("🔄 투표 업데이트 감지 - 미션 목록 새로고침")
+      setRefreshKey(prev => prev + 1)
+    }
+
+    window.addEventListener("auth-change", handleAuthChange)
+    window.addEventListener("storage", handleAuthChange)
+    window.addEventListener("mission-vote-updated", handleVoteUpdate)
+
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange)
+      window.removeEventListener("storage", handleAuthChange)
+      window.removeEventListener("mission-vote-updated", handleVoteUpdate)
+    }
+  }, [])
 
   const handleSeasonSelect = (season: string) => {
     setSelectedSeason(season)
   }
 
   const hasUserVoted = (missionId: string): boolean => {
-    return MockVoteRepo.hasUserVoted(userId, missionId)
+    return votedMissions.has(missionId)
   }
 
   const shouldShowResults = (missionId: string): boolean => {
-    const mission = MockVoteRepo.getMission(missionId)
-    return mission?.status === "settled" || hasUserVoted(missionId)
+    const mission = missions.find(m => m.id === missionId)
+    if (!mission) return false
+    
+    let isClosed = false
+    
+    if (mission.form === "match") {
+      // 커플 매칭 미션: 모든 회차가 완료되면 마감
+      const episodeStatuses = mission.episodeStatuses || {}
+      const totalEpisodes = mission.episodes || 8
+      
+      // 상태가 settled이거나 모든 회차가 settled면 마감
+      isClosed = mission.status === "settled"
+      if (!isClosed) {
+        let allEpisodesSettled = true
+        for (let i = 1; i <= totalEpisodes; i++) {
+          if (episodeStatuses[i] !== "settled") {
+            allEpisodesSettled = false
+            break
+          }
+        }
+        isClosed = allEpisodesSettled
+      }
+    } else {
+      // 일반 미션: 마감 시간이 지났거나 상태가 settled인 경우
+      isClosed = mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
+    }
+    
+    // 마감되었거나 사용자가 투표한 경우 결과 보기
+    return isClosed || hasUserVoted(missionId)
   }
 
-  const orderedMissions = Object.values(mockMissions).sort((a, b) => {
-    if (a.id === "3") return -1
-    if (b.id === "3") return 1
-    if (a.id === "1") return -1
-    if (b.id === "1") return 1
-    return Number.parseInt(a.id) - Number.parseInt(b.id)
-  })
+  // 로딩 중이거나 missions가 비어있을 때 안전하게 처리
+  // 정렬: 1. 커플매칭 최우선, 2. 진행 중 미션, 3. 마감된 미션
+  const orderedMissions = Array.isArray(missions) ? missions.sort((a, b) => {
+    // 커플매칭(match) 미션을 최우선으로
+    if (a.form === "match" && b.form !== "match") return -1
+    if (a.form !== "match" && b.form === "match") return 1
+    
+    // 마감 여부 확인
+    let aIsClosed, bIsClosed
+    
+    if (a.form === "match") {
+      // 커플 매칭: 모든 회차 완료 기준
+      const aEpisodeStatuses = a.episodeStatuses || {}
+      const aTotalEpisodes = a.episodes || 8
+      aIsClosed = a.status === "settled"
+      if (!aIsClosed) {
+        let allSettled = true
+        for (let i = 1; i <= aTotalEpisodes; i++) {
+          if (aEpisodeStatuses[i] !== "settled") {
+            allSettled = false
+            break
+          }
+        }
+        aIsClosed = allSettled
+      }
+    } else {
+      // 일반 미션: 마감일 기준
+      aIsClosed = a.deadline ? isDeadlinePassed(a.deadline) : a.status === "settled"
+    }
+    
+    if (b.form === "match") {
+      // 커플 매칭: 모든 회차 완료 기준
+      const bEpisodeStatuses = b.episodeStatuses || {}
+      const bTotalEpisodes = b.episodes || 8
+      bIsClosed = b.status === "settled"
+      if (!bIsClosed) {
+        let allSettled = true
+        for (let i = 1; i <= bTotalEpisodes; i++) {
+          if (bEpisodeStatuses[i] !== "settled") {
+            allSettled = false
+            break
+          }
+        }
+        bIsClosed = allSettled
+      }
+    } else {
+      // 일반 미션: 마감일 기준
+      bIsClosed = b.deadline ? isDeadlinePassed(b.deadline) : b.status === "settled"
+    }
+    
+    // 진행 중 미션이 먼저
+    if (!aIsClosed && bIsClosed) return -1
+    if (aIsClosed && !bIsClosed) return 1
+    
+    // 같은 상태면 최신 순
+    return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+  }) : []
 
   const hotMission = orderedMissions[0]
   const regularMissions = orderedMissions.slice(1)
 
-  const handleViewPick = (mission: Mission) => {
+  const handleViewPick = (mission: TMission) => {
     setSelectedMissionForView(mission)
     setIsPickViewModalOpen(true)
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex">
-      <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 hidden md:block fixed h-full z-40 top-16">
-        <div className="p-6">
-          <nav className="space-y-2">
-            <Button variant="ghost" className="w-full justify-start gap-3 bg-pink-50 text-pink-600 hover:bg-pink-100">
-              <Home className="w-5 h-5" />홈
-            </Button>
-            <Button
-              variant="ghost"
-              className="w-full justify-start gap-3 hover:bg-gray-50"
-              onClick={() => setIsMissionModalOpen(true)}
-            >
-              <Plus className="w-5 h-5" />
-              미션 게시하기
-            </Button>
-
-            <div className="space-y-1">
-              <Button
-                variant="ghost"
-                className="w-full justify-between gap-3 hover:bg-gray-50"
-                onClick={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-              >
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5" />
-                  <div className="text-left leading-tight">
-                    <div>{selectedShow}</div>
-                    <div className="text-sm">미션현황{selectedSeason !== "전체" ? `(${selectedSeason})` : ""}</div>
-                  </div>
-                </div>
-                {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </Button>
-
-              {isMissionStatusOpen && (
-                <div className="ml-8 space-y-1">
-                  <Link href="/missions?season=all">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${
-                        selectedSeason === "전체" ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => handleSeasonSelect("전체")}
-                    >
-                      전체
-                    </Button>
-                  </Link>
-                  <Link href="/missions?season=29">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${
-                        selectedSeason === "29기" ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => handleSeasonSelect("29기")}
-                    >
-                      29기
-                    </Button>
-                  </Link>
-                  <Link href="/missions?season=28">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${
-                        selectedSeason === "28기" ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => handleSeasonSelect("28기")}
-                    >
-                      28기
-                    </Button>
-                  </Link>
-                  <Link href="/missions?season=27">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${
-                        selectedSeason === "27기" ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                      }`}
-                      onClick={() => handleSeasonSelect("27기")}
-                    >
-                      27기
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </div>
-
-            <Link href="/mypage">
-              <Button variant="ghost" className="w-full justify-start gap-3 hover:bg-gray-50">
-                <User className="w-5 h-5" />
-                마이페이지
-              </Button>
-            </Link>
-          </nav>
-        </div>
-      </aside>
+      <SidebarNavigation
+        selectedShow={selectedShow}
+        selectedSeason={selectedSeason}
+        isMissionStatusOpen={isMissionStatusOpen}
+        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+        onSeasonSelect={handleSeasonSelect}
+        onMissionModalOpen={() => setIsMissionModalOpen(true)}
+        activeNavItem="home"
+      />
 
       <div className="flex-1 flex flex-col">
-        <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-16">
-          <div className="container mx-auto px-2 sm:px-4 lg:px-8 h-full">
-            <div className="flex items-center justify-between h-full gap-2 sm:gap-4">
-              {/* 로고 - 모바일에서 적당한 크기 */}
-              <div className="flex items-center flex-shrink-0">
-                <Link href="/">
-                  <img
-                    src="/realpick-logo.png"
-                    alt="RealPick"
-                    className="w-auto cursor-pointer hover:opacity-80 transition-opacity h-20 leading-7 md:h-32"
-                  />
-                </Link>
-              </div>
-
-              {/* 프로그램 선택 - 중앙, 모바일에서 작게 */}
-              <div className="flex items-center gap-1 sm:gap-4">
-                <button
-                  className={`text-xs sm:text-base font-semibold transition-colors ${
-                    selectedShow === "나는솔로"
-                      ? "text-pink-600 hover:text-pink-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setSelectedShow("나는솔로")}
-                >
-                  나는솔로
-                </button>
-                <div className="w-px h-3 sm:h-5 bg-gray-300"></div>
-                <button
-                  className={`text-xs sm:text-base font-semibold transition-colors ${
-                    selectedShow === "돌싱글즈"
-                      ? "text-pink-600 hover:text-pink-700"
-                      : "text-gray-500 hover:text-gray-700"
-                  }`}
-                  onClick={() => setSelectedShow("돌싱글즈")}
-                >
-                  돌싱글즈
-                </button>
-              </div>
-
-              {/* 사용자 정보 - 모바일에서 축약 */}
-              <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
-                <div className="hidden sm:flex items-center gap-2 text-sm">
-                  <span className="font-medium text-gray-900">
-                    <span className="underline">{userNickname}</span>님
-                  </span>
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-                  <span className="font-medium text-gray-900">{userPoints.toLocaleString()}P</span>
-                  <span className="text-gray-400">|</span>
-                  <span className="text-pink-600 font-medium">{userTier.name}</span>
-                </div>
-                {/* 모바일용 축약 정보 */}
-                <div className="flex sm:hidden items-center gap-1 text-xs">
-                  <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
-                  <span className="font-medium text-gray-900">
-                    {userPoints >= 1000 ? `${(userPoints / 1000).toFixed(1)}K` : userPoints}
-                  </span>
-                </div>
-                <Avatar
-                  className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
-                  onClick={() => setIsProfileModalOpen(true)}
-                >
-                  <AvatarImage src={userTier.characterImage || "/placeholder.svg"} alt={userTier.name} />
-                  <AvatarFallback>{userTier.name[0]}</AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-          </div>
-        </header>
+        <AppHeader
+          selectedShow={selectedShow}
+          onShowChange={setSelectedShow}
+          userNickname={userNickname}
+          userPoints={userPoints}
+          userTier={userTier}
+          userAvatarUrl={userAvatarUrl}
+          onAvatarClick={() => router.push("/p-profile")}
+        />
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
           <div className="max-w-7xl mx-auto">
@@ -268,153 +362,49 @@ export default function HomePage() {
               </Button>
             </div>
 
-            {/* Hot Mission */}
-            <Card className="border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100 shadow-sm hover:shadow-lg hover:border-pink-300 transition-all duration-200">
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-pink-500 hover:bg-pink-600 text-white">HOT</Badge>
-                    {getSeasonBadge(hotMission) && (
-                      <Badge className="bg-purple-100 text-purple-700 font-medium">
-                        [{getSeasonBadge(hotMission)}]
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 text-sm text-gray-600">
-                    <Clock className="w-4 h-4" />
-                    <span>{hotMission.status === "settled" ? "마감됨" : "2시간 남음"}</span>
-                  </div>
-                </div>
-                <CardTitle className="text-base text-balance text-gray-900 font-semibold">
-                  {getSeasonBadge(hotMission) ? (
-                    <>
-                      <span className="text-purple-600 font-bold">[{getSeasonBadge(hotMission)}]</span>{" "}
-                      {hotMission.title}
-                    </>
-                  ) : (
-                    hotMission.title
-                  )}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-0">
-                <div className="flex items-center justify-between mb-3">
-                  <div className="text-sm text-gray-600">
-                    <span className="text-gray-900 font-semibold">
-                      {hotMission.stats?.participants?.toLocaleString()}
-                    </span>
-                    명 참여
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  {shouldShowResults(hotMission.id) ? (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-1 border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 font-medium"
-                        onClick={() => handleViewPick(hotMission)}
-                      >
-                        픽 완료
-                      </Button>
-                      <Link href={`/mission/${hotMission.id}/results`} className="flex-1">
-                        <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
-                          결과보기
-                        </Button>
-                      </Link>
-                    </>
-                  ) : (
-                    <Link href={`/mission/${hotMission.id}/vote`} className="flex-1">
-                      <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
-                        픽하기
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            {isLoading ? (
+              <div className="flex justify-center items-center py-12">
+                <div className="text-gray-500">미션을 불러오는 중...</div>
+              </div>
+            ) : orderedMissions.length > 0 ? (
+              <>
+                {/* Hot Mission */}
+                <MissionCard
+                  mission={hotMission}
+                  shouldShowResults={shouldShowResults(hotMission.id)}
+                  onViewPick={() => handleViewPick(hotMission)}
+                  variant="hot"
+                  timeLeft={hotMission.status === "settled" ? "마감됨" : "2시간 남음"}
+                />
 
-            {/* Regular Missions */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
-              {regularMissions.map((mission) => (
-                <Card
-                  key={mission.id}
-                  className="hover:shadow-lg hover:border-pink-300 transition-all duration-200 bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200"
-                >
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="secondary" className="bg-gray-200 text-gray-800 font-medium">
-                          {mission.kind === "predict" ? "예측픽" : "다수픽"}
-                        </Badge>
-                        {getSeasonBadge(mission) && (
-                          <Badge className="bg-purple-100 text-purple-700 font-medium">
-                            [{getSeasonBadge(mission)}]
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1 text-sm text-gray-600">
-                        <Clock className="w-4 h-4" />
-                        <span>{mission.status === "settled" ? "마감됨" : "진행중"}</span>
-                      </div>
-                    </div>
-                    <CardTitle className="text-base text-balance text-gray-900 font-semibold">
-                      {getSeasonBadge(mission) ? (
-                        <>
-                          <span className="text-purple-600 font-bold">[{getSeasonBadge(mission)}]</span> {mission.title}
-                        </>
-                      ) : (
-                        mission.title
-                      )}
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="pt-0">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="text-sm text-gray-600">
-                        <span className="text-gray-900 font-semibold">
-                          {mission.stats?.participants?.toLocaleString() || 0}
-                        </span>
-                        명 참여
-                      </div>
-                    </div>
-                    {shouldShowResults(mission.id) ? (
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1 border-purple-200 text-purple-600 bg-purple-50 hover:bg-purple-100 font-medium"
-                          onClick={() => handleViewPick(mission)}
-                        >
-                          픽 완료
-                        </Button>
-                        <Link href={`/mission/${mission.id}/results`} className="flex-1">
-                          <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
-                            결과보기
-                          </Button>
-                        </Link>
-                      </div>
-                    ) : (
-                      <Link href={`/mission/${mission.id}/vote`}>
-                        <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
-                          픽하기
-                        </Button>
-                      </Link>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                {/* Regular Missions */}
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                  {regularMissions.map((mission) => (
+                    <MissionCard
+                      key={mission.id}
+                      mission={mission}
+                      shouldShowResults={shouldShowResults(mission.id)}
+                      onViewPick={() => handleViewPick(mission)}
+                      variant="default"
+                    />
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="flex justify-center items-center py-12">
+                <div className="text-gray-500">진행중인 미션이 없습니다.</div>
+              </div>
+            )}
           </div>
         </main>
       </div>
 
       <BottomNavigation />
 
-      <MissionCreationModal isOpen={isMissionModalOpen} onClose={() => setIsMissionModalOpen(false)} />
-      <ProfileModal
-        isOpen={isProfileModalOpen}
-        onClose={() => setIsProfileModalOpen(false)}
-        nickname={userNickname}
-        onNicknameChange={setUserNickname}
+      <MissionCreationModal 
+        isOpen={isMissionModalOpen} 
+        onClose={() => setIsMissionModalOpen(false)}
+        onMissionCreated={handleMissionCreated}
       />
       <MyPickViewModal
         isOpen={isPickViewModalOpen}

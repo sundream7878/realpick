@@ -1,79 +1,35 @@
-export interface Mission {
-  id: string
-  kind: "predict" | "majority"
-  form: "binary" | "multi" | "match"
-  title: string
-  description?: string
-  seasonType?: "전체" | "기수별"
-  seasonNumber?: number
-  revealPolicy: "realtime" | "onClose"
-  deadline: string // ISO string
-  status: "open" | "settled"
-  options?: string[] // for binary/multi
-  matchPairs?: { left: string[]; right: string[] } // for match
-  episodes?: number // Number of episodes (e.g., 7-8 for couple matching)
-  episodeStatuses?: Record<number, "open" | "locked" | "settled"> // Status per episode
-  finalAnswer?: Array<{ left: string; right: string }> // Final correct answer for match missions
-  result?: {
-    correct?: string // for predict
-    majority?: string // for majority
-    distribution: Record<string, number> // label -> %
-  }
-  stats: { participants: number }
-}
+// RealPick Type Definitions (v9 - plan.md 기반)
+// 마지막 업데이트: 2025-01-13
+// 
+// ⚠️ DEPRECATED: 이 파일은 하위 호환성을 위해 유지됩니다.
+// 새 코드는 types/t-vote/vote.types.ts에서 타입을 import하세요.
 
-export interface Episode {
-  id: string
-  missionId: string
-  episodeNo: number
-  status: "open" | "locked" | "settled"
-}
+// 새 타입 파일에서 re-export
+export type {
+  TUser as User,
+  TTier as Tier,
+  TMission as Mission,
+  TMatchPairs as MatchPairs,
+  TMissionResult as MissionResult,
+  TEpisode as Episode,
+  TEpisodeStatus as EpisodeStatus,
+  TVote as Vote,
+  TVoteSubmission as VoteSubmission,
+  TMatchPick as MatchPick,
+  TEpisodePick as EpisodePick,
+  TResult as Result,
+  TPointLog as PointLog,
+  TSuccessComment as SuccessComment,
+} from "@/types/t-vote/vote.types"
 
-export interface EpisodePick {
-  missionId: string
-  episodeNo: number
-  pairs: Array<{ maleId: string; femaleId: string }>
-}
-
-export interface VoteSubmission {
-  missionId: string
-  userId: string
-  choice?: string // for binary/multi
-  pairs?: Array<{ left: string; right: string }> // for match
-  episodeNo?: number // Episode number for multi-episode missions
-  submittedAt: string
-}
-
-export interface SuccessComment {
-  type: "predict-success" | "predict-fail" | "majority-success" | "majority-fail"
-  messages: string[]
-}
-
-export function getScoreByEpisode(episodeNo: number): number {
-  return Math.max(100 - (episodeNo - 1) * 10, 0)
-}
-
-export function findFirstCorrectEpisode(
-  userPicks: Record<number, Array<{ left: string; right: string }>>,
-  finalAnswer: Array<{ left: string; right: string }>,
-  totalEpisodes: number,
-): { episodeNo: number; score: number } | null {
-  for (let episodeNo = 1; episodeNo <= totalEpisodes; episodeNo++) {
-    const picks = userPicks[episodeNo]
-    if (!picks || picks.length === 0) continue
-
-    // Check if all final answer pairs are in user's picks
-    const allCorrect = finalAnswer.every((answer) =>
-      picks.some((pick) => pick.left === answer.left && pick.right === answer.right),
-    )
-
-    if (allCorrect) {
-      return {
-        episodeNo,
-        score: getScoreByEpisode(episodeNo),
-      }
-    }
-  }
-
-  return null // No correct episode found
-}
+// ============================================
+// 9. Utility Functions
+// ============================================
+// ⚠️ DEPRECATED: 유틸리티 함수는 lib/utils/u-vote/vote.util.ts로 이동되었습니다.
+export {
+  getScoreByEpisode,
+  findFirstCorrectEpisode,
+  getTierByPoints,
+  calculateBinaryMultiPoints,
+  calculateMatchPoints,
+} from "./utils/u-vote/vote.util"

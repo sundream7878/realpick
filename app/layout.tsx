@@ -1,5 +1,5 @@
 import type React from "react"
-import type { Metadata } from "next"
+import type { Metadata, Viewport } from "next"
 import { GeistSans } from "geist/font/sans"
 import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
@@ -10,7 +10,17 @@ export const metadata: Metadata = {
   title: "RealPick - 리얼 예능 투표 플랫폼",
   description: "리얼 예능 특화 집단지성 투표 플랫폼",
   generator: "v0.app",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
+}
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 }
 
 export default function RootLayout({

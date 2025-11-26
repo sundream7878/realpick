@@ -1,0 +1,155 @@
+/**
+ * Supabase Auth를 사용한 실제 인증 API
+ */
+
+import { createClient } from "@/lib/supabase/client"
+import { getUser, createUser } from "@/lib/supabase/users"
+import { setAuthToken, setUserId, clearAuthToken, clearUserId } from "@/lib/auth-utils"
+
+/**
+ * 인증코드 전송 (이메일 OTP)
+ */
+export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+    
+    // Email OTP 방식 사용 (Magic Link 아님)
+    const { data, error } = await supabase.auth.signInWithOtp({
+      email: email,
+      options: {
+        shouldCreateUser: true,
+        // emailRedirectTo를 완전히 제거하여 OTP 모드 강제
+      },
+    })
+
+    if (error) {
+      console.error("인증코드 전송 실패:", error)
+      console.error("에러 상세:", JSON.stringify(error, null, 2))
+
+      // 사용자에게는 심플한 메시지만 보여줌 (쿨타임 초 단위 표시 제거)
+      if (error.status === 429 || error.code === "over_email_send_rate_limit" || error.message.includes("rate limit")) {
+        return { success: false, error: "요청이 너무 많습니다. 잠시 후 다시 시도해주세요." }
+      }
+
+      if (error.message.includes("email")) {
+        return { success: false, error: "이메일 주소를 확인해주세요." }
+      }
+
+      return { success: false, error: "인증코드 전송에 실패했습니다. 잠시 후 다시 시도해주세요." }
+    }
+
+    // 성공 시 로그 (개발 환경에서 디버깅용)
+    if (process.env.NODE_ENV === "development") {
+      console.log("인증코드 전송 성공:", email)
+      console.log("💡 개발 환경: Supabase 대시보드 > Authentication > Users에서 OTP 코드를 확인할 수 있습니다.")
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error("인증코드 전송 중 오류:", error)
+    return { success: false, error: error?.message || "인증코드 전송 중 오류가 발생했습니다." }
+  }
+}
+
+/**
+ * 인증코드 검증 및 로그인
+ */
+export async function verifyCode(
+  email: string,
+  code: string
+): Promise<{ success: boolean; userId?: string; error?: string }> {
+  try {
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: "email",
+    })
+
+    if (error) {
+      console.error("인증코드 검증 실패:", error)
+      return { success: false, error: error.message }
+    }
+
+    if (!data.user) {
+      return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
+    }
+
+    const userId = data.user.id
+
+    // 사용자 정보가 DB에 있는지 확인, 없으면 생성
+    let userData = await getUser(userId)
+    if (!userData) {
+      // 새 사용자 생성
+      const newUser = await createUser({
+        id: userId,
+        email: email,
+        nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
+        points: 0,
+        tier: "모태솔로",
+        avatarUrl: null,
+      })
+
+      if (!newUser) {
+        return { success: false, error: "사용자 생성에 실패했습니다." }
+      }
+
+      userData = newUser
+    }
+
+    // 인증 토큰 저장
+    if (data.session?.access_token) {
+      setAuthToken(data.session.access_token)
+      setUserId(userId)
+      // localStorage에도 이메일과 닉네임 저장
+      localStorage.setItem("rp_user_email", userData.email)
+      localStorage.setItem("rp_user_nickname", userData.nickname)
+    }
+
+    return { success: true, userId }
+  } catch (error) {
+    console.error("인증코드 검증 중 오류:", error)
+    return { success: false, error: "인증코드 검증 중 오류가 발생했습니다." }
+  }
+}
+
+/**
+ * 인증코드 재전송
+ */
+export async function resendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
+  return sendVerificationCode(email)
+}
+
+/**
+ * 로그아웃
+ */
+export async function logout(): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+    const { error } = await supabase.auth.signOut()
+
+    if (error) {
+      console.error("로그아웃 실패:", error)
+      return { success: false, error: error.message }
+    }
+
+    // localStorage 정리 (auth-utils 함수 사용)
+    clearAuthToken() // 이미 auth-change 이벤트 발생
+    clearUserId()
+    localStorage.removeItem("rp_user_email")
+    localStorage.removeItem("rp_user_nickname")
+    localStorage.removeItem("rp_saved_emails")
+
+    // 디버깅용 로그
+    if (process.env.NODE_ENV === "development") {
+      console.log("로그아웃 완료 - localStorage 정리됨")
+      console.log("남은 토큰:", localStorage.getItem("rp_auth_token"))
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("로그아웃 중 오류:", error)
+    return { success: false, error: "로그아웃 중 오류가 발생했습니다." }
+  }
+}
+
