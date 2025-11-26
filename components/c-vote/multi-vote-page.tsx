@@ -102,7 +102,16 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
         throw new Error("투표 제출 실패: 데이터베이스에 저장할 수 없습니다")
       }
 
-      console.log("투표 제출 성공, 참여자 수 증가 중...")
+      console.log("투표 제출 성공, 저장 확인 중...")
+
+      // 제출이 실제로 저장되었는지 확인
+      const verifyVote = await getVote1(userId, mission.id)
+      if (!verifyVote || verifyVote.choice !== selectedChoice) {
+        console.error("투표 저장 확인 실패:", { verifyVote, expected: selectedChoice })
+        throw new Error("투표가 제대로 저장되지 않았습니다. 다시 시도해주세요.")
+      }
+
+      console.log("투표 저장 확인 완료, 참여자 수 증가 중...")
 
       // 2. 미션 참여자 수 증가
       const participantsResult = await incrementMissionParticipants(mission.id)
@@ -150,7 +159,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
         console.warn("미션 데이터 업데이트 실패:", updatedMissionResult.error)
       }
 
-      // 5. 로컬 상태 업데이트
+      // 5. 로컬 상태 업데이트 (제출 성공 후 무조건 실행)
       setUserVote(selectedChoice)
       localStorage.setItem(`rp_picked_${mission.id}`, selectedChoice)
       setShowSubmissionSheet(false)
@@ -178,6 +187,10 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
     } catch (error) {
       console.error("투표 제출 에러:", error)
       const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다"
+      
+      // 에러 발생 시 모달은 열어두고 제출 상태만 해제
+      // setShowSubmissionSheet(false)를 호출하지 않음
+      
       toast({
         title: "제출 실패",
         description: errorMessage,
