@@ -68,10 +68,18 @@ export function SubmissionSheet({
             <Button
               className="flex-1 bg-gradient-to-r from-rose-500 to-purple-500 hover:from-rose-600 hover:to-purple-600 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
               onClick={async () => {
+                console.log("SubmissionSheet - 제출 버튼 클릭됨")
+                if (isSubmitting) {
+                  console.warn("SubmissionSheet - 이미 제출 중입니다")
+                  return
+                }
                 try {
+                  console.log("SubmissionSheet - onSubmit 호출 시작")
                   await onSubmit()
+                  console.log("SubmissionSheet - onSubmit 완료")
                 } catch (error) {
-                  console.error("제출 에러:", error)
+                  console.error("SubmissionSheet - 제출 에러:", error)
+                  // 에러는 handleSubmitVote에서 이미 처리되므로 여기서는 로깅만
                 }
               }}
               disabled={isSubmitting}

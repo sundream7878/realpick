@@ -236,26 +236,41 @@ export async function getAggregatedVotesMultipleEpisodes(missionId: string, epis
 
 // Binary/Multi 투표 제출
 export async function submitVote1(submission: TVoteSubmission): Promise<boolean> {
-  const supabase = createClient()
+  try {
+    const supabase = createClient()
 
-  const voteData = {
-    f_user_id: submission.userId,
-    f_mission_id: submission.missionId,
-    f_selected_option: { option: submission.choice },
-    f_submitted: true,
-    f_submitted_at: submission.submittedAt || new Date().toISOString(),
-  }
+    const voteData = {
+      f_user_id: submission.userId,
+      f_mission_id: submission.missionId,
+      f_selected_option: { option: submission.choice },
+      f_submitted: true,
+      f_submitted_at: submission.submittedAt || new Date().toISOString(),
+    }
 
-  const { error } = await supabase.from("t_pickresult1").upsert(voteData, {
-    onConflict: "f_user_id,f_mission_id",
-  })
+    console.log("submitVote1 - 제출 데이터:", voteData)
 
-  if (error) {
-    console.error("Error submitting vote1:", error)
+    const { data, error } = await supabase.from("t_pickresult1").upsert(voteData, {
+      onConflict: "f_user_id,f_mission_id",
+    })
+
+    if (error) {
+      console.error("Error submitting vote1:", {
+        error,
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        submission
+      })
+      return false
+    }
+
+    console.log("submitVote1 - 제출 성공:", data)
+    return true
+  } catch (err) {
+    console.error("submitVote1 - 예외 발생:", err)
     return false
   }
-
-  return true
 }
 
 // 커플 매칭 투표 제출

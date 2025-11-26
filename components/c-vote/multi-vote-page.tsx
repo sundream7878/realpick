@@ -87,6 +87,8 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
 
     setIsSubmitting(true)
     try {
+      console.log("투표 제출 시작:", { missionId: mission.id, userId, choice: selectedChoice })
+      
       // 1. Supabase에 투표 제출
       const voteSuccess = await submitVote1({
         missionId: mission.id,
@@ -96,14 +98,29 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       })
 
       if (!voteSuccess) {
-        throw new Error("투표 제출 실패")
+        console.error("투표 제출 실패: submitVote1이 false를 반환했습니다")
+        throw new Error("투표 제출 실패: 데이터베이스에 저장할 수 없습니다")
       }
 
+      console.log("투표 제출 성공, 참여자 수 증가 중...")
+
       // 2. 미션 참여자 수 증가
-      await incrementMissionParticipants(mission.id)
+      const participantsResult = await incrementMissionParticipants(mission.id)
+      if (!participantsResult.success) {
+        console.error("참여자 수 증가 실패:", participantsResult.error)
+        // 참여자 수 증가 실패는 치명적이지 않으므로 경고만 표시
+      }
+
+      console.log("투표 수 집계 업데이트 중...")
 
       // 3. 투표 수 집계 업데이트
-      await updateOptionVoteCounts(mission.id)
+      const voteCountsResult = await updateOptionVoteCounts(mission.id)
+      if (!voteCountsResult.success) {
+        console.error("투표 수 집계 실패:", voteCountsResult.error)
+        // 투표 수 집계 실패는 치명적이지 않으므로 경고만 표시
+      }
+
+      console.log("미션 데이터 다시 가져오는 중...")
 
       // 4. 업데이트된 미션 데이터 다시 가져오기
       const updatedMissionResult = await getMission(mission.id)
@@ -129,6 +146,8 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
           createdAt: updatedMissionResult.mission.f_created_at
         }
         setCurrentMission(updatedMission)
+      } else {
+        console.warn("미션 데이터 업데이트 실패:", updatedMissionResult.error)
       }
 
       // 5. 로컬 상태 업데이트
@@ -141,6 +160,8 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       window.dispatchEvent(new CustomEvent('mission-vote-updated', { 
         detail: { missionId: mission.id, userId } 
       }))
+      
+      console.log("투표 제출 완료!")
       
       toast({
         title: "제출 완료!",
@@ -156,9 +177,10 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       }, 500)
     } catch (error) {
       console.error("투표 제출 에러:", error)
+      const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류가 발생했습니다"
       toast({
         title: "제출 실패",
-        description: "제출 중 오류가 발생했습니다.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
