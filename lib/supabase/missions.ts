@@ -756,6 +756,9 @@ async function distributePointsForMission2(
   try {
     const supabase = createClient()
     
+    console.log(`[distributePointsForMission2] 미션 ${missionId} 포인트 지급 시작`)
+    console.log(`[distributePointsForMission2] 최종 정답:`, finalAnswer)
+    
     // 1. 미션 정보 가져오기 (총 회차 수)
     const { data: mission, error: missionError } = await supabase
       .from("t_missions2")
@@ -764,11 +767,12 @@ async function distributePointsForMission2(
       .single()
 
     if (missionError || !mission) {
-      console.error("미션 정보 조회 실패:", missionError)
+      console.error("[distributePointsForMission2] 미션 정보 조회 실패:", missionError)
       return
     }
 
     const totalEpisodes = mission.f_total_episodes || 8
+    console.log(`[distributePointsForMission2] 총 회차: ${totalEpisodes}`)
 
     // 2. 모든 참여자의 투표 가져오기 (모든 회차)
     const { data: votes, error: votesError } = await supabase
@@ -778,14 +782,16 @@ async function distributePointsForMission2(
       .eq("f_submitted", true)
 
     if (votesError) {
-      console.error("투표 조회 실패:", votesError)
+      console.error("[distributePointsForMission2] 투표 조회 실패:", votesError)
       return
     }
 
     if (!votes || votes.length === 0) {
-      console.log("참여자가 없어 포인트 지급을 건너뜁니다.")
+      console.log("[distributePointsForMission2] 참여자가 없어 포인트 지급을 건너뜁니다.")
       return
     }
+    
+    console.log(`[distributePointsForMission2] 총 투표 수: ${votes.length}`)
 
     // 3. 사용자별로 회차별 투표 그룹화
     const userVotes: Record<string, Array<{ episodeNo: number; pairs: Array<{ left: string; right: string }> }>> = {}
@@ -814,8 +820,13 @@ async function distributePointsForMission2(
     }
 
     // 4. 각 사용자에게 회차별 포인트 지급
+    let successCount = 0
+    let errorCount = 0
+    
     for (const userId in userVotes) {
       const userVoteList = userVotes[userId]
+      
+      console.log(`[distributePointsForMission2] 사용자 ${userId}: ${userVoteList.length}개 회차 투표`)
       
       // 회차별로 정답 확인 및 포인트 지급
       for (const userVote of userVoteList) {
@@ -829,8 +840,10 @@ async function distributePointsForMission2(
         // 포인트 계산 (정답: +회차 점수, 오답: -회차 점수)
         const points = calculateMatchPoints(episodeNo, isCorrect)
 
+        console.log(`[distributePointsForMission2] 사용자 ${userId} ${episodeNo}회차: 정답여부=${isCorrect}, 포인트=${points}`)
+
         // 포인트 지급
-        await addPointLog(
+        const result = await addPointLog(
           userId,
           points,
           isCorrect 
@@ -840,10 +853,18 @@ async function distributePointsForMission2(
           "mission2",
           { episodeNo }
         )
+        
+        if (result) {
+          successCount++
+          console.log(`[distributePointsForMission2] ✅ 사용자 ${userId} ${episodeNo}회차 포인트 지급 성공: ${points}P`)
+        } else {
+          errorCount++
+          console.error(`[distributePointsForMission2] ❌ 사용자 ${userId} ${episodeNo}회차 포인트 지급 실패`)
+        }
       }
     }
 
-    console.log(`✅ 포인트 지급 완료: ${Object.keys(userVotes).length}명의 참여자`)
+    console.log(`[distributePointsForMission2] ✅ 포인트 지급 완료: 성공 ${successCount}건, 실패 ${errorCount}건 / 총 ${Object.keys(userVotes).length}명의 참여자`)
   } catch (error) {
     console.error("포인트 지급 중 오류:", error)
   }
@@ -857,6 +878,8 @@ async function settleMission1(missionId: string): Promise<void> {
   try {
     const supabase = createClient()
     
+    console.log(`[settleMission1] 미션 ${missionId} 확정 시작`)
+    
     // 1. 미션 상태를 settled로 변경
     const { error: updateError } = await supabase
       .from("t_missions1")
@@ -868,14 +891,18 @@ async function settleMission1(missionId: string): Promise<void> {
       .neq("f_status", "settled")
 
     if (updateError) {
-      console.error("미션 확정 실패:", updateError)
+      console.error("[settleMission1] 미션 확정 실패:", updateError)
       return
     }
 
+    console.log(`[settleMission1] 미션 ${missionId} 상태를 settled로 변경 완료`)
+
     // 2. 포인트 지급
     await distributePointsForMission1(missionId)
+    
+    console.log(`[settleMission1] 미션 ${missionId} 확정 및 포인트 지급 완료`)
   } catch (error) {
-    console.error("미션 확정 중 오류:", error)
+    console.error("[settleMission1] 미션 확정 중 오류:", error)
   }
 }
 
@@ -886,6 +913,8 @@ async function distributePointsForMission1(missionId: string) {
   try {
     const supabase = createClient()
     
+    console.log(`[distributePointsForMission1] 미션 ${missionId} 포인트 지급 시작`)
+    
     // 1. 미션 정보 가져오기 (kind도 함께 조회)
     const { data: mission, error: missionError } = await supabase
       .from("t_missions1")
@@ -894,9 +923,16 @@ async function distributePointsForMission1(missionId: string) {
       .single()
 
     if (missionError || !mission) {
-      console.error("미션 정보 조회 실패:", missionError)
+      console.error("[distributePointsForMission1] 미션 정보 조회 실패:", missionError)
       return
     }
+    
+    console.log(`[distributePointsForMission1] 미션 정보:`, {
+      kind: mission.f_kind,
+      form: mission.f_form,
+      correct_answer: mission.f_correct_answer,
+      majority_option: mission.f_majority_option
+    })
 
     // 2. 모든 참여자의 투표 가져오기
     const { data: votes, error: votesError } = await supabase
@@ -922,18 +958,23 @@ async function distributePointsForMission1(missionId: string) {
       // 다수픽: f_majority_option 사용
       answerToCompare = mission.f_majority_option || null
     } else {
-      // 예측픽: f_correct_answer 또는 전달받은 correctAnswer 사용
-      answerToCompare = mission.f_correct_answer || correctAnswer || null
+      // 예측픽: f_correct_answer 사용
+      answerToCompare = mission.f_correct_answer || null
     }
 
     if (!answerToCompare) {
-      console.error("정답/다수 옵션이 없어 포인트 지급을 건너뜁니다.")
+      console.error("[distributePointsForMission1] 정답/다수 옵션이 없어 포인트 지급을 건너뜁니다.")
       return
     }
+
+    console.log(`[distributePointsForMission1] 정답/다수 옵션: ${answerToCompare}, 참여자 수: ${votes.length}`)
 
     // 4. 각 참여자에게 포인트 지급
     const form = mission.f_form as "binary" | "multi"
     const optionCount = (mission.f_options as string[])?.length || 0
+
+    let successCount = 0
+    let errorCount = 0
 
     for (const vote of votes) {
       const userId = vote.f_user_id
@@ -952,23 +993,33 @@ async function distributePointsForMission1(missionId: string) {
       // 포인트 계산
       const points = calculateBinaryMultiPoints(form, optionCount, isCorrect)
 
+      console.log(`[distributePointsForMission1] 사용자 ${userId}: 선택=${selectedOption}, 정답=${answerToCompare}, 정답여부=${isCorrect}, 포인트=${points}`)
+
       if (points !== 0) {
         // 포인트 지급
         const reason = isCorrect 
           ? `미션 ${missionKind === "majority" ? "다수픽" : "정답"} 보상 (${form === "binary" ? "이진" : "다중"})`
           : "미션 오답"
         
-        await addPointLog(
+        const result = await addPointLog(
           userId,
           points,
           reason,
           missionId,
           "mission1"
         )
+        
+        if (result) {
+          successCount++
+          console.log(`[distributePointsForMission1] ✅ 사용자 ${userId} 포인트 지급 성공: ${points}P`)
+        } else {
+          errorCount++
+          console.error(`[distributePointsForMission1] ❌ 사용자 ${userId} 포인트 지급 실패`)
+        }
       }
     }
 
-    console.log(`✅ 포인트 지급 완료: ${votes.length}명의 참여자 (${missionKind === "majority" ? "다수픽" : "예측픽"})`)
+    console.log(`[distributePointsForMission1] ✅ 포인트 지급 완료: 성공 ${successCount}명, 실패 ${errorCount}명 / 총 ${votes.length}명의 참여자 (${missionKind === "majority" ? "다수픽" : "예측픽"})`)
   } catch (error) {
     console.error("포인트 지급 중 오류:", error)
   }

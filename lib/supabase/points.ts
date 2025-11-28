@@ -52,30 +52,57 @@ export async function addPointLog(
     f_metadata: metadata || null,
   }
 
+  console.log(`[addPointLog] 포인트 로그 저장 시도:`, logData)
+  
   const { data, error } = await supabase.from("t_pointlogs").insert(logData).select().single()
 
   if (error) {
-    console.error("Error adding point log:", error)
+    console.error("[addPointLog] 포인트 로그 저장 실패:", error)
+    console.error("[addPointLog] 에러 상세:", JSON.stringify(error, null, 2))
     return null
   }
+  
+  console.log(`[addPointLog] 포인트 로그 저장 성공:`, data)
 
   // 사용자 포인트 업데이트 (티어도 자동 업데이트)
-  const { data: user } = await supabase.from("t_users").select("f_points").eq("f_id", userId).single()
+  const { data: user, error: userError } = await supabase.from("t_users").select("f_points").eq("f_id", userId).single()
+  
+  if (userError) {
+    console.error("[addPointLog] 사용자 정보 조회 실패:", userError)
+    return {
+      id: data.f_id,
+      userId: data.f_user_id,
+      missionId: data.f_mission_id || undefined,
+      diff: data.f_diff,
+      reason: data.f_reason,
+      createdAt: data.f_created_at,
+    }
+  }
+  
   if (user) {
+    const oldPoints = user.f_points
     const newPoints = Math.max(0, user.f_points + diff)
     
     // 포인트에 따른 티어 계산 (TypeScript 코드 기준)
     const tierInfo = getTierFromPoints(newPoints)
     const tierName = tierInfo.name as TTier
     
+    console.log(`[addPointLog] 사용자 ${userId} 포인트 업데이트: ${oldPoints} → ${newPoints} (변동: ${diff > 0 ? '+' : ''}${diff}), 티어: ${tierName}`)
+    
     // 포인트와 티어를 함께 업데이트
-    await supabase
+    const { error: updateError } = await supabase
       .from("t_users")
       .update({ 
         f_points: newPoints,
         f_tier: tierName
       })
       .eq("f_id", userId)
+    
+    if (updateError) {
+      console.error("[addPointLog] 사용자 포인트/티어 업데이트 실패:", updateError)
+    } else {
+      console.log(`[addPointLog] 사용자 ${userId} 포인트/티어 업데이트 성공`)
+    }
   }
 
   return {
