@@ -24,6 +24,8 @@ export async function getUser(userId: string): Promise<TUser | null> {
     avatarUrl: data.f_avatar_url,
     points: data.f_points,
     tier: data.f_tier,
+    ageRange: data.f_age_range || undefined,
+    gender: data.f_gender || undefined,
     createdAt: data.f_created_at,
     updatedAt: data.f_updated_at,
   } as TUser
@@ -87,6 +89,33 @@ export async function updateUserProfile(
   return true
 }
 
+// 사용자 추가 정보 업데이트 (나잇대, 성별)
+export async function updateUserAdditionalInfo(
+  userId: string,
+  updates: { ageRange?: string; gender?: string }
+): Promise<boolean> {
+  const supabase = createClient()
+  const dbUpdates: Record<string, any> = {}
+  
+  if (updates.ageRange !== undefined) dbUpdates.f_age_range = updates.ageRange
+  if (updates.gender !== undefined) dbUpdates.f_gender = updates.gender
+  
+  // 나잇대와 성별이 모두 필수인 경우 검증
+  if (updates.ageRange === undefined || updates.gender === undefined) {
+    console.error("나잇대와 성별은 필수 입력 항목입니다.")
+    return false
+  }
+  
+  const { error } = await supabase.from("t_users").update(dbUpdates).eq("f_id", userId)
+
+  if (error) {
+    console.error("Error updating user additional info:", error)
+    return false
+  }
+
+  return true
+}
+
 // 사용자 생성
 export async function createUser(user: Omit<TUser, "createdAt" | "updatedAt">): Promise<TUser | null> {
   const supabase = createClient()
@@ -97,6 +126,8 @@ export async function createUser(user: Omit<TUser, "createdAt" | "updatedAt">): 
     f_avatar_url: user.avatarUrl,
     f_points: user.points,
     f_tier: user.tier,
+    f_age_range: user.ageRange || null,
+    f_gender: user.gender || null,
   }
   const { data, error } = await supabase.from("t_users").insert(dbUser).select().single()
 
@@ -112,6 +143,8 @@ export async function createUser(user: Omit<TUser, "createdAt" | "updatedAt">): 
     avatarUrl: data.f_avatar_url,
     points: data.f_points,
     tier: data.f_tier,
+    ageRange: data.f_age_range || undefined,
+    gender: data.f_gender || undefined,
     createdAt: data.f_created_at,
     updatedAt: data.f_updated_at,
   } as TUser
@@ -138,6 +171,8 @@ export async function getUserRanking(limit: number = 100): Promise<TUser[]> {
     avatarUrl: d.f_avatar_url,
     points: d.f_points,
     tier: d.f_tier,
+    ageRange: d.f_age_range || undefined,
+    gender: d.f_gender || undefined,
     createdAt: d.f_created_at,
     updatedAt: d.f_updated_at,
   })) as TUser[]

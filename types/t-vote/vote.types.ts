@@ -11,6 +11,8 @@ export interface TUser {
   avatarUrl?: string
   points: number
   tier: TTier
+  ageRange?: string // 나잇대 (10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대, 90대)
+  gender?: string // 성별 (남성, 여성)
   createdAt: string
   updatedAt: string
 }
