@@ -14,7 +14,7 @@ import { MockVoteRepo, mockMissions } from "@/lib/mock-vote-data"
 import { getMissions, getMissions2 } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/supabase/users"
@@ -184,7 +184,7 @@ export default function HomePage() {
             if (user) {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
-              setUserTier(getTierFromPoints(user.points))
+              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {

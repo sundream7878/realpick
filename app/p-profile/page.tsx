@@ -12,7 +12,7 @@ import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { isAuthenticated, getUserId } from "@/lib/auth-utils"
 import { logout } from "@/lib/auth-api"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getUser, updateUserProfile } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
@@ -54,7 +54,7 @@ export default function ProfilePage() {
               setUserNickname(user.nickname)
               setUserEmail(user.email)
               setUserPoints(user.points)
-              setUserTier(getTierFromPoints(user.points))
+              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setUserAvatarUrl(user.avatarUrl)
               setEditedNickname(user.nickname)
             }

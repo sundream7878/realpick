@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Heart, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Plus, X } from "lucide-react"
 import { useState, useEffect, useCallback } from "react"
 import Link from "next/link"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import type { TMission, TMatchPairs } from "@/types/t-vote/vote.types"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -59,7 +59,7 @@ export default function MyPage() {
           if (user) {
             setUserNickname(user.nickname)
             setUserPoints(user.points)
-            setUserTier(getTierFromPoints(user.points))
+            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
             setUserAvatarUrl(user.avatarUrl)
           }
         } catch (error) {

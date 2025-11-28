@@ -10,7 +10,7 @@ import { SubjectiveVotePage } from "@/components/c-vote/subjective-vote-page"
 import { Button } from "@/components/c-ui/button"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
@@ -47,7 +47,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
             if (user) {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
-              setUserTier(getTierFromPoints(user.points))
+              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {

@@ -57,3 +57,28 @@ export function getTierImageFromPoints(points: number): string {
   return getTierFromPoints(points).characterImage
 }
 
+/**
+ * DB의 티어를 우선 사용하되, 없거나 유효하지 않은 경우 포인트로 계산
+ * @param dbTier DB에 저장된 티어 (선택적)
+ * @param points 사용자 포인트
+ * @returns TTierInfo
+ */
+export function getTierFromDbOrPoints(dbTier: string | null | undefined, points: number): TTierInfo {
+  // DB 티어가 있고 유효한 경우 사용
+  if (dbTier) {
+    const tier = TIERS.find(t => t.name === dbTier)
+    if (tier) {
+      // DB 티어가 포인트와 일치하는지 확인 (일치하지 않으면 포인트 기준으로 재계산)
+      const calculatedTier = getTierFromPoints(points)
+      if (tier.name === calculatedTier.name) {
+        return tier
+      }
+      // DB 티어가 오래된 경우 포인트 기준으로 재계산
+      return calculatedTier
+    }
+  }
+  
+  // DB 티어가 없거나 유효하지 않은 경우 포인트로 계산
+  return getTierFromPoints(points)
+}
+

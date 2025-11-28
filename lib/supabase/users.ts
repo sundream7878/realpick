@@ -1,5 +1,6 @@
 import { createClient } from "./client"
 import type { TUser, TTier } from "@/types/t-vote/vote.types"
+import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 
 /**
  * 사용자 데이터 읽기/수정 함수
@@ -28,10 +29,22 @@ export async function getUser(userId: string): Promise<TUser | null> {
   } as TUser
 }
 
-// 사용자 포인트 업데이트
+// 사용자 포인트 업데이트 (티어도 자동 업데이트)
 export async function updateUserPoints(userId: string, newPoints: number): Promise<boolean> {
   const supabase = createClient()
-  const { error } = await supabase.from("t_users").update({ f_points: newPoints }).eq("f_id", userId)
+  
+  // 포인트에 따른 티어 계산 (TypeScript 코드 기준)
+  const tierInfo = getTierFromPoints(newPoints)
+  const tierName = tierInfo.name as TTier
+  
+  // 포인트와 티어를 함께 업데이트
+  const { error } = await supabase
+    .from("t_users")
+    .update({ 
+      f_points: newPoints,
+      f_tier: tierName
+    })
+    .eq("f_id", userId)
 
   if (error) {
     console.error("Error updating user points:", error)

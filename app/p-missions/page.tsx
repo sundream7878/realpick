@@ -16,7 +16,7 @@ import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 
@@ -168,7 +168,7 @@ export default function MissionsPage() {
             if (user) {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
-              setUserTier(getTierFromPoints(user.points))
+              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {

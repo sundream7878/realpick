@@ -14,7 +14,7 @@ import { getMission, getMission2 } from "@/lib/supabase/missions"
 import { getVote1 } from "@/lib/supabase/votes"
 import { getUserId } from "@/lib/auth-utils"
 import type { TMission } from "@/types/t-vote/vote.types"
-import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import MyPicksModal from "@/components/c-my-picks-modal/my-picks-modal"
 import { ResultCharacterPopup } from "@/components/c-result-character-popup/result-character-popup"
@@ -60,7 +60,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             if (user) {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
-              setUserTier(getTierFromPoints(user.points))
+              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {
