@@ -334,23 +334,15 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
       return { success: false, error: "투표 수 업데이트에 실패했습니다." }
     }
 
-    // 다수픽 미션이고 아직 확정되지 않았으며, majority_option이 설정되고 마감 시간이 지난 경우 포인트 지급
+    // 다수픽 미션이고 아직 확정되지 않았으며, majority_option이 설정되고 마감 시간이 지난 경우 자동 확정
     if (missionInfo && missionInfo.f_kind === "majority" && missionInfo.f_status !== "settled" && majorityOption) {
       // 마감 시간 확인
       const isDeadlinePassed = missionInfo.f_deadline ? new Date(missionInfo.f_deadline) < new Date() : false
       
       if (isDeadlinePassed) {
         // 다수픽 미션은 majority_option이 설정되고 마감 시간이 지나면 자동으로 확정
-        await supabase
-          .from("t_missions1")
-          .update({
-            f_status: "settled",
-            f_updated_at: new Date().toISOString()
-          })
-          .eq("f_id", missionId)
-
-        // 포인트 지급
-        await distributePointsForMission1(missionId)
+        // settleMission1 함수를 통해 확정 및 포인트 지급
+        await settleMission1(missionId)
       }
     }
 
@@ -620,11 +612,11 @@ export async function submitPredictMissionAnswer(
       return { success: false, error: "정답을 입력해주세요." }
     }
 
+    // 정답 저장
     const { data, error } = await supabase
       .from("t_missions1")
       .update({
         f_correct_answer: trimmedAnswer,
-        f_status: "settled",
         f_updated_at: new Date().toISOString(),
       })
       .eq("f_id", missionId)
@@ -642,8 +634,8 @@ export async function submitPredictMissionAnswer(
       return { success: false, error: "이미 결과가 확정된 미션입니다." }
     }
 
-    // 포인트 지급: 모든 참여자의 투표 확인 및 포인트 지급
-    await distributePointsForMission1(missionId, trimmedAnswer)
+    // 미션 확정 및 포인트 지급 (통합 함수 사용)
+    await settleMission1(missionId)
 
     return { success: true }
   } catch (error) {
@@ -858,9 +850,39 @@ async function distributePointsForMission2(
 }
 
 /**
+ * 이진/다중 선택 미션 확정 및 포인트 지급 (통합 함수)
+ * 모든 미션 확정 경로에서 이 함수를 사용하여 일관성 보장
+ */
+async function settleMission1(missionId: string): Promise<void> {
+  try {
+    const supabase = createClient()
+    
+    // 1. 미션 상태를 settled로 변경
+    const { error: updateError } = await supabase
+      .from("t_missions1")
+      .update({
+        f_status: "settled",
+        f_updated_at: new Date().toISOString()
+      })
+      .eq("f_id", missionId)
+      .neq("f_status", "settled")
+
+    if (updateError) {
+      console.error("미션 확정 실패:", updateError)
+      return
+    }
+
+    // 2. 포인트 지급
+    await distributePointsForMission1(missionId)
+  } catch (error) {
+    console.error("미션 확정 중 오류:", error)
+  }
+}
+
+/**
  * 이진/다중 선택 미션의 포인트 지급
  */
-async function distributePointsForMission1(missionId: string, correctAnswer?: string) {
+async function distributePointsForMission1(missionId: string) {
   try {
     const supabase = createClient()
     
@@ -1026,6 +1048,11 @@ export async function checkAndAutoSettleCoupleMission(missionId: string): Promis
       if (updateError) {
         console.error("자동 마감 처리 실패:", updateError)
         return { success: false, error: "자동 마감 처리에 실패했습니다." }
+      }
+      
+      // 최종 정답이 있으면 포인트 지급
+      if (mission.f_final_answer) {
+        await distributePointsForMission2(missionId, mission.f_final_answer)
       }
       
       return { success: true, settled: true }
@@ -1242,6 +1269,7 @@ export async function updateEpisodeStatuses(
     }
     
     if (allEpisodesSettled && mission.f_status !== "settled") {
+      // 미션 상태를 settled로 변경
       const { error: statusUpdateError } = await supabase
         .from("t_missions2")
         .update({
@@ -1255,6 +1283,17 @@ export async function updateEpisodeStatuses(
         // 회차 상태는 변경되었으므로 성공으로 처리
       } else {
         console.log("🎉 모든 회차 마감 → 미션 자동 마감 처리")
+        
+        // 최종 정답이 있으면 포인트 지급
+        const { data: missionWithAnswer } = await supabase
+          .from("t_missions2")
+          .select("f_final_answer")
+          .eq("f_id", missionId)
+          .single()
+        
+        if (missionWithAnswer?.f_final_answer) {
+          await distributePointsForMission2(missionId, missionWithAnswer.f_final_answer)
+        }
       }
     }
     
