@@ -12,7 +12,8 @@ import {
   SelectValue,
 } from "@/components/c-ui/select"
 import { updateUserAdditionalInfo } from "@/lib/supabase/users"
-import { getUserId } from "@/lib/auth-utils"
+import { getUserId, setAuthToken } from "@/lib/auth-utils"
+import { createClient } from "@/lib/supabase/client"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 
 const AGE_RANGES = ["10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대", "90대"] as const
@@ -72,8 +73,15 @@ export default function AuthSetupPage() {
         throw new Error("정보 저장 실패")
       }
 
-      // 인증 상태 변경 이벤트 발생
-      window.dispatchEvent(new Event("auth-change"))
+      // 추가 정보 저장 후 완전한 로그인 상태로 만들기
+      // Supabase 세션에서 access_token 가져오기
+      const supabase = createClient()
+      const { data: { session } } = await supabase.auth.getSession()
+      
+      if (session?.access_token) {
+        // 이제 완전한 로그인 상태로 만들기
+        setAuthToken(session.access_token)
+      }
 
       toast({
         title: "저장 완료",

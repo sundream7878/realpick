@@ -30,22 +30,15 @@ export default function AuthCallbackPage() {
 
         // 신규 사용자 여부 확인
         const isNewUser = result.isNewUser
+        const needsSetup = result.needsSetup ?? false
 
-        if (isNewUser) {
-          // 신규 사용자는 추가 정보 입력 페이지로 리다이렉트
-          router.push("/auth/setup?new=true")
+        // 나잇대/성별이 없으면 추가 정보 입력 페이지로 리다이렉트
+        if (needsSetup || isNewUser) {
+          router.push(`/auth/setup?new=${isNewUser}`)
         } else {
-          // 기존 사용자는 사용자 정보 확인
-          const userData = await getUser(result.userId)
-          
-          // 나잇대/성별이 없는 기존 사용자도 추가 정보 입력 페이지로 리다이렉트
-          if (!userData?.ageRange || !userData?.gender) {
-            router.push("/auth/setup?new=false")
-          } else {
-            // 모든 정보가 있으면 홈으로 리다이렉트
-            window.dispatchEvent(new Event("auth-change"))
-            router.push("/")
-          }
+          // 모든 정보가 있으면 홈으로 리다이렉트
+          window.dispatchEvent(new Event("auth-change"))
+          router.push("/")
         }
       } catch (error) {
         console.error("콜백 처리 중 오류:", error)

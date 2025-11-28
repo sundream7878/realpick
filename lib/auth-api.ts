@@ -63,6 +63,7 @@ export async function handleMagicLinkCallback(): Promise<{
   success: boolean
   userId?: string
   isNewUser?: boolean
+  needsSetup?: boolean
   error?: string 
 }> {
   try {
@@ -107,7 +108,7 @@ export async function handleMagicLinkCallback(): Promise<{
         nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
         points: 0,
         tier: "모태솔로",
-        avatarUrl: null,
+        avatarUrl: undefined,
       })
 
       if (!newUser) {
@@ -117,16 +118,35 @@ export async function handleMagicLinkCallback(): Promise<{
       userData = newUser
     }
 
-    // 인증 토큰 저장
-    if (sessionData.session?.access_token) {
-      setAuthToken(sessionData.session.access_token)
-      setUserId(userId)
-      // localStorage에도 이메일과 닉네임 저장
-      localStorage.setItem("rp_user_email", userData.email)
-      localStorage.setItem("rp_user_nickname", userData.nickname)
+    if (!userData) {
+      return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
     }
 
-    return { success: true, userId, isNewUser }
+    // 나잇대/성별이 없으면 추가 정보 입력 필요
+    const needsSetup = !userData.ageRange || !userData.gender
+
+    // 추가 정보 입력이 필요한 경우에는 완전한 로그인 상태로 만들지 않음
+    if (!needsSetup) {
+      // 인증 토큰 저장 (완전한 로그인)
+      if (sessionData.session?.access_token) {
+        setAuthToken(sessionData.session.access_token)
+        setUserId(userId)
+        // localStorage에도 이메일과 닉네임 저장
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+      }
+    } else {
+      // 추가 정보 입력이 필요한 경우 세션만 임시 저장
+      if (sessionData.session?.access_token) {
+        // 세션은 Supabase가 자동으로 관리하므로, userId만 저장
+        setUserId(userId)
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+        // auth-change 이벤트는 발생시키지 않음 (아직 완전한 로그인 아님)
+      }
+    }
+
+    return { success: true, userId, isNewUser, needsSetup }
   } catch (error) {
     console.error("매직링크 콜백 처리 중 오류:", error)
     return { success: false, error: "매직링크 처리 중 오류가 발생했습니다." }
@@ -140,7 +160,7 @@ export async function handleMagicLinkCallback(): Promise<{
 export async function verifyCode(
   email: string,
   code: string
-): Promise<{ success: boolean; userId?: string; error?: string }> {
+): Promise<{ success: boolean; userId?: string; needsSetup?: boolean; error?: string }> {
   try {
     const supabase = createClient()
     const { data, error } = await supabase.auth.verifyOtp({
@@ -162,15 +182,17 @@ export async function verifyCode(
 
     // 사용자 정보가 DB에 있는지 확인, 없으면 생성
     let userData = await getUser(userId)
-    if (!userData) {
-      // 새 사용자 생성
+    const isNewUser = !userData
+    
+    if (isNewUser) {
+      // 새 사용자 생성 (나잇대/성별은 아직 없음)
       const newUser = await createUser({
         id: userId,
         email: email,
         nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
         points: 0,
         tier: "모태솔로",
-        avatarUrl: null,
+        avatarUrl: undefined,
       })
 
       if (!newUser) {
@@ -180,16 +202,35 @@ export async function verifyCode(
       userData = newUser
     }
 
-    // 인증 토큰 저장
-    if (data.session?.access_token) {
-      setAuthToken(data.session.access_token)
-      setUserId(userId)
-      // localStorage에도 이메일과 닉네임 저장
-      localStorage.setItem("rp_user_email", userData.email)
-      localStorage.setItem("rp_user_nickname", userData.nickname)
+    if (!userData) {
+      return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
     }
 
-    return { success: true, userId }
+    // 나잇대/성별이 없으면 추가 정보 입력 필요
+    const needsSetup = !userData.ageRange || !userData.gender
+
+    // 추가 정보 입력이 필요한 경우에는 토큰을 저장하지 않음 (setup 페이지에서 처리)
+    if (!needsSetup) {
+      // 인증 토큰 저장
+      if (data.session?.access_token) {
+        setAuthToken(data.session.access_token)
+        setUserId(userId)
+        // localStorage에도 이메일과 닉네임 저장
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+      }
+    } else {
+      // 추가 정보 입력이 필요한 경우 세션만 임시 저장 (브라우저 세션)
+      if (data.session?.access_token) {
+        // 세션은 Supabase가 자동으로 관리하므로, userId만 저장
+        setUserId(userId)
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+        // auth-change 이벤트는 발생시키지 않음 (아직 완전한 로그인 아님)
+      }
+    }
+
+    return { success: true, userId, needsSetup }
   } catch (error) {
     console.error("인증코드 검증 중 오류:", error)
     return { success: false, error: "인증코드 검증 중 오류가 발생했습니다." }
