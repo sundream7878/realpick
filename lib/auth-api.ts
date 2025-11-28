@@ -69,24 +69,109 @@ export async function handleMagicLinkCallback(): Promise<{
   try {
     const supabase = createClient()
     
-    // URL에서 토큰 추출
-    const hashParams = new URLSearchParams(window.location.hash.substring(1))
-    const accessToken = hashParams.get("access_token")
-    const type = hashParams.get("type")
+    // 먼저 현재 세션 확인 (Supabase가 자동으로 URL hash를 처리했을 수 있음)
+    const { data: { session: existingSession } } = await supabase.auth.getSession()
     
-    if (!accessToken || type !== "magiclink") {
-      return { success: false, error: "유효하지 않은 매직링크입니다." }
+    if (existingSession?.user) {
+      // 이미 세션이 있으면 사용
+      const userId = existingSession.user.id
+      const email = existingSession.user.email
+
+      if (!email) {
+        return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
+      }
+
+      // 사용자 정보가 DB에 있는지 확인
+      let userData = await getUser(userId)
+      const isNewUser = !userData
+
+      if (isNewUser) {
+        const newUser = await createUser({
+          id: userId,
+          email: email,
+          nickname: email.split("@")[0] || "사용자",
+          points: 0,
+          tier: "모태솔로",
+          avatarUrl: undefined,
+        })
+
+        if (!newUser) {
+          return { success: false, error: "사용자 생성에 실패했습니다." }
+        }
+
+        userData = newUser
+      }
+
+      if (!userData) {
+        return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
+      }
+
+      const needsSetup = !userData.ageRange || !userData.gender
+
+      if (!needsSetup) {
+        if (existingSession.access_token) {
+          setAuthToken(existingSession.access_token)
+          setUserId(userId)
+          localStorage.setItem("rp_user_email", userData.email)
+          localStorage.setItem("rp_user_nickname", userData.nickname)
+        }
+      } else {
+        setUserId(userId)
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+      }
+
+      return { success: true, userId, isNewUser, needsSetup }
+    }
+
+    // 세션이 없으면 URL에서 토큰 추출 시도
+    // Hash fragment에서 추출
+    let accessToken: string | null = null
+    let refreshToken: string | null = null
+    let type: string | null = null
+
+    if (window.location.hash) {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      accessToken = hashParams.get("access_token")
+      refreshToken = hashParams.get("refresh_token")
+      type = hashParams.get("type")
+    }
+
+    // Query parameter에서도 시도 (일부 환경에서 hash가 작동하지 않을 수 있음)
+    if (!accessToken && window.location.search) {
+      const queryParams = new URLSearchParams(window.location.search)
+      accessToken = queryParams.get("access_token")
+      refreshToken = queryParams.get("refresh_token")
+      type = queryParams.get("type")
+    }
+
+    console.log("[handleMagicLinkCallback] URL 정보:", {
+      hash: window.location.hash,
+      search: window.location.search,
+      accessToken: accessToken ? "있음" : "없음",
+      type,
+    })
+
+    if (!accessToken) {
+      console.error("[handleMagicLinkCallback] access_token을 찾을 수 없습니다.")
+      return { success: false, error: "유효하지 않은 매직링크입니다. 토큰을 찾을 수 없습니다." }
+    }
+
+    // 타입 체크 (magiclink 또는 email 모두 허용)
+    if (type && type !== "magiclink" && type !== "email") {
+      console.warn(`[handleMagicLinkCallback] 예상치 못한 타입: ${type}`)
+      // 타입이 없거나 다른 경우에도 계속 진행 (일부 환경에서 타입이 없을 수 있음)
     }
 
     // 세션 설정
     const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
       access_token: accessToken,
-      refresh_token: hashParams.get("refresh_token") || "",
+      refresh_token: refreshToken || "",
     })
 
     if (sessionError || !sessionData.user) {
-      console.error("세션 설정 실패:", sessionError)
-      return { success: false, error: "세션 설정에 실패했습니다." }
+      console.error("[handleMagicLinkCallback] 세션 설정 실패:", sessionError)
+      return { success: false, error: `세션 설정에 실패했습니다: ${sessionError?.message || "알 수 없는 오류"}` }
     }
 
     const userId = sessionData.user.id
