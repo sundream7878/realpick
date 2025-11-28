@@ -58,7 +58,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       const result = await sendVerificationCode(email)
 
       if (!result.success) {
-        alert(result.error || "매직링크 전송에 실패했습니다.")
+        alert(result.error || "링크 전송에 실패했습니다.")
         return
       }
 
@@ -81,8 +81,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
       setStep("sent")
     } catch (error) {
-      console.error("매직링크 전송 실패:", error)
-      alert("매직링크 전송 중 오류가 발생했습니다.")
+      console.error("링크 전송 실패:", error)
+      alert("링크 전송 중 오류가 발생했습니다.")
     } finally {
       setIsLoading(false)
     }
@@ -95,13 +95,13 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
       const result = await resendVerificationCode(email)
 
       if (!result.success) {
-        alert(result.error || "매직링크 재전송에 실패했습니다.")
+        alert(result.error || "링크 재전송에 실패했습니다.")
       } else {
-        alert("매직링크가 재전송되었습니다.")
+        alert("링크가 재전송되었습니다.")
       }
     } catch (error) {
-      console.error("매직링크 재전송 실패:", error)
-      alert("매직링크 재전송 중 오류가 발생했습니다.")
+      console.error("링크 재전송 실패:", error)
+      alert("링크 재전송 중 오류가 발생했습니다.")
     } finally {
       setIsResending(false)
     }
@@ -193,7 +193,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     전송 중...
                   </div>
                 ) : (
-                  "매직링크 받기"
+                  "링크 받기"
                 )}
               </Button>
 
@@ -202,7 +202,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               </p>
             </form>
           ) : (
-            /* 매직링크 전송 완료 안내 */
+            /* 링크 전송 완료 안내 */
             <div className="space-y-6">
               <div className="flex flex-col items-center justify-center space-y-4 py-4">
                 <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center">
@@ -211,7 +211,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold text-gray-900">이메일을 확인해주세요</h3>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-900">{email}</span>로 매직링크를 전송했습니다.
+                    <span className="font-medium text-gray-900">{email}</span>로 링크를 전송했습니다.
                   </p>
                   <p className="text-sm text-gray-600">
                     이메일의 링크를 클릭하면 로그인됩니다.
@@ -238,7 +238,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     disabled={isResending}
                     className="text-sm text-rose-600 hover:text-rose-700 disabled:text-gray-400"
                   >
-                    {isResending ? "재전송 중..." : "매직링크 재전송"}
+                    {isResending ? "재전송 중..." : "링크 재전송"}
                   </button>
                 </div>
               </div>

@@ -13,7 +13,7 @@ export default function AuthCallbackPage() {
   useEffect(() => {
     const processCallback = async () => {
       try {
-        // 매직링크 콜백 처리
+        // 링크 콜백 처리
         const result = await handleMagicLinkCallback()
 
         if (!result.success) {

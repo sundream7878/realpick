@@ -7,7 +7,7 @@ import { getUser, createUser } from "@/lib/supabase/users"
 import { setAuthToken, setUserId, clearAuthToken, clearUserId } from "@/lib/auth-utils"
 
 /**
- * 매직링크 전송 (이메일)
+ * 링크 전송 (이메일)
  */
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   try {
@@ -18,7 +18,7 @@ export async function sendVerificationCode(email: string): Promise<{ success: bo
       ? `${window.location.origin}/auth/callback`
       : `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`
     
-    // 매직링크 방식 사용
+    // 링크 방식 사용
     const { data, error } = await supabase.auth.signInWithOtp({
       email: email,
       options: {
@@ -28,7 +28,7 @@ export async function sendVerificationCode(email: string): Promise<{ success: bo
     })
 
     if (error) {
-      console.error("매직링크 전송 실패:", error)
+      console.error("링크 전송 실패:", error)
       console.error("에러 상세:", JSON.stringify(error, null, 2))
 
       // 사용자에게는 심플한 메시지만 보여줌
@@ -40,24 +40,24 @@ export async function sendVerificationCode(email: string): Promise<{ success: bo
         return { success: false, error: "이메일 주소를 확인해주세요." }
       }
 
-      return { success: false, error: "매직링크 전송에 실패했습니다. 잠시 후 다시 시도해주세요." }
+      return { success: false, error: "링크 전송에 실패했습니다. 잠시 후 다시 시도해주세요." }
     }
 
     // 성공 시 로그 (개발 환경에서 디버깅용)
     if (process.env.NODE_ENV === "development") {
-      console.log("매직링크 전송 성공:", email)
+      console.log("링크 전송 성공:", email)
       console.log("💡 이메일을 확인하고 링크를 클릭해주세요.")
     }
 
     return { success: true }
   } catch (error: any) {
-    console.error("매직링크 전송 중 오류:", error)
-    return { success: false, error: error?.message || "매직링크 전송 중 오류가 발생했습니다." }
+    console.error("링크 전송 중 오류:", error)
+    return { success: false, error: error?.message || "링크 전송 중 오류가 발생했습니다." }
   }
 }
 
 /**
- * 매직링크 콜백 처리 (URL에서 토큰 추출 및 세션 생성)
+ * 링크 콜백 처리 (URL에서 토큰 추출 및 세션 생성)
  */
 export async function handleMagicLinkCallback(): Promise<{ 
   success: boolean
@@ -154,7 +154,7 @@ export async function handleMagicLinkCallback(): Promise<{
 
     if (!accessToken) {
       console.error("[handleMagicLinkCallback] access_token을 찾을 수 없습니다.")
-      return { success: false, error: "유효하지 않은 매직링크입니다. 토큰을 찾을 수 없습니다." }
+      return { success: false, error: "유효하지 않은 링크입니다. 토큰을 찾을 수 없습니다." }
     }
 
     // 타입 체크 (magiclink 또는 email 모두 허용)
@@ -233,14 +233,14 @@ export async function handleMagicLinkCallback(): Promise<{
 
     return { success: true, userId, isNewUser, needsSetup }
   } catch (error) {
-    console.error("매직링크 콜백 처리 중 오류:", error)
-    return { success: false, error: "매직링크 처리 중 오류가 발생했습니다." }
+    console.error("링크 콜백 처리 중 오류:", error)
+    return { success: false, error: "링크 처리 중 오류가 발생했습니다." }
   }
 }
 
 /**
  * 인증코드 검증 및 로그인 (하위 호환성을 위해 유지, 사용 안 함)
- * @deprecated 매직링크 방식으로 변경됨. handleMagicLinkCallback 사용 권장
+ * @deprecated 링크 방식으로 변경됨. handleMagicLinkCallback 사용 권장
  */
 export async function verifyCode(
   email: string,
@@ -323,7 +323,7 @@ export async function verifyCode(
 }
 
 /**
- * 매직링크 재전송
+ * 링크 재전송
  */
 export async function resendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   return sendVerificationCode(email)
