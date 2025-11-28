@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { Button } from "@/components/c-ui/button"
 import { Label } from "@/components/c-ui/label"
 import {
@@ -45,7 +46,7 @@ export default function AuthSetupPage() {
     if (!ageRange || !gender) {
       toast({
         title: "입력 필요",
-        description: "나잇대와 성별을 모두 선택해주세요.",
+        description: "나이대와 성별을 모두 선택해주세요.",
         variant: "destructive",
       })
       return
@@ -109,9 +110,16 @@ export default function AuthSetupPage() {
         <div className="bg-white rounded-2xl shadow-lg p-8 space-y-6">
           {/* 헤더 */}
           <div className="text-center">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-500 to-pink-600 bg-clip-text text-transparent mb-2">
-              RealPick
-            </h1>
+            <div className="flex justify-center mb-4">
+              <Image
+                src="/realpick-logo.png"
+                alt="RealPick"
+                width={120}
+                height={40}
+                className="h-auto"
+                priority
+              />
+            </div>
             <p className="text-gray-700 text-base">
               {isNewUser ? "환영합니다! 추가 정보를 입력해주세요." : "추가 정보를 입력해주세요."}
             </p>
@@ -119,14 +127,14 @@ export default function AuthSetupPage() {
 
           {/* 폼 */}
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* 나잇대 선택 */}
+            {/* 나이대 선택 */}
             <div className="space-y-2">
               <Label htmlFor="ageRange" className="text-gray-700 text-sm font-medium">
-                나잇대 <span className="text-rose-500">*</span>
+                나이대 <span className="text-rose-500">*</span>
               </Label>
               <Select value={ageRange} onValueChange={setAgeRange} required>
                 <SelectTrigger id="ageRange" className="w-full h-12">
-                  <SelectValue placeholder="나잇대를 선택해주세요" />
+                  <SelectValue placeholder="나이대를 선택해주세요" />
                 </SelectTrigger>
                 <SelectContent>
                   {AGE_RANGES.map((age) => (
