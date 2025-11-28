@@ -4,6 +4,8 @@
 
 import { createClient } from "@/lib/supabase/client"
 import { getUserId } from "@/lib/auth-utils"
+import { addPointLog } from "./points"
+import { calculateBinaryMultiPoints, calculateMatchPoints } from "@/lib/utils/u-vote/vote.util"
 
 export interface CreateMissionData {
   title: string
@@ -613,6 +615,9 @@ export async function submitPredictMissionAnswer(
       return { success: false, error: "이미 결과가 확정된 미션입니다." }
     }
 
+    // 포인트 지급: 모든 참여자의 투표 확인 및 포인트 지급
+    await distributePointsForMission1(missionId, trimmedAnswer)
+
     return { success: true }
   } catch (error) {
     console.error("정답 확정 중 오류:", error)
@@ -712,10 +717,190 @@ export async function settleMissionWithFinalAnswer(
       return { success: false, error: "이미 결과가 확정된 미션입니다." }
     }
 
+    // 포인트 지급: 모든 참여자의 투표 확인 및 포인트 지급
+    await distributePointsForMission2(missionId, normalizedAnswer)
+
     return { success: true }
   } catch (error) {
     console.error("커플 최종 결과 저장 중 오류:", error)
     return { success: false, error: "커플 최종 결과 저장 중 오류가 발생했습니다." }
+  }
+}
+
+/**
+ * 커플 매칭 미션의 포인트 지급
+ */
+async function distributePointsForMission2(
+  missionId: string,
+  finalAnswer: Array<{ left: string; right: string }>
+) {
+  try {
+    const supabase = createClient()
+    
+    // 1. 미션 정보 가져오기 (총 회차 수)
+    const { data: mission, error: missionError } = await supabase
+      .from("t_missions2")
+      .select("f_total_episodes")
+      .eq("f_id", missionId)
+      .single()
+
+    if (missionError || !mission) {
+      console.error("미션 정보 조회 실패:", missionError)
+      return
+    }
+
+    const totalEpisodes = mission.f_total_episodes || 8
+
+    // 2. 모든 참여자의 투표 가져오기 (모든 회차)
+    const { data: votes, error: votesError } = await supabase
+      .from("t_pickresult2")
+      .select("f_user_id, f_episode_no, f_connections")
+      .eq("f_mission_id", missionId)
+      .eq("f_submitted", true)
+
+    if (votesError) {
+      console.error("투표 조회 실패:", votesError)
+      return
+    }
+
+    if (!votes || votes.length === 0) {
+      console.log("참여자가 없어 포인트 지급을 건너뜁니다.")
+      return
+    }
+
+    // 3. 사용자별로 회차별 투표 그룹화
+    const userVotes: Record<string, Array<{ episodeNo: number; pairs: Array<{ left: string; right: string }> }>> = {}
+
+    for (const vote of votes) {
+      const userId = vote.f_user_id
+      const episodeNo = vote.f_episode_no
+      
+      // connections 파싱
+      let pairs: Array<{ left: string; right: string }> = []
+      if (typeof vote.f_connections === 'string') {
+        try {
+          pairs = JSON.parse(vote.f_connections)
+        } catch (e) {
+          console.error("connections 파싱 실패:", e)
+          continue
+        }
+      } else if (Array.isArray(vote.f_connections)) {
+        pairs = vote.f_connections
+      }
+
+      if (!userVotes[userId]) {
+        userVotes[userId] = []
+      }
+      userVotes[userId].push({ episodeNo, pairs })
+    }
+
+    // 4. 각 사용자에게 회차별 포인트 지급
+    for (const userId in userVotes) {
+      const userVoteList = userVotes[userId]
+      
+      // 회차별로 정답 확인 및 포인트 지급
+      for (const userVote of userVoteList) {
+        const { episodeNo, pairs } = userVote
+        
+        // 정답 확인: 모든 최종 커플이 사용자의 선택에 포함되어 있는지 확인
+        const isCorrect = finalAnswer.every((answer) =>
+          pairs.some((pair) => pair.left === answer.left && pair.right === answer.right)
+        )
+
+        // 포인트 계산 (정답: +회차 점수, 오답: -회차 점수)
+        const points = calculateMatchPoints(episodeNo, isCorrect)
+
+        // 포인트 지급
+        await addPointLog(
+          userId,
+          points,
+          isCorrect 
+            ? `커플 매칭 정답 보상 (${episodeNo}회차)` 
+            : `커플 매칭 오답 (${episodeNo}회차)`,
+          missionId,
+          "mission2",
+          { episodeNo }
+        )
+      }
+    }
+
+    console.log(`✅ 포인트 지급 완료: ${Object.keys(userVotes).length}명의 참여자`)
+  } catch (error) {
+    console.error("포인트 지급 중 오류:", error)
+  }
+}
+
+/**
+ * 이진/다중 선택 미션의 포인트 지급
+ */
+async function distributePointsForMission1(missionId: string, correctAnswer: string) {
+  try {
+    const supabase = createClient()
+    
+    // 1. 미션 정보 가져오기
+    const { data: mission, error: missionError } = await supabase
+      .from("t_missions1")
+      .select("f_form, f_options")
+      .eq("f_id", missionId)
+      .single()
+
+    if (missionError || !mission) {
+      console.error("미션 정보 조회 실패:", missionError)
+      return
+    }
+
+    // 2. 모든 참여자의 투표 가져오기
+    const { data: votes, error: votesError } = await supabase
+      .from("t_pickresult1")
+      .select("f_user_id, f_selected_option")
+      .eq("f_mission_id", missionId)
+
+    if (votesError) {
+      console.error("투표 조회 실패:", votesError)
+      return
+    }
+
+    if (!votes || votes.length === 0) {
+      console.log("참여자가 없어 포인트 지급을 건너뜁니다.")
+      return
+    }
+
+    // 3. 각 참여자에게 포인트 지급
+    const form = mission.f_form as "binary" | "multi"
+    const optionCount = (mission.f_options as string[])?.length || 0
+
+    for (const vote of votes) {
+      const userId = vote.f_user_id
+      
+      // 선택한 옵션 추출
+      let selectedOption: string | null = null
+      if (typeof vote.f_selected_option === 'string') {
+        selectedOption = vote.f_selected_option
+      } else if (vote.f_selected_option && typeof vote.f_selected_option === 'object') {
+        selectedOption = vote.f_selected_option.option || vote.f_selected_option
+      }
+
+      // 정답 확인
+      const isCorrect = selectedOption === correctAnswer
+      
+      // 포인트 계산
+      const points = calculateBinaryMultiPoints(form, optionCount, isCorrect)
+
+      if (points !== 0) {
+        // 포인트 지급
+        await addPointLog(
+          userId,
+          points,
+          isCorrect ? `미션 정답 보상 (${form === "binary" ? "이진" : "다중"})` : "미션 오답",
+          missionId,
+          "mission1"
+        )
+      }
+    }
+
+    console.log(`✅ 포인트 지급 완료: ${votes.length}명의 참여자`)
+  } catch (error) {
+    console.error("포인트 지급 중 오류:", error)
   }
 }
 
