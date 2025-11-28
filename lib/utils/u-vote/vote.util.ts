@@ -40,13 +40,13 @@ export function findFirstCorrectEpisode(
  * 티어 계산 함수
  */
 export function getTierByPoints(points: number): TTier {
-  if (points >= 5000) return "넥서스"
-  if (points >= 3000) return "조율사"
-  if (points >= 2000) return "공감 실천가"
-  if (points >= 1000) return "그린 플래그"
-  if (points >= 500) return "짝사랑 빌더"
-  if (points >= 200) return "솔로 지망생"
-  return "모태솔로"
+  if (points >= 5000) return "픽마스터"
+  if (points >= 3000) return "인사이터"
+  if (points >= 2000) return "분석자"
+  if (points >= 1000) return "예감러"
+  if (points >= 500) return "촉쟁이"
+  if (points >= 200) return "워처"
+  return "루키"
 }
 
 /**

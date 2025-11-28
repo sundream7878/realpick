@@ -10,13 +10,13 @@ RETURNS TRIGGER AS $$
 BEGIN
   UPDATE users 
   SET tier = CASE 
-    WHEN NEW.points >= 5000 THEN '넥서스'
-    WHEN NEW.points >= 3000 THEN '조율사'
-    WHEN NEW.points >= 2000 THEN '공감 실천가'
-    WHEN NEW.points >= 1000 THEN '그린 플래그'
-    WHEN NEW.points >= 500 THEN '짝사랑 빌더'
-    WHEN NEW.points >= 200 THEN '솔로 지망생'
-    ELSE '모태솔로'
+    WHEN NEW.points >= 5000 THEN '픽마스터'
+    WHEN NEW.points >= 3000 THEN '인사이터'
+    WHEN NEW.points >= 2000 THEN '분석자'
+    WHEN NEW.points >= 1000 THEN '예감러'
+    WHEN NEW.points >= 500 THEN '촉쟁이'
+    WHEN NEW.points >= 200 THEN '워처'
+    ELSE '루키'
   END,
   updated_at = NOW()
   WHERE id = NEW.id;

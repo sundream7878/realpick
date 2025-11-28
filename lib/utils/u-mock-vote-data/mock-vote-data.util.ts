@@ -314,13 +314,13 @@ export function generateMockUserRanking(
   }
 
   const getTierFromScore = (score: number) => {
-    if (score >= 5000) return { name: "넥서스", characterImage: "/placeholder.svg?height=48&width=48" }
-    if (score >= 3000) return { name: "조율사", characterImage: "/placeholder.svg?height=48&width=48" }
-    if (score >= 2000) return { name: "공감 실천가", characterImage: "/placeholder.svg?height=48&width=48" }
-    if (score >= 1000) return { name: "그린 플래그", characterImage: "/placeholder.svg?height=48&width=48" }
-    if (score >= 500) return { name: "짝사랑 빌더", characterImage: "/placeholder.svg?height=48&width=48" }
-    if (score >= 200) return { name: "솔로 지망생", characterImage: "/placeholder.svg?height=48&width=48" }
-    return { name: "모태솔로", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 5000) return { name: "픽마스터", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 3000) return { name: "인사이터", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 2000) return { name: "분석자", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 1000) return { name: "예감러", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 500) return { name: "촉쟁이", characterImage: "/placeholder.svg?height=48&width=48" }
+    if (score >= 200) return { name: "워처", characterImage: "/placeholder.svg?height=48&width=48" }
+    return { name: "루키", characterImage: "/placeholder.svg?height=48&width=48" }
   }
 
   const rankedUsers = mockUsers

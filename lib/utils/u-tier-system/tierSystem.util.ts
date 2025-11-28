@@ -2,39 +2,39 @@ import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 export const TIERS: TTierInfo[] = [
   {
-    name: "넥서스",
+    name: "픽마스터",
     minPoints: 5000,
-    characterImage: "/tier-nexus.png",
+    characterImage: "/tier-pickmaster.png",
   },
   {
-    name: "조율사",
+    name: "인사이터",
     minPoints: 3000,
-    characterImage: "/tier-coordinator.png",
+    characterImage: "/tier-insighter.png",
   },
   {
-    name: "공감 실천가",
+    name: "분석자",
     minPoints: 2000,
-    characterImage: "/tier-empathy-practitioner.png",
+    characterImage: "/tier-analyzer.png",
   },
   {
-    name: "그린 플래그",
+    name: "예감러",
     minPoints: 1000,
-    characterImage: "/tier-green-flag.png",
+    characterImage: "/tier-predictor.png",
   },
   {
-    name: "짝사랑 빌더",
+    name: "촉쟁이",
     minPoints: 500,
-    characterImage: "/tier-crush-builder.png",
+    characterImage: "/tier-intuition.png",
   },
   {
-    name: "솔로 지망생",
+    name: "워처",
     minPoints: 200,
-    characterImage: "/tier-solo-aspirant.png",
+    characterImage: "/tier-watcher.png",
   },
   {
-    name: "모태솔로",
+    name: "루키",
     minPoints: 0,
-    characterImage: "/tier-motaesolo.png",
+    characterImage: "/tier-rookie.png",
   },
 ]
 

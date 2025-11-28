@@ -91,7 +91,7 @@ export async function handleMagicLinkCallback(): Promise<{
           email: email,
           nickname: email.split("@")[0] || "사용자",
           points: 0,
-          tier: "모태솔로",
+          tier: "루키",
           avatarUrl: undefined,
         })
 
@@ -192,7 +192,7 @@ export async function handleMagicLinkCallback(): Promise<{
         email: email,
         nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
         points: 0,
-        tier: "모태솔로",
+        tier: "루키",
         avatarUrl: undefined,
       })
 
@@ -276,7 +276,7 @@ export async function verifyCode(
         email: email,
         nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
         points: 0,
-        tier: "모태솔로",
+        tier: "루키",
         avatarUrl: undefined,
       })
 
