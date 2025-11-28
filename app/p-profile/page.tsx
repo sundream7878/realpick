@@ -13,7 +13,7 @@ import { isAuthenticated, getUserId } from "@/lib/auth-utils"
 import { logout } from "@/lib/auth-api"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
-import { getUser } from "@/lib/supabase/users"
+import { getUser, updateUserProfile } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
 
@@ -103,19 +103,51 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    if (!editedNickname.trim()) {
+      toast({
+        title: "저장 실패",
+        description: "닉네임을 입력해주세요.",
+        variant: "destructive",
+      })
+      return
+    }
+
     setIsSaving(true)
     try {
-      // TODO: 실제 API 호출로 닉네임 업데이트
-      setUserNickname(editedNickname)
+      const currentUserId = getUserId()
+      if (!currentUserId) {
+        throw new Error("사용자 ID를 찾을 수 없습니다.")
+      }
+
+      // 데이터베이스에 닉네임 업데이트
+      const success = await updateUserProfile(currentUserId, {
+        nickname: editedNickname.trim(),
+      })
+
+      if (!success) {
+        throw new Error("닉네임 업데이트에 실패했습니다.")
+      }
+
+      // 로컬 상태 업데이트
+      setUserNickname(editedNickname.trim())
       setIsEditing(false)
+
+      // localStorage에도 닉네임 업데이트
+      if (typeof window !== "undefined") {
+        localStorage.setItem("rp_user_nickname", editedNickname.trim())
+        // storage 이벤트 발생시켜서 다른 컴포넌트들이 업데이트를 감지하도록 함
+        window.dispatchEvent(new Event("storage"))
+      }
+
       toast({
         title: "저장 완료",
         description: "프로필이 업데이트되었습니다.",
       })
     } catch (error) {
+      console.error("닉네임 업데이트 실패:", error)
       toast({
         title: "저장 실패",
-        description: "프로필 업데이트 중 오류가 발생했습니다.",
+        description: error instanceof Error ? error.message : "프로필 업데이트 중 오류가 발생했습니다.",
         variant: "destructive",
       })
     } finally {
