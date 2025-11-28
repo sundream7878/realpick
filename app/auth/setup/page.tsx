@@ -11,6 +11,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/c-ui/select"
+import { RadioGroup, RadioGroupItem } from "@/components/c-ui/radio-group"
 import { updateUserAdditionalInfo } from "@/lib/supabase/users"
 import { getUserId, setAuthToken } from "@/lib/auth-utils"
 import { createClient } from "@/lib/supabase/client"
@@ -138,22 +139,25 @@ export default function AuthSetupPage() {
             </div>
 
             {/* 성별 선택 */}
-            <div className="space-y-2">
-              <Label htmlFor="gender" className="text-gray-700 text-sm font-medium">
+            <div className="space-y-3">
+              <Label className="text-gray-700 text-sm font-medium">
                 성별 <span className="text-rose-500">*</span>
               </Label>
-              <Select value={gender} onValueChange={setGender} required>
-                <SelectTrigger id="gender" className="w-full h-12">
-                  <SelectValue placeholder="성별을 선택해주세요" />
-                </SelectTrigger>
-                <SelectContent>
+              <RadioGroup value={gender} onValueChange={setGender} required>
+                <div className="grid grid-cols-2 gap-3">
                   {GENDERS.map((g) => (
-                    <SelectItem key={g} value={g}>
-                      {g}
-                    </SelectItem>
+                    <div key={g} className="flex items-center space-x-3">
+                      <RadioGroupItem value={g} id={g} />
+                      <Label
+                        htmlFor={g}
+                        className="flex-1 cursor-pointer p-4 rounded-xl border-2 border-gray-200 hover:border-rose-300 transition-colors text-center font-medium"
+                      >
+                        {g}
+                      </Label>
+                    </div>
                   ))}
-                </SelectContent>
-              </Select>
+                </div>
+              </RadioGroup>
             </div>
 
             {/* 제출 버튼 */}
