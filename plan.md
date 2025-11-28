@@ -1,14 +1,14 @@
-RealPick 프로젝트 계획 (v12)
+RealPick 프로젝트 계획 (v16)
 
-최종 업데이트: 2025-11-20 (헤더/마이페이지 실제 유저 데이터 연동 반영)
+최종 업데이트: 2025-11-28 (Magic Link 인증 전환, 사용자 모델 확장, 티어 캐릭터 추가 반영)
 
 1. 서비스 개요
 
 서비스명: RealPick
 
-목표: 연애 리얼리티 시청자를 '참여형 시청자'로 전환하고, 연애 판단력 게임화 및 집단지성 데이터 축적을 목표로 하는 커뮤니티형 투표 플랫폼.
+목표: 연애, 오디션, 서바이벌 예능 프로그램 시청자를 '참여형 시청자'로 전환하고, 예측 판단력 게임화 및 집단지성 데이터 축적을 목표로 하는 커뮤니티형 투표 플랫폼.
 
-핵심 가치: 시청 경험 확장, 연애 판단력 게임화, 집단지성 데이터 축적.
+핵심 가치: 시청 경험 확장, 예측 판단력 게임화, 집단지성 데이터 축적.
 
 2. 인증 및 접근 정책 (Soft Wall)
 
@@ -22,15 +22,43 @@ Soft Wall 구현: 비로그인 상태에서 참여 버튼 클릭 시, 로그인 
 
 2.1. 로그인 UI/UX 상세 (c-login-modal)
 
-2단계 프로세스: 이메일 입력 단계 → 인증코드 입력 단계로 진행.
+Magic Link 인증 방식: 이메일 입력 → 이메일로 전송된 링크 클릭 → 자동 로그인.
 
 이메일 입력: localStorage 기반 최근 사용 이메일 자동완성 (최대 10개).
 
-인증코드 입력: 6자리 개별 입력 필드, 자동 포커스 이동/Backspace, 붙여넣기 지원, 6자리 모두 입력 시 자동 제출 기능 구현.
+추가 정보 입력 (신규 가입자 필수):
+
+나이대: 10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대, 90대 (드롭다운)
+
+성별: 남성, 여성 (라디오 버튼)
+
+Magic Link 인증 직후 자동으로 추가 정보 입력 페이지 (/auth/setup)로 리다이렉트.
+
+기존 사용자 중 나이대/성별 정보가 없는 경우에도 추가 정보 입력 필수.
+
+Magic Link 콜백 처리:
+
+콜백 URL: /auth/callback
+
+Supabase 리다이렉트 URL 설정 필요 (로컬: http://localhost:3000/auth/callback, 배포: https://your-site.netlify.app/auth/callback)
 
 3. 사용자 모델 (Picker)
 
 역할: 미션 참여자, (향후) 미션 생성자, 데이터 소유자.
+
+사용자 정보 (t_users 테이블):
+
+기본 정보: 이메일, 닉네임, 아바타, 포인트, 티어
+
+추가 정보 (2025-11-28 추가):
+
+f_age_range: 나이대 (10대~90대, VARCHAR(20), NULL 허용, CHECK 제약)
+
+f_gender: 성별 (남성/여성, VARCHAR(20), NULL 허용, CHECK 제약)
+
+신규 가입자는 Magic Link 인증 직후 필수 입력
+
+기존 사용자는 다음 로그인 시 추가 정보 입력 유도
 
 UX 흐름: 참여 → 점수 획득 → 티어 상승 → 더 깊은 참여 → 나만의 판단 패턴 분석.
 
@@ -138,37 +166,69 @@ locked: 방송 전, 투표 불가
 
 오직 점수에 따라 결정됨.
 
+캐릭터 이미지 파일:
+
+픽마스터: /tier-pickmaster.png (호랑이)
+
+인사이터: /tier-insighter.png (고양이)
+
+분석자: /tier-analyzer.png (늑대)
+
+예감러: /tier-predictor.png (시바견)
+
+촉쟁이: /tier-intuition.png (고양이)
+
+워처: /tier-watcher.png (토끼)
+
+루키: /tier-rookie.png (햄스터)
+
 티어명
 
 기준 점수 (P)
 
-넥서스
+캐릭터
+
+픽마스터
 
 5,000P
 
-조율사
+호랑이
+
+인사이터
 
 3,000P
 
-공감 실천가
+고양이
+
+분석자
 
 2,000P
 
-그린 플래그
+늑대
+
+예감러
 
 1,000P
 
-짝사랑 빌더
+시바견
+
+촉쟁이
 
 500P
 
-솔로 지망생
+고양이
+
+워처
 
 200P
 
-모태솔로
+토끼
+
+루키
 
 0P
+
+햄스터
 
 6. UI/UX 및 피드 시스템
 
@@ -306,11 +366,21 @@ DB 엔진: PostgreSQL (Supabase 활용).
 
 스키마 (총 12개 테이블):
 
-t_users, t_missions1, t_missions2, t_episodes, t_pickresult1, t_pickresult2, t_pointlogs, t_mypage (캐시), t_comments, t_replies, t_comment_likes, t_reply_likes.
+t_users (사용자 정보 - 나이대/성별 컬럼 추가), t_missions1, t_missions2, t_episodes, t_pickresult1, t_pickresult2, t_pointlogs, t_mypage (캐시), t_comments, t_replies, t_comment_likes, t_reply_likes.
 
-네이밍 규칙: 테이블 t_, 컬럼 f_ 접두사 준수.
+t_users 테이블 주요 변경사항:
 
-파일: scripts/supabase_schema.sql에 정의됨.
+f_tier: 티어명 변경 완료 (기존 티어명 → 새 티어명으로 변환 마이그레이션 필요)
+
+f_age_range: 나이대 (10대~90대, NULL 허용, CHECK 제약) 추가
+
+f_gender: 성별 (남성/여성, NULL 허용, CHECK 제약) 추가
+
+마이그레이션 스크립트:
+
+scripts/07_add_user_age_gender.sql: 나이대/성별 컬럼 추가
+
+scripts/08_update_tier_names.sql: 기존 티어명을 새 티어명으로 변환 (CHECK 제약 재설정 포함)
 
 Row Level Security (RLS) 정책:
 
@@ -336,7 +406,27 @@ lib/supabase/ 디렉토리에 클라이언트 및 쿼리 함수 모듈 분리.
 
 클라이언트: client.ts (클라이언트용), server.ts (서버용).
 
-쿼리 모듈: users.ts, missions.ts (생성/참여 미션 조회 함수 추가), episodes.ts, votes.ts, points.ts 등 기능별 쿼리 함수 구현.
+쿼리 모듈: users.ts, missions.ts (생성/참여 미션 통합 조회, 정답 입력/수정 API 추가), episodes.ts, votes.ts, points.ts 등 기능별 쿼리 함수 구현.
+
+인증 관련 모듈 (2025-11-28 추가):
+
+lib/auth-api.ts: Magic Link 인증 로직으로 전환 (OTP 방식은 deprecated 처리)
+
+sendVerificationCode(): Magic Link 전송 (emailRedirectTo 옵션 사용)
+
+handleMagicLinkCallback(): Magic Link 콜백 처리 (세션 설정, 신규 사용자 판별, 추가 정보 입력 필요 여부 확인)
+
+app/auth/callback/page.tsx: Magic Link 콜백 페이지 (신규)
+
+app/auth/setup/page.tsx: 추가 정보 입력 페이지 (신규 - 나이대/성별 선택 UI)
+
+티어 시스템 모듈:
+
+lib/utils/u-tier-system/tierSystem.util.ts: 티어 명칭 및 이미지 경로 업데이트 (새로운 TIERS 배열 반영)
+
+사용자 데이터 모듈:
+
+lib/supabase/users.ts: updateUserAdditionalInfo() 함수 추가 및 기존 함수에 ageRange, gender 필드 포함.
 
 12. 리얼PICK 협업 헌법 (PROJECT_CONSTITUTION.md v1.0)
 
@@ -402,3 +492,29 @@ git push origin main
 기획: 개발직원은 plan.md가 업데이트되면, 해당 plan.md의 변경분을 직접 Git에 커밋/푸시한다.
 
 결론: AI(커서agent, 재미나이)는 제안/보고만 하며, 모든 '실행(Execute)'은 개발직원이 한다.
+
+13. 배포 및 환경 설정 (2025-11-28 추가)
+
+Supabase 설정:
+
+Redirect URLs 추가 필요:
+
+로컬: http://localhost:3000/auth/callback
+
+배포: https://your-site-name.netlify.app/auth/callback
+
+설정 위치: Supabase Dashboard → Authentication → URL Configuration
+
+Email Templates 수정:
+
+Magic Link 이메일 템플릿에서 {{ .ConfirmationURL }} 사용
+
+사용자 대면 텍스트: "매직링크" → "링크"로 변경
+
+환경 변수:
+
+NEXT_PUBLIC_SUPABASE_URL: Supabase 프로젝트 URL
+
+NEXT_PUBLIC_SUPABASE_ANON_KEY: Supabase Anon Key
+
+NEXT_PUBLIC_SITE_URL: 배포 사이트 URL (Magic Link 리다이렉트용)
