@@ -317,6 +317,13 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
       updateData.f_majority_option = majorityOption
     }
 
+    // 미션 정보 가져오기 (kind 확인용)
+    const { data: missionInfo } = await supabase
+      .from("t_missions1")
+      .select("f_kind, f_status, f_deadline")
+      .eq("f_id", missionId)
+      .single()
+
     const { error: updateError } = await supabase
       .from("t_missions1")
       .update(updateData)
@@ -325,6 +332,26 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
     if (updateError) {
       console.error("투표 수 업데이트 실패:", updateError)
       return { success: false, error: "투표 수 업데이트에 실패했습니다." }
+    }
+
+    // 다수픽 미션이고 아직 확정되지 않았으며, majority_option이 설정되고 마감 시간이 지난 경우 포인트 지급
+    if (missionInfo && missionInfo.f_kind === "majority" && missionInfo.f_status !== "settled" && majorityOption) {
+      // 마감 시간 확인
+      const isDeadlinePassed = missionInfo.f_deadline ? new Date(missionInfo.f_deadline) < new Date() : false
+      
+      if (isDeadlinePassed) {
+        // 다수픽 미션은 majority_option이 설정되고 마감 시간이 지나면 자동으로 확정
+        await supabase
+          .from("t_missions1")
+          .update({
+            f_status: "settled",
+            f_updated_at: new Date().toISOString()
+          })
+          .eq("f_id", missionId)
+
+        // 포인트 지급
+        await distributePointsForMission1(missionId)
+      }
     }
 
     return { success: true }
@@ -833,14 +860,14 @@ async function distributePointsForMission2(
 /**
  * 이진/다중 선택 미션의 포인트 지급
  */
-async function distributePointsForMission1(missionId: string, correctAnswer: string) {
+async function distributePointsForMission1(missionId: string, correctAnswer?: string) {
   try {
     const supabase = createClient()
     
-    // 1. 미션 정보 가져오기
+    // 1. 미션 정보 가져오기 (kind도 함께 조회)
     const { data: mission, error: missionError } = await supabase
       .from("t_missions1")
-      .select("f_form, f_options")
+      .select("f_kind, f_form, f_options, f_correct_answer, f_majority_option")
       .eq("f_id", missionId)
       .single()
 
@@ -865,7 +892,24 @@ async function distributePointsForMission1(missionId: string, correctAnswer: str
       return
     }
 
-    // 3. 각 참여자에게 포인트 지급
+    // 3. 정답/다수 옵션 결정
+    const missionKind = mission.f_kind as "predict" | "majority"
+    let answerToCompare: string | null = null
+    
+    if (missionKind === "majority") {
+      // 다수픽: f_majority_option 사용
+      answerToCompare = mission.f_majority_option || null
+    } else {
+      // 예측픽: f_correct_answer 또는 전달받은 correctAnswer 사용
+      answerToCompare = mission.f_correct_answer || correctAnswer || null
+    }
+
+    if (!answerToCompare) {
+      console.error("정답/다수 옵션이 없어 포인트 지급을 건너뜁니다.")
+      return
+    }
+
+    // 4. 각 참여자에게 포인트 지급
     const form = mission.f_form as "binary" | "multi"
     const optionCount = (mission.f_options as string[])?.length || 0
 
@@ -880,25 +924,29 @@ async function distributePointsForMission1(missionId: string, correctAnswer: str
         selectedOption = vote.f_selected_option.option || vote.f_selected_option
       }
 
-      // 정답 확인
-      const isCorrect = selectedOption === correctAnswer
+      // 정답/다수 확인
+      const isCorrect = selectedOption === answerToCompare
       
       // 포인트 계산
       const points = calculateBinaryMultiPoints(form, optionCount, isCorrect)
 
       if (points !== 0) {
         // 포인트 지급
+        const reason = isCorrect 
+          ? `미션 ${missionKind === "majority" ? "다수픽" : "정답"} 보상 (${form === "binary" ? "이진" : "다중"})`
+          : "미션 오답"
+        
         await addPointLog(
           userId,
           points,
-          isCorrect ? `미션 정답 보상 (${form === "binary" ? "이진" : "다중"})` : "미션 오답",
+          reason,
           missionId,
           "mission1"
         )
       }
     }
 
-    console.log(`✅ 포인트 지급 완료: ${votes.length}명의 참여자`)
+    console.log(`✅ 포인트 지급 완료: ${votes.length}명의 참여자 (${missionKind === "majority" ? "다수픽" : "예측픽"})`)
   } catch (error) {
     console.error("포인트 지급 중 오류:", error)
   }
