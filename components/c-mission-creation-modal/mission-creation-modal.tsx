@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import { Plus, X, ArrowLeft, Check, Circle } from "lucide-react"
 import { createMission } from "@/lib/supabase/missions"
+import { useToast } from "@/hooks/h-toast/useToast.hook"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -27,6 +28,7 @@ interface AIVerificationResult {
 }
 
 export default function MissionCreationModal({ isOpen, onClose, onMissionCreated }: MissionCreationModalProps) {
+  const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<MissionStep>("type-selection")
   const [missionType, setMissionType] = useState<MissionType | null>(null)
   const [missionFormat, setMissionFormat] = useState<MissionFormat | null>(null)
@@ -276,8 +278,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       }
 
       console.log("미션 게시 성공:", result.missionId)
-      alert("미션이 성공적으로 게시되었습니다!")
-
+      
       // showUndoSnackbar() // 일단 주석 처리
 
       setShowAIModal(false)
@@ -288,11 +289,21 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       if (onMissionCreated) {
         onMissionCreated()
       }
+
+      // 성공 토스트 표시
+      toast({
+        title: "미션 게시 완료",
+        description: "미션이 성공적으로 게시되었습니다.",
+      })
     } catch (error) {
       console.error("[v0] Publishing failed:", error)
-      alert(
-        `미션 게시 중 오류가 발생했습니다.\n\n${error instanceof Error ? error.message : "알 수 없는 오류"}\n\n다시 시도해주세요.`,
-      )
+      const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류"
+      
+      toast({
+        title: "미션 게시 실패",
+        description: `미션 게시 중 오류가 발생했습니다. ${errorMessage}`,
+        variant: "destructive",
+      })
     } finally {
       setIsPublishing(false)
     }
