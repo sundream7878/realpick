@@ -7,7 +7,9 @@ import type { TMission } from "@/types/t-vote/vote.types"
 import { SeasonBadge, getSeasonBadgeText } from "./SeasonBadge"
 import { MissionActionButtons } from "./MissionActionButtons"
 import { getTimeRemaining, isDeadlinePassed, getDDay } from "@/lib/utils/u-time/timeUtils.util"
-import { getShowByName } from "@/lib/constants/shows"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
 
 interface TMissionCardProps {
   mission: TMission
@@ -28,8 +30,26 @@ export function MissionCard({
 }: TMissionCardProps) {
   const seasonBadgeText = getSeasonBadgeText(mission)
 
+  // 프로그램 정보 조회 (showId로 검색) - 안전하게 처리
+  let showInfo = undefined
+  try {
+    if (mission.showId) {
+      showInfo = getShowById(mission.showId)
+    } else {
+      // [Legacy Support] showId가 없는 기존 데이터는 '나는 SOLO'로 간주
+      showInfo = getShowById('nasolo')
+    }
+  } catch (e) {
+    console.error("getShowById error:", e)
+  }
+
   // 클릭 시 이동할 URL 결정 (유튜브 링크가 없으면 공식 홈페이지로)
-  const targetUrl = mission.referenceUrl || (mission.seasonType ? getShowByName(mission.seasonType)?.officialUrl : undefined)
+  const targetUrl = mission.referenceUrl || showInfo?.officialUrl
+
+  // 표시할 썸네일 결정 (입력된 썸네일이 없으면 기본 포스터 사용)
+  const displayThumbnailUrl = mission.thumbnailUrl || showInfo?.defaultThumbnail
+
+  console.log(`Mission: ${mission.title}, showId: ${mission.showId}, showInfo:`, showInfo, "thumb:", displayThumbnailUrl)
 
   // 실제 마감 여부 확인
   const isClosed = (() => {
@@ -81,19 +101,37 @@ export function MissionCard({
   const closedOpacity = isClosed ? "opacity-80" : ""
 
   return (
-    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col`}>
-      <CardHeader className="pb-2">
+    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col py-0 gap-0`}>
+      <CardHeader className="p-3 pb-1">
         <div className="flex justify-between items-start gap-3">
           {/* 좌측: 배지 + 제목 */}
-          <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
             {/* 배지 그룹 */}
-            <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 flex-wrap">
               {variant === "hot" && (
-                <Badge className="bg-pink-500 hover:bg-pink-600 text-white">HOT</Badge>
+                <Badge className="bg-pink-500 hover:bg-pink-600 text-white h-5 px-1.5 text-[10px]">HOT</Badge>
               )}
+
+              {/* 포인트 배지 */}
+              <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 h-5 px-1.5 text-[10px] font-bold border">
+                💰 {(() => {
+                  let type: 'binary' | 'multi' | 'match' = 'binary';
+                  let optionsCount = 2;
+
+                  if (mission.form === 'match') {
+                    type = 'match';
+                  } else if (Array.isArray(mission.options)) {
+                    optionsCount = mission.options.length;
+                    if (optionsCount >= 3) type = 'multi';
+                  }
+
+                  return calculatePotentialPoints(type, optionsCount).label;
+                })()}
+              </Badge>
+
               {variant !== "hot" && (
                 <Badge
-                  className={`font-medium ${mission.kind === "predict"
+                  className={`font-medium h-5 px-1.5 text-[10px] ${mission.kind === "predict"
                     ? "bg-blue-100 text-blue-700 border-blue-200"
                     : "bg-green-100 text-green-700 border-green-200"
                     }`}
@@ -106,67 +144,63 @@ export function MissionCard({
                   seasonType={mission.seasonType}
                   seasonNumber={mission.seasonNumber}
                   variant="default"
+                  className="h-5 px-1.5 text-[10px]"
                 />
               )}
             </div>
 
             {/* 제목 */}
-            <CardTitle className="text-base text-gray-900 font-semibold line-clamp-2 leading-tight">
-              {seasonBadgeText ? (
-                <>
-                  <span className="text-purple-600 font-bold">[{seasonBadgeText}]</span> {mission.title}
-                </>
-              ) : (
-                mission.title
-              )}
+            <CardTitle className="text-sm text-gray-900 font-semibold line-clamp-2 leading-snug">
+              {mission.title}
             </CardTitle>
           </div>
 
           {/* 우측: 딜러 정보 + 썸네일 */}
-          {(mission.creatorNickname || mission.thumbnailUrl) && (
+          {(mission.creatorNickname || displayThumbnailUrl) && (
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               {/* 캐릭터 + 닉네임 */}
               {mission.creatorNickname && (
                 <div className="flex items-center gap-1">
-                  <div className="w-5 h-5 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center overflow-hidden">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center overflow-hidden">
                     <img
-                      src="/tiers/tier-7.png"
+                      src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"}
                       alt="딜러 캐릭터"
                       className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).style.display = 'none';
-                        (e.target as HTMLImageElement).parentElement!.classList.add('bg-purple-200');
-                      }}
                     />
                   </div>
-                  <span className="text-xs font-bold text-purple-600">{mission.creatorNickname}</span>
+                  <span className="text-[10px] font-bold text-purple-600">{mission.creatorNickname}</span>
                 </div>
               )}
 
-              {/* 썸네일 */}
-              {mission.thumbnailUrl && (
+              {/* 썸네일 - 명시적 렌더링 */}
+              {displayThumbnailUrl ? (
                 <div
-                  className={`w-32 h-[72px] rounded-md overflow-hidden border border-gray-200 shadow-sm ${targetUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                  key="thumbnail-container"
+                  className={`w-24 h-[54px] rounded-md overflow-hidden border border-gray-200 shadow-sm ${targetUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
                   onClick={(e) => {
                     if (targetUrl) {
-                      e.stopPropagation() // 카드 클릭 이벤트 전파 방지 (필요 시)
+                      e.stopPropagation()
                       window.open(targetUrl, "_blank")
                     }
                   }}
                 >
                   <img
-                    src={mission.thumbnailUrl}
+                    src={displayThumbnailUrl}
                     alt="썸네일"
                     className="w-full h-full object-cover"
+                    onError={(e) => {
+                      console.error("Image load error:", displayThumbnailUrl);
+                      e.currentTarget.style.display = 'none';
+                    }}
                   />
                 </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 pb-3 flex flex-col flex-1">
+      <CardContent className="p-3 pt-1 flex flex-col flex-1">
         {/* 도표/상태(좌측) + 참여자 수(우측) */}
         <div className="flex items-center justify-between h-10 mb-2">
 

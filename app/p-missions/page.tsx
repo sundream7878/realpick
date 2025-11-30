@@ -56,6 +56,8 @@ export default function MissionsPage() {
             kind: mission.f_kind,
             form: mission.f_form,
             seasonType: mission.f_season_type || "전체",
+            showId: mission.f_show_id,
+            category: mission.f_category,
             seasonNumber: mission.f_season_number || undefined,
             options: mission.f_options || [],
             subjectivePlaceholder: mission.f_subjective_placeholder || undefined,
@@ -69,7 +71,8 @@ export default function MissionsPage() {
             result: {
               distribution: mission.f_option_vote_counts || {},
               correct: mission.f_correct_answer || undefined,
-              majority: mission.f_majority_option || undefined
+              majority: mission.f_majority_option || undefined,
+              totalVotes: mission.f_stats_total_votes || 0
             },
             createdAt: mission.f_created_at
           }))
@@ -87,6 +90,8 @@ export default function MissionsPage() {
             kind: mission.f_kind,
             form: "match",
             seasonType: mission.f_season_type || "전체",
+            showId: mission.f_show_id,
+            category: mission.f_category,
             seasonNumber: mission.f_season_number || undefined,
             options: mission.f_match_pairs, // TMatchPairs 형식
             deadline: mission.f_deadline,
@@ -100,7 +105,8 @@ export default function MissionsPage() {
             },
             result: {
               distribution: {},
-              finalAnswer: mission.f_final_answer || undefined
+              finalAnswer: mission.f_final_answer || undefined,
+              totalVotes: mission.f_stats_total_votes || 0
             },
             createdAt: mission.f_created_at
           }))

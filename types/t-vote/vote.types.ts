@@ -70,6 +70,8 @@ export interface TMission {
   title: string
   description?: string
   seasonType?: "전체" | "기수별"
+  showId?: string // 프로그램 ID (예: nasolo)
+  category?: string // 프로그램 카테고리 (예: LOVE)
   seasonNumber?: number
   options?: string[] | TMatchPairs // binary/multi: string[], match: TMatchPairs
   subjectivePlaceholder?: string // 주관식 안내 문구

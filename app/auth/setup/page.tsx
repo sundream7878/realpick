@@ -79,7 +79,7 @@ export default function AuthSetupPage() {
       // Supabase 세션에서 access_token 가져오기
       const supabase = createClient()
       const { data: { session } } = await supabase.auth.getSession()
-      
+
       if (session?.access_token) {
         // 이제 완전한 로그인 상태로 만들기
         setAuthToken(session.access_token)
@@ -112,7 +112,7 @@ export default function AuthSetupPage() {
           <div className="text-center">
             <div className="flex justify-center mb-4">
               <Image
-                src="/realpick-logo.png"
+                src="/realpick-logo-new.png"
                 alt="RealPick"
                 width={120}
                 height={40}

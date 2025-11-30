@@ -1064,6 +1064,20 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         </Card>
       )}
 
+      {/* 에피소드 선택기 (상단 배치) */}
+      {isMultiEpisode && (
+        <div className="mb-6">
+          <EpisodeSelector
+            totalEpisodes={totalEpisodes}
+            selectedEpisodes={selectedEpisodes}
+            savedEpisodes={submittedEpisodes}
+            episodeStatuses={effectiveEpisodeStatuses}
+            onEpisodeToggle={handleEpisodeToggle}
+            disabled={false}
+          />
+        </div>
+      )}
+
       {/* 제출 여부나 투표 가능 여부와 상관없이, 미션이 오픈 상태이고 연결된 정보가 있으면 캔버스를 보여줍니다. */}
       {mission.status === "open" && (
         <div className="relative">
@@ -1371,15 +1385,6 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       {isMultiEpisode && (
         <div className="space-y-4">
-          <EpisodeSelector
-            totalEpisodes={totalEpisodes}
-            selectedEpisodes={selectedEpisodes}
-            savedEpisodes={submittedEpisodes}
-            episodeStatuses={effectiveEpisodeStatuses}
-            onEpisodeToggle={handleEpisodeToggle}
-            disabled={false}
-          />
-
           {selectedEpisodes.size === 1 && (
             <div className="flex justify-center py-4">
               {(() => {

@@ -132,30 +132,28 @@ export default function RankingPage() {
           <div className="flex items-center justify-between h-full gap-2">
             <Link href="/" className="flex-shrink-0">
               <img
-                src="/realpick-logo.png"
+                src="/realpick-logo-new.png"
                 alt="RealPick"
-                className="w-auto h-10 md:h-12 cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-auto h-8 md:h-10 cursor-pointer hover:opacity-80 transition-opacity"
               />
             </Link>
 
             <div className="flex items-center gap-2 md:gap-4 text-xs md:text-base flex-shrink-0">
               <button
-                className={`font-semibold transition-colors ${
-                  selectedShow === "나는솔로"
-                    ? "text-pink-600 hover:text-pink-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                className={`font-semibold transition-colors ${selectedShow === "나는솔로"
+                  ? "text-pink-600 hover:text-pink-700"
+                  : "text-gray-500 hover:text-gray-700"
+                  }`}
                 onClick={() => setSelectedShow("나는솔로")}
               >
                 나는솔로
               </button>
               <div className="w-px h-4 md:h-6 bg-gray-300"></div>
               <button
-                className={`font-semibold transition-colors ${
-                  selectedShow === "돌싱글즈"
-                    ? "text-pink-600 hover:text-pink-700"
-                    : "text-gray-500 hover:text-gray-700"
-                }`}
+                className={`font-semibold transition-colors ${selectedShow === "돌싱글즈"
+                  ? "text-pink-600 hover:text-pink-700"
+                  : "text-gray-500 hover:text-gray-700"
+                  }`}
                 onClick={() => setSelectedShow("돌싱글즈")}
               >
                 돌싱글즈
@@ -265,18 +263,16 @@ export default function RankingPage() {
                 {pointsRanking.map((user) => (
                   <div
                     key={user.rank}
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                      user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
-                    }`}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
+                      }`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        user.rank === 1
-                          ? "bg-accent text-accent-foreground"
-                          : user.rank <= 3
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-muted/50 text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${user.rank === 1
+                        ? "bg-accent text-accent-foreground"
+                        : user.rank <= 3
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-muted/50 text-muted-foreground"
+                        }`}
                     >
                       {user.rank}
                     </div>
@@ -319,18 +315,16 @@ export default function RankingPage() {
                 {accuracyRanking.map((user) => (
                   <div
                     key={user.rank}
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                      user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
-                    }`}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
+                      }`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        user.rank === 1
-                          ? "bg-primary text-primary-foreground"
-                          : user.rank <= 3
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-muted/50 text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${user.rank === 1
+                        ? "bg-primary text-primary-foreground"
+                        : user.rank <= 3
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-muted/50 text-muted-foreground"
+                        }`}
                     >
                       {user.rank}
                     </div>
@@ -373,18 +367,16 @@ export default function RankingPage() {
                 {weeklyRanking.map((user) => (
                   <div
                     key={user.rank}
-                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${
-                      user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
-                    }`}
+                    className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser ? "bg-primary/5 border border-primary/20" : "bg-muted/30"
+                      }`}
                   >
                     <div
-                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${
-                        user.rank === 1
-                          ? "bg-accent text-accent-foreground"
-                          : user.rank <= 3
-                            ? "bg-muted text-muted-foreground"
-                            : "bg-muted/50 text-muted-foreground"
-                      }`}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${user.rank === 1
+                        ? "bg-accent text-accent-foreground"
+                        : user.rank <= 3
+                          ? "bg-muted text-muted-foreground"
+                          : "bg-muted/50 text-muted-foreground"
+                        }`}
                     >
                       {user.rank}
                     </div>
@@ -404,9 +396,8 @@ export default function RankingPage() {
                       <div className="flex items-center gap-1">
                         <p className="text-sm text-muted-foreground">순위 변동:</p>
                         <span
-                          className={`text-sm font-medium ${
-                            user.change.startsWith("+") ? "text-primary" : "text-destructive"
-                          }`}
+                          className={`text-sm font-medium ${user.change.startsWith("+") ? "text-primary" : "text-destructive"
+                            }`}
                         >
                           {user.change}
                         </span>

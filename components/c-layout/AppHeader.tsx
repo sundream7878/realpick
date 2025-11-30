@@ -28,7 +28,7 @@ export function AppHeader({
   userPoints,
   userTier,
   onAvatarClick,
-  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-20 leading-7 md:h-32",
+  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-8 md:h-10",
   className = "",
 }: TAppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -59,7 +59,7 @@ export function AppHeader({
           {/* 로고 */}
           <div className="flex items-center flex-shrink-0">
             <Link href="/">
-              <img src="/realpick-logo.png" alt="RealPick" className={logoClassName} />
+              <img src="/realpick-logo-new.png" alt="RealPick" className={logoClassName} />
             </Link>
           </div>
 
