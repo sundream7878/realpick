@@ -217,3 +217,23 @@ export type EpisodePick = TEpisodePick
 export type Result = TResult
 export type PointLog = TPointLog
 export type SuccessComment = TSuccessComment
+
+// ============================================
+// 10. Comment Types
+// ============================================
+export interface TComment {
+  id: string
+  missionId: string
+  missionType: string // 'mission1' | 'mission2'
+  userId: string
+  userNickname: string
+  userTier: TTier
+  content: string
+  parentId: string | null
+  createdAt: string
+  likesCount: number
+  repliesCount: number
+  isLiked: boolean // 현재 사용자가 좋아요를 눌렀는지 여부
+  isDeleted: boolean
+  replies?: TComment[] // 프론트엔드에서 구성할 대댓글 리스트
+}

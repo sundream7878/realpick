@@ -1546,7 +1546,6 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         </DialogContent>
       </Dialog>
 
-      <div className="h-40" />
     </div>
   )
 }

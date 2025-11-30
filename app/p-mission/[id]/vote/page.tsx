@@ -1,275 +1,178 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { MockVoteRepo } from "@/lib/mock-vote-data"
+import { useRouter } from "next/navigation"
 import { getMission, getMission2 } from "@/lib/supabase/missions"
-import type { TMission } from "@/types/t-vote/vote.types"
+import { getVote1, getAllVotes2 } from "@/lib/supabase/votes"
+import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import { getUser } from "@/lib/supabase/users"
+import { getTierFromDbOrPoints, getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { MultiVotePage } from "@/components/c-vote/multi-vote-page"
 import { MatchVotePage } from "@/components/c-vote/match-vote-page"
 import { SubjectiveVotePage } from "@/components/c-vote/subjective-vote-page"
-import { Button } from "@/components/c-ui/button"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { CommentSection } from "@/components/c-comment/CommentSection"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
-import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
-import { getUser } from "@/lib/supabase/users"
-import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 export default function VotePage({ params }: { params: { id: string } }) {
   const router = useRouter()
   const [mission, setMission] = useState<TMission | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
-  const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
-  const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  const [isLoading, setIsLoading] = useState(true)
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-
-  const handleSeasonSelect = (season: string) => {
-    setSelectedSeason(season)
-  }
-
-  // 유저 데이터 로드
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (isAuthenticated()) {
-        const currentUserId = getUserId()
-        if (currentUserId) {
-          try {
-            const user = await getUser(currentUserId)
-            if (user) {
-              setUserNickname(user.nickname)
-              setUserPoints(user.points)
-              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-            }
-          } catch (error) {
-            console.error("유저 데이터 로딩 실패:", error)
-          }
-        }
-      } else {
-        // 비로그인 상태일 때 기본값
-        setUserNickname("")
-        setUserPoints(0)
-        setUserTier(getTierFromPoints(0))
-      }
-    }
-
-    loadUserData()
-
-    // 인증 상태 변경 감지
-    const handleAuthChange = () => {
-      loadUserData()
-    }
-
-    window.addEventListener("auth-change", handleAuthChange)
-    window.addEventListener("storage", handleAuthChange)
-
-    return () => {
-      window.removeEventListener("auth-change", handleAuthChange)
-      window.removeEventListener("storage", handleAuthChange)
-    }
-  }, [])
+  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [userVote, setUserVote] = useState<TVoteSubmission | null>(null)
+  const userId = getUserId()
 
   useEffect(() => {
-    const fetchMission = async () => {
+    const loadData = async () => {
+      setIsLoading(true)
       try {
-        setLoading(true)
-
-        // 먼저 t_missions2에서 커플매칭 미션 가져오기 (406 에러 방지)
-        const coupleResult = await getMission2(params.id)
-
-        if (coupleResult.success && coupleResult.mission) {
-          // t_missions2 데이터를 TMission 형태로 변환
-          const coupleMission: TMission = {
-            id: coupleResult.mission.f_id,
-            title: coupleResult.mission.f_title,
-            kind: coupleResult.mission.f_kind,
-            form: "match",
-            seasonType: coupleResult.mission.f_season_type || "전체",
-            seasonNumber: coupleResult.mission.f_season_number || undefined,
-            options: coupleResult.mission.f_match_pairs, // TMatchPairs 형식
-            deadline: coupleResult.mission.f_deadline,
-            revealPolicy: coupleResult.mission.f_reveal_policy,
-            status: coupleResult.mission.f_status,
-            episodes: coupleResult.mission.f_total_episodes || 8,
-            episodeStatuses: coupleResult.mission.f_episode_statuses,
-            finalAnswer: coupleResult.mission.f_final_answer || undefined,
-            stats: {
-              participants: coupleResult.mission.f_stats_participants || 0
-            },
-            result: {
-              distribution: {},
-              finalAnswer: coupleResult.mission.f_final_answer || undefined,
-              totalVotes: coupleResult.mission.f_stats_total_votes || 0
-            },
-            description: coupleResult.mission.f_description || undefined,
-            referenceUrl: coupleResult.mission.f_reference_url || undefined,
-            imageUrl: coupleResult.mission.f_image_url || undefined,
-            thumbnailUrl: coupleResult.mission.f_thumbnail_url || undefined,
-            createdAt: coupleResult.mission.f_created_at
-          }
-          setMission(coupleMission)
-        } else {
-          // t_missions2에 없으면 t_missions1에서 미션 데이터 가져오기
-          const result = await getMission(params.id)
-
-          if (result.success && result.mission) {
-            // Supabase 데이터를 TMission 형태로 변환
-            const supabaseMission: TMission = {
-              id: result.mission.f_id,
-              title: result.mission.f_title,
-              kind: result.mission.f_kind,
-              form: result.mission.f_form,
-              seasonType: result.mission.f_season_type || "전체",
-              seasonNumber: result.mission.f_season_number || undefined,
-              options: result.mission.f_options || [],
-              subjectivePlaceholder: result.mission.f_subjective_placeholder || undefined,
-              deadline: result.mission.f_deadline,
-              revealPolicy: result.mission.f_reveal_policy,
-              status: result.mission.f_status,
-              stats: {
-                participants: result.mission.f_stats_participants || 0,
-                totalVotes: result.mission.f_stats_total_votes || 0
-              },
-              result: {
-                distribution: result.mission.f_option_vote_counts || {},
-                correctAnswer: result.mission.f_correct_answer || undefined,
-                majorityOption: result.mission.f_majority_option || undefined,
-                totalVotes: result.mission.f_stats_total_votes || 0
-              },
-              description: result.mission.f_description || undefined,
-              referenceUrl: result.mission.f_reference_url || undefined,
-              imageUrl: result.mission.f_image_url || undefined,
-              thumbnailUrl: result.mission.f_thumbnail_url || undefined,
-              createdAt: result.mission.f_created_at
-            }
-            setMission(supabaseMission)
-          } else {
-            setError("미션을 찾을 수 없습니다")
+        // 1. 유저 정보 로드
+        if (userId) {
+          const user = await getUser(userId)
+          if (user) {
+            setUserNickname(user.nickname)
+            setUserPoints(user.points)
+            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
           }
         }
-      } catch (err) {
-        console.error("미션 로딩 에러:", err)
-        setError("미션을 불러오는데 실패했습니다")
+
+        // 2. 미션 정보 로드 (순차적 시도)
+        // 먼저 일반 미션(mission1)에서 찾기
+        let missionData: any = null
+        let missionType = "mission1"
+
+        const result1 = await getMission(params.id)
+        if (result1.success && result1.mission) {
+          missionData = result1.mission
+        } else {
+          // 없으면 커플 매칭(mission2)에서 찾기
+          const result2 = await getMission2(params.id)
+          if (result2.success && result2.mission) {
+            missionData = result2.mission
+            missionType = "mission2"
+          }
+        }
+
+        if (!missionData) {
+          console.error("미션을 찾을 수 없습니다.")
+          // router.push("/p-missions") // 에러 페이지로 이동하거나 목록으로 이동
+          return
+        }
+
+        // 3. TMission 타입으로 변환
+        const mappedMission: TMission = {
+          id: missionData.f_id,
+          title: missionData.f_title,
+          description: missionData.f_description,
+          kind: missionData.f_kind,
+          form: missionType === "mission2" ? "match" : missionData.f_form,
+          seasonType: missionData.f_season_type || "전체",
+          seasonNumber: missionData.f_season_number,
+          options: missionData.f_options || missionData.f_match_pairs,
+          deadline: missionData.f_deadline,
+          revealPolicy: missionData.f_reveal_policy,
+          status: missionData.f_status,
+          episodes: missionData.f_total_episodes,
+          episodeStatuses: missionData.f_episode_statuses,
+          finalAnswer: missionData.f_final_answer,
+          stats: {
+            participants: missionData.f_stats_participants || 0,
+            totalVotes: missionData.f_stats_total_votes || 0
+          },
+          result: {
+            distribution: missionData.f_option_vote_counts || {},
+            correctAnswer: missionData.f_correct_answer,
+            majorityOption: missionData.f_majority_option,
+            finalAnswer: missionData.f_final_answer,
+            totalVotes: missionData.f_stats_total_votes || 0
+          },
+          creatorNickname: missionData.creator?.f_nickname,
+          creatorTier: missionData.creator?.f_tier,
+          createdAt: missionData.f_created_at,
+          thumbnailUrl: missionData.f_thumbnail_url,
+          referenceUrl: missionData.f_reference_url,
+          imageUrl: missionData.f_image_url,
+          subjectivePlaceholder: missionData.f_subjective_placeholder
+        }
+
+        setMission(mappedMission)
+
+        // 4. 투표 정보 로드 (로그인한 경우)
+        if (userId) {
+          if (mappedMission.form === "match") {
+            // 커플 매칭은 별도 로직 (필요시 구현)
+            // const votes = await getAllVotes2(userId, params.id)
+          } else {
+            const vote = await getVote1(userId, params.id)
+            if (vote) {
+              setUserVote(vote)
+            }
+          }
+        }
+
+      } catch (error) {
+        console.error("데이터 로딩 실패:", error)
       } finally {
-        setLoading(false)
+        setIsLoading(false)
       }
     }
 
-    fetchMission()
-  }, [params.id])
+    loadData()
+  }, [params.id, userId])
 
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <SidebarNavigation
-          selectedShow={selectedShow}
-          selectedSeason={selectedSeason}
-          isMissionStatusOpen={isMissionStatusOpen}
-          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-          onSeasonSelect={handleSeasonSelect}
-          onMissionModalOpen={() => setIsMissionModalOpen(true)}
-        />
-        <div className="flex-1 flex flex-col">
-          <AppHeader
-            selectedShow={selectedShow}
-            onShowChange={setSelectedShow}
-            userNickname={userNickname}
-            userPoints={userPoints}
-            userTier={userTier}
-            onAvatarClick={() => router.push("/p-profile")}
-          />
-          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
-            <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-              <div className="text-center">
-                <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-                <p className="text-muted-foreground">미션을 불러오는 중...</p>
-              </div>
-            </div>
-          </main>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">로딩 중...</div>
       </div>
     )
   }
 
-  if (error || !mission) {
+  if (!mission) {
     return (
-      <div className="min-h-screen bg-gray-50 flex">
-        <SidebarNavigation
-          selectedShow={selectedShow}
-          selectedSeason={selectedSeason}
-          isMissionStatusOpen={isMissionStatusOpen}
-          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-          onSeasonSelect={handleSeasonSelect}
-          onMissionModalOpen={() => setIsMissionModalOpen(true)}
-        />
-        <div className="flex-1 flex flex-col">
-          <AppHeader
-            selectedShow={selectedShow}
-            onShowChange={setSelectedShow}
-            userNickname={userNickname}
-            userPoints={userPoints}
-            userTier={userTier}
-            onAvatarClick={() => router.push("/p-profile")}
-          />
-          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
-            <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
-              <div className="text-center space-y-4">
-                <p className="text-muted-foreground">{error || "미션을 찾을 수 없습니다"}</p>
-                <Link href="/">
-                  <Button>홈으로 돌아가기</Button>
-                </Link>
-              </div>
-            </div>
-          </main>
-        </div>
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-gray-500">미션을 찾을 수 없습니다.</div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <SidebarNavigation
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <AppHeader
         selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => setIsMissionModalOpen(true)}
+        onShowChange={setSelectedShow}
+        userNickname={userNickname}
+        userPoints={userPoints}
+        userTier={userTier}
       />
-      <div className="flex-1 flex flex-col">
-        <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
-          userNickname={userNickname}
-          userPoints={userPoints}
-          userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
-        />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-24 md:pb-6">
-          <div className="max-w-7xl mx-auto">
-            {mission.form === "binary" && <MultiVotePage mission={mission} />}
-            {mission.form === "multi" && <MultiVotePage mission={mission} />}
-            {mission.form === "match" && <MatchVotePage mission={mission} />}
-            {mission.form === "subjective" && <SubjectiveVotePage mission={mission} />}
-            {!["binary", "multi", "match", "subjective"].includes(mission.form) && (
-              <div className="text-center space-y-4">
-                <p className="text-muted-foreground">지원하지 않는 투표 형식입니다</p>
-                <Link href="/">
-                  <Button>홈으로 돌아가기</Button>
-                </Link>
-              </div>
-            )}
-          </div>
-        </main>
-      </div>
+      <main className="max-w-3xl mx-auto px-4 py-2">
+        {mission.form === "binary" && (
+          <MultiVotePage mission={mission} userVote={userVote} />
+        )}
+        {mission.form === "multi" && (
+          <MultiVotePage mission={mission} userVote={userVote} />
+        )}
+        {mission.form === "match" && (
+          <MatchVotePage mission={mission} />
+        )}
+        {mission.form === "subjective" && (
+          <SubjectiveVotePage mission={mission} />
+        )}
+
+        {/* 댓글 섹션 추가 */}
+        <CommentSection
+          missionId={mission.id}
+          missionType={mission.form === "match" ? "mission2" : "mission1"}
+          currentUserId={userId || undefined}
+        />
+      </main>
+
       <BottomNavigation />
     </div>
   )

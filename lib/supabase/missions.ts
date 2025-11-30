@@ -201,16 +201,6 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
 
     if (updateError) return { success: false, error: "투표 수 업데이트에 실패했습니다." }
 
-    // settleMission1이 없어서 일단 주석 처리
-    /*
-    if (mission.f_kind === "majority" && mission.f_status !== "settled" && majorityOption) {
-      const isDeadlinePassed = mission.f_deadline ? new Date(mission.f_deadline) < new Date() : false
-      if (isDeadlinePassed) {
-        await settleMission1(missionId)
-      }
-    }
-    */
-
     return { success: true }
   } catch (error) {
     console.error("투표 수 업데이트 중 오류:", error)
@@ -281,5 +271,33 @@ export async function incrementMissionParticipants(missionId: string): Promise<{
   } catch (error) {
     console.error("미션 참여자 수 증가 중 오류:", error)
     return { success: false, error: "미션 참여자 수 증가 중 오류가 발생했습니다." }
+  }
+}
+
+/**
+ * 커플 매칭 미션 참여자 수 증가 (t_missions2)
+ */
+export async function incrementMissionParticipants2(missionId: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+    const { data: mission, error: fetchError } = await supabase.from("t_missions2").select("f_stats_participants").eq("f_id", missionId).single()
+
+    if (fetchError || !mission) {
+      return { success: false, error: "미션을 찾을 수 없습니다." }
+    }
+
+    const currentParticipants = mission.f_stats_participants || 0
+    const { error: updateError } = await supabase
+      .from("t_missions2")
+      .update({ f_stats_participants: currentParticipants + 1 })
+      .eq("f_id", missionId)
+
+    if (updateError) {
+      return { success: false, error: "참여자 수 업데이트 실패" }
+    }
+
+    return { success: true }
+  } catch (error) {
+    return { success: false, error: "오류 발생" }
   }
 }

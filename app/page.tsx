@@ -218,17 +218,22 @@ export default function HomePage() {
     return true
   })
 
-  // 정렬: 진행중(open) > 마감임박 > 마감됨(settled/closed)
+  // 정렬: 진행중(open) > 마감됨(settled/closed)
+  // 진행중인 미션 내에서는 최신순(createdAt)으로 정렬
   const sortedMissions = [...filteredMissions].sort((a, b) => {
-    // 1. 상태 우선순위 (open > others)
-    if (a.status === "open" && b.status !== "open") return -1
-    if (a.status !== "open" && b.status === "open") return 1
+    // 1. 상태 우선순위 (실제 진행중인 것만 open 취급)
+    // DB 상태가 open이어도 마감일이 지났으면 closed로 취급하여 정렬
+    const isAOpen = a.status === "open" && !isDeadlinePassed(a.deadline)
+    const isBOpen = b.status === "open" && !isDeadlinePassed(b.deadline)
 
-    // 2. 마감일 임박순 (오름차순)
-    if (a.deadline && b.deadline) {
-      return new Date(a.deadline).getTime() - new Date(b.deadline).getTime()
-    }
-    return 0
+    if (isAOpen && !isBOpen) return -1
+    if (!isAOpen && isBOpen) return 1
+
+    // 2. 최신순 (createdAt 내림차순)
+    // createdAt이 없으면 뒤로
+    if (!a.createdAt) return 1
+    if (!b.createdAt) return -1
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
   return (
@@ -323,7 +328,7 @@ export default function HomePage() {
                 </div>
               ))
             ) : sortedMissions.length > 0 ? (
-              sortedMissions.map((mission) => (
+              sortedMissions.slice(1).map((mission) => (
                 <div key={mission.id} id={`mission-${mission.id}`}>
                   <MissionCard
                     mission={mission}
