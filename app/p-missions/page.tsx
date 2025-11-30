@@ -25,7 +25,6 @@ export default function MissionsPage() {
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string | undefined>(undefined)
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(true)
   const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
@@ -48,7 +47,7 @@ export default function MissionsPage() {
         // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
         const result = await getMissions(50) // 미션 목록 페이지는 더 많이 가져오기
         let realMissions: TMission[] = []
-        
+
         if (result.success && result.missions) {
           // Supabase 데이터를 TMission 형태로 변환
           realMissions = result.missions.map((mission: any) => ({
@@ -79,7 +78,7 @@ export default function MissionsPage() {
         // 2. Supabase에서 커플매칭 미션 가져오기
         const coupleResult = await getMissions2(50)
         let coupleMissions: TMission[] = []
-        
+
         if (coupleResult.success && coupleResult.missions) {
           // t_missions2 데이터를 TMission 형태로 변환
           coupleMissions = coupleResult.missions.map((mission: any) => ({
@@ -110,13 +109,13 @@ export default function MissionsPage() {
         // 3. 임시로 27기 Mock 데이터 추가 (실제 DB에 27기가 없을 경우)
         const mock27Mission = mockMissions["27기-커플매칭"]
         const has27Mission = coupleMissions.some(m => m.seasonNumber === 27)
-        
+
         // 4. 두 데이터 합치기
         const combinedMissions = [...realMissions, ...coupleMissions]
         if (!has27Mission && mock27Mission) {
           combinedMissions.push(mock27Mission)
         }
-        
+
         setMissions(combinedMissions)
 
         // 5. 인증된 사용자의 경우 투표 여부 확인
@@ -169,7 +168,6 @@ export default function MissionsPage() {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
               setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-              setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {
             console.error("유저 데이터 로딩 실패:", error)
@@ -180,7 +178,6 @@ export default function MissionsPage() {
         setUserNickname("")
         setUserPoints(0)
         setUserTier(getTierFromPoints(0))
-        setUserAvatarUrl(undefined)
       }
     }
 
@@ -215,14 +212,14 @@ export default function MissionsPage() {
   const shouldShowResults = (missionId: string): boolean => {
     const mission = missions.find(m => m.id === missionId)
     if (!mission) return false
-    
+
     let isClosed = false
-    
+
     if (mission.form === "match") {
       // 커플 매칭 미션: 모든 회차가 완료되면 마감
       const episodeStatuses = mission.episodeStatuses || {}
       const totalEpisodes = mission.episodes || 8
-      
+
       // 상태가 settled이거나 모든 회차가 settled면 마감
       isClosed = mission.status === "settled"
       if (!isClosed) {
@@ -239,7 +236,7 @@ export default function MissionsPage() {
       // 일반 미션: 마감 시간이 지났거나 상태가 settled인 경우
       isClosed = mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
     }
-    
+
     // 마감되었거나 사용자가 투표한 경우 결과 보기
     return isClosed || hasUserVoted(missionId)
   }
@@ -271,12 +268,12 @@ export default function MissionsPage() {
   const filteredMissions = Array.isArray(missions) ? missions
     .filter((mission) => {
       if (season === "all") return true
-      
+
       // 기수별 미션인 경우에만 필터링
       if (mission.seasonType === "기수별" && mission.seasonNumber) {
         return season === mission.seasonNumber.toString()
       }
-      
+
       // 기수별이 아닌 미션(전체)은 모든 필터에 포함
       return mission.seasonType === "전체"
     })
@@ -284,11 +281,11 @@ export default function MissionsPage() {
       // 마감 여부 확인
       const aIsClosed = a.deadline ? isDeadlinePassed(a.deadline) : a.status === "settled"
       const bIsClosed = b.deadline ? isDeadlinePassed(b.deadline) : b.status === "settled"
-      
+
       // 진행 중 미션이 먼저
       if (!aIsClosed && bIsClosed) return -1
       if (aIsClosed && !bIsClosed) return 1
-      
+
       // 같은 상태면 최신 순
       return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     }) : []
@@ -312,7 +309,6 @@ export default function MissionsPage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          userAvatarUrl={userAvatarUrl}
           onAvatarClick={() => router.push("/p-profile")}
         />
 
@@ -344,7 +340,7 @@ export default function MissionsPage() {
                 <div className="text-gray-500 text-sm">다른 기수를 선택해보세요</div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {filteredMissions.map((mission) => (
                   <MissionCard
                     key={mission.id}
@@ -361,8 +357,8 @@ export default function MissionsPage() {
 
       <BottomNavigation />
 
-      <MissionCreationModal 
-        isOpen={isMissionModalOpen} 
+      <MissionCreationModal
+        isOpen={isMissionModalOpen}
         onClose={() => setIsMissionModalOpen(false)}
         onMissionCreated={handleMissionCreated}
       />

@@ -9,7 +9,6 @@ interface TUserInfoProps {
   nickname: string
   points: number
   tier: TTierInfo
-  avatarUrl?: string
   onAvatarClick?: () => void
   showFullInfo?: boolean
   className?: string
@@ -19,7 +18,6 @@ export function UserInfo({
   nickname,
   points,
   tier,
-  avatarUrl,
   onAvatarClick,
   showFullInfo = true,
   className = "",
@@ -43,10 +41,10 @@ export function UserInfo({
         <span className="font-medium text-gray-900">{formatPoints(points, true)}</span>
       </div>
       <Avatar
-        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0"
+        className="w-8 h-8 sm:w-10 sm:h-10 rounded-full bg-gray-200 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0 border border-gray-100"
         onClick={onAvatarClick}
       >
-        <AvatarImage src={avatarUrl || tier.characterImage || "/placeholder.svg"} alt={nickname || tier.name} />
+        <AvatarImage src={tier.characterImage || "/placeholder.svg"} alt={nickname || tier.name} />
         <AvatarFallback>{(nickname || tier.name)[0]}</AvatarFallback>
       </Avatar>
     </div>

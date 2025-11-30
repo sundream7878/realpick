@@ -30,7 +30,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string | undefined>(undefined)
 
   const handleSeasonSelect = (season: string) => {
     setSelectedSeason(season)
@@ -48,7 +47,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
               setUserNickname(user.nickname)
               setUserPoints(user.points)
               setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-              setUserAvatarUrl(user.avatarUrl)
             }
           } catch (error) {
             console.error("유저 데이터 로딩 실패:", error)
@@ -59,7 +57,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
         setUserNickname("")
         setUserPoints(0)
         setUserTier(getTierFromPoints(0))
-        setUserAvatarUrl(undefined)
       }
     }
 
@@ -83,10 +80,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
     const fetchMission = async () => {
       try {
         setLoading(true)
-        
+
         // 먼저 t_missions2에서 커플매칭 미션 가져오기 (406 에러 방지)
         const coupleResult = await getMission2(params.id)
-        
+
         if (coupleResult.success && coupleResult.mission) {
           // t_missions2 데이터를 TMission 형태로 변환
           const coupleMission: TMission = {
@@ -108,15 +105,20 @@ export default function VotePage({ params }: { params: { id: string } }) {
             },
             result: {
               distribution: {},
-              finalAnswer: coupleResult.mission.f_final_answer || undefined
+              finalAnswer: coupleResult.mission.f_final_answer || undefined,
+              totalVotes: coupleResult.mission.f_stats_total_votes || 0
             },
+            description: coupleResult.mission.f_description || undefined,
+            referenceUrl: coupleResult.mission.f_reference_url || undefined,
+            imageUrl: coupleResult.mission.f_image_url || undefined,
+            thumbnailUrl: coupleResult.mission.f_thumbnail_url || undefined,
             createdAt: coupleResult.mission.f_created_at
           }
           setMission(coupleMission)
         } else {
           // t_missions2에 없으면 t_missions1에서 미션 데이터 가져오기
           const result = await getMission(params.id)
-          
+
           if (result.success && result.mission) {
             // Supabase 데이터를 TMission 형태로 변환
             const supabaseMission: TMission = {
@@ -137,9 +139,14 @@ export default function VotePage({ params }: { params: { id: string } }) {
               },
               result: {
                 distribution: result.mission.f_option_vote_counts || {},
-                correct: result.mission.f_correct_answer || undefined,
-                majority: result.mission.f_majority_option || undefined
+                correctAnswer: result.mission.f_correct_answer || undefined,
+                majorityOption: result.mission.f_majority_option || undefined,
+                totalVotes: result.mission.f_stats_total_votes || 0
               },
+              description: result.mission.f_description || undefined,
+              referenceUrl: result.mission.f_reference_url || undefined,
+              imageUrl: result.mission.f_image_url || undefined,
+              thumbnailUrl: result.mission.f_thumbnail_url || undefined,
               createdAt: result.mission.f_created_at
             }
             setMission(supabaseMission)
@@ -157,29 +164,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
     fetchMission()
   }, [params.id])
-
-
-  const VoteComponent = () => {
-    switch (mission.form) {
-      case "binary":
-        return <MultiVotePage mission={mission} />
-      case "multi":
-        return <MultiVotePage mission={mission} />
-      case "match":
-        return <MatchVotePage mission={mission} />
-      case "subjective":
-        return <SubjectiveVotePage mission={mission} />
-      default:
-        return (
-          <div className="text-center space-y-4">
-            <p className="text-muted-foreground">지원하지 않는 투표 형식입니다</p>
-            <Link href="/">
-              <Button>홈으로 돌아가기</Button>
-            </Link>
-          </div>
-        )
-    }
-  }
 
   if (loading) {
     return (
@@ -199,7 +183,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
-            userAvatarUrl={userAvatarUrl}
             onAvatarClick={() => router.push("/p-profile")}
           />
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
@@ -233,7 +216,6 @@ export default function VotePage({ params }: { params: { id: string } }) {
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
-            userAvatarUrl={userAvatarUrl}
             onAvatarClick={() => router.push("/p-profile")}
           />
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
@@ -273,7 +255,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-24 md:pb-6">
           <div className="max-w-7xl mx-auto">
-            <VoteComponent />
+            {mission.form === "binary" && <MultiVotePage mission={mission} />}
+            {mission.form === "multi" && <MultiVotePage mission={mission} />}
+            {mission.form === "match" && <MatchVotePage mission={mission} />}
+            {mission.form === "subjective" && <SubjectiveVotePage mission={mission} />}
+            {!["binary", "multi", "match", "subjective"].includes(mission.form) && (
+              <div className="text-center space-y-4">
+                <p className="text-muted-foreground">지원하지 않는 투표 형식입니다</p>
+                <Link href="/">
+                  <Button>홈으로 돌아가기</Button>
+                </Link>
+              </div>
+            )}
           </div>
         </main>
       </div>

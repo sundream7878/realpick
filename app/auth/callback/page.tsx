@@ -38,6 +38,8 @@ export default function AuthCallbackPage() {
         } else {
           // 모든 정보가 있으면 홈으로 리다이렉트
           window.dispatchEvent(new Event("auth-change"))
+          // 다른 탭 동기화를 위해 강제 이벤트 발생
+          localStorage.setItem("rp_auth_sync", Date.now().toString())
           router.push("/")
         }
       } catch (error) {

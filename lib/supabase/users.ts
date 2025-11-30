@@ -21,28 +21,28 @@ export async function getUser(userId: string): Promise<TUser | null> {
     id: data.f_id,
     email: data.f_email,
     nickname: data.f_nickname,
-    avatarUrl: data.f_avatar_url,
     points: data.f_points,
     tier: data.f_tier,
     ageRange: data.f_age_range || undefined,
     gender: data.f_gender || undefined,
     createdAt: data.f_created_at,
     updatedAt: data.f_updated_at,
+    role: data.f_role || "PICKER",
   } as TUser
 }
 
 // 사용자 포인트 업데이트 (티어도 자동 업데이트)
 export async function updateUserPoints(userId: string, newPoints: number): Promise<boolean> {
   const supabase = createClient()
-  
+
   // 포인트에 따른 티어 계산 (TypeScript 코드 기준)
   const tierInfo = getTierFromPoints(newPoints)
   const tierName = tierInfo.name as TTier
-  
+
   // 포인트와 티어를 함께 업데이트
   const { error } = await supabase
     .from("t_users")
-    .update({ 
+    .update({
       f_points: newPoints,
       f_tier: tierName
     })
@@ -72,13 +72,12 @@ export async function updateUserTier(userId: string, tier: TTier): Promise<boole
 // 사용자 프로필 업데이트
 export async function updateUserProfile(
   userId: string,
-  updates: { nickname?: string; avatarUrl?: string }
+  updates: { nickname?: string }
 ): Promise<boolean> {
   const supabase = createClient()
   const dbUpdates: Record<string, any> = {}
   if (updates.nickname !== undefined) dbUpdates.f_nickname = updates.nickname
-  if (updates.avatarUrl !== undefined) dbUpdates.f_avatar_url = updates.avatarUrl
-  
+
   const { error } = await supabase.from("t_users").update(dbUpdates).eq("f_id", userId)
 
   if (error) {
@@ -96,16 +95,16 @@ export async function updateUserAdditionalInfo(
 ): Promise<boolean> {
   const supabase = createClient()
   const dbUpdates: Record<string, any> = {}
-  
+
   if (updates.ageRange !== undefined) dbUpdates.f_age_range = updates.ageRange
   if (updates.gender !== undefined) dbUpdates.f_gender = updates.gender
-  
+
   // 나잇대와 성별이 모두 필수인 경우 검증
   if (updates.ageRange === undefined || updates.gender === undefined) {
     console.error("나잇대와 성별은 필수 입력 항목입니다.")
     return false
   }
-  
+
   const { error } = await supabase.from("t_users").update(dbUpdates).eq("f_id", userId)
 
   if (error) {
@@ -123,11 +122,11 @@ export async function createUser(user: Omit<TUser, "createdAt" | "updatedAt">): 
     f_id: user.id,
     f_email: user.email,
     f_nickname: user.nickname,
-    f_avatar_url: user.avatarUrl,
     f_points: user.points,
     f_tier: user.tier,
     f_age_range: user.ageRange || null,
     f_gender: user.gender || null,
+    f_role: user.role || "PICKER",
   }
   const { data, error } = await supabase.from("t_users").insert(dbUser).select().single()
 
@@ -140,13 +139,13 @@ export async function createUser(user: Omit<TUser, "createdAt" | "updatedAt">): 
     id: data.f_id,
     email: data.f_email,
     nickname: data.f_nickname,
-    avatarUrl: data.f_avatar_url,
     points: data.f_points,
     tier: data.f_tier,
     ageRange: data.f_age_range || undefined,
     gender: data.f_gender || undefined,
     createdAt: data.f_created_at,
     updatedAt: data.f_updated_at,
+    role: data.f_role || "PICKER",
   } as TUser
 }
 
@@ -168,13 +167,13 @@ export async function getUserRanking(limit: number = 100): Promise<TUser[]> {
     id: d.f_id,
     email: d.f_email,
     nickname: d.f_nickname,
-    avatarUrl: d.f_avatar_url,
     points: d.f_points,
     tier: d.f_tier,
     ageRange: d.f_age_range || undefined,
     gender: d.f_gender || undefined,
     createdAt: d.f_created_at,
     updatedAt: d.f_updated_at,
+    role: d.f_role || "PICKER",
   })) as TUser[]
 }
 

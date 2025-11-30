@@ -31,7 +31,6 @@ export default function MyPage() {
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-  const [userAvatarUrl, setUserAvatarUrl] = useState<string | undefined>(undefined)
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
@@ -60,7 +59,6 @@ export default function MyPage() {
             setUserNickname(user.nickname)
             setUserPoints(user.points)
             setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-            setUserAvatarUrl(user.avatarUrl)
           }
         } catch (error) {
           console.error("유저 데이터 로딩 실패:", error)
@@ -587,19 +585,18 @@ export default function MyPage() {
               {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((episodeNo) => {
                 const status = episodeStatuses[episodeNo] || "locked"
                 const isProcessing = submittingMissionId === mission.id
-                
+
                 return (
                   <div key={episodeNo} className="flex flex-col items-center gap-1">
                     <div className="text-xs font-medium text-gray-700">{episodeNo}차</div>
                     <Badge
                       variant="outline"
-                      className={`text-xs ${
-                        status === "open"
-                          ? "bg-green-100 text-green-700 border-green-300"
-                          : status === "settled"
-                            ? "bg-gray-200 text-gray-700 border-gray-400"
-                            : "bg-gray-100 text-gray-500 border-gray-300"
-                      }`}
+                      className={`text-xs ${status === "open"
+                        ? "bg-green-100 text-green-700 border-green-300"
+                        : status === "settled"
+                          ? "bg-gray-200 text-gray-700 border-gray-400"
+                          : "bg-gray-100 text-gray-500 border-gray-300"
+                        }`}
                     >
                       {status === "open" ? "진행중" : status === "settled" ? "마감" : "잠금"}
                     </Badge>
@@ -715,13 +712,13 @@ export default function MyPage() {
             )}
           </div>
 
-              {!isSettled && (
+          {!isSettled && (
             <>
               <div className="grid gap-3 md:grid-cols-2">
                 <div>
                   <p className="text-xs font-semibold text-gray-600 mb-1">남성 선택</p>
                   <Select
-                        value={selection.left ?? undefined}
+                    value={selection.left ?? undefined}
                     onValueChange={(value) =>
                       setMatchPairSelections((prev) => ({
                         ...prev,
@@ -937,7 +934,6 @@ export default function MyPage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          userAvatarUrl={userAvatarUrl}
           onAvatarClick={() => router.push("/p-profile")}
         />
 

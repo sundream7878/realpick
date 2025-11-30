@@ -4,6 +4,8 @@ import type { SuccessComment } from "./vote-types"
 export const mockMissions: Record<string, TMission> = {
   "1": {
     id: "1",
+    creatorNickname: "불타는바다",
+    thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
     kind: "predict",
     form: "binary",
     title: "나는솔로 29기 광수와 영숙 ",
@@ -20,6 +22,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 8432,
     },
     stats: { participants: 8432 },
+    createdAt: new Date().toISOString(),
   },
   "3": {
     id: "3",

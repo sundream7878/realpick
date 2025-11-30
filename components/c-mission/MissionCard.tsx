@@ -7,6 +7,7 @@ import type { TMission } from "@/types/t-vote/vote.types"
 import { SeasonBadge, getSeasonBadgeText } from "./SeasonBadge"
 import { MissionActionButtons } from "./MissionActionButtons"
 import { getTimeRemaining, isDeadlinePassed, getDDay } from "@/lib/utils/u-time/timeUtils.util"
+import { getShowByName } from "@/lib/constants/shows"
 
 interface TMissionCardProps {
   mission: TMission
@@ -26,14 +27,20 @@ export function MissionCard({
   className = "",
 }: TMissionCardProps) {
   const seasonBadgeText = getSeasonBadgeText(mission)
-  
+
+  // 클릭 시 이동할 URL 결정 (유튜브 링크가 없으면 공식 홈페이지로)
+  const targetUrl = mission.referenceUrl || (mission.seasonType ? getShowByName(mission.seasonType)?.officialUrl : undefined)
+
   // 실제 마감 여부 확인
   const isClosed = (() => {
     // 커플 매칭 미션인 경우: 회차별 완료 상태로 판단
     if (mission.form === "match") {
-      // status가 settled이면 마감
-      if (mission.status === "settled") return true
-      
+      // status가 settled이거나 closed이면 마감
+      if (mission.status === "settled" || mission.status === "closed") return true
+
+      // 마감일이 지났으면 마감
+      if (mission.deadline && isDeadlinePassed(mission.deadline)) return true
+
       // 모든 회차가 settled인지 확인
       if (mission.episodeStatuses) {
         const totalEpisodes = mission.episodes || 8
@@ -46,23 +53,23 @@ export function MissionCard({
       }
       return false
     }
-    
+
     // 일반 미션인 경우: 기존 로직 사용
-    return mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
+    return mission.deadline ? isDeadlinePassed(mission.deadline) : (mission.status === "settled" || mission.status === "closed")
   })()
-  
+
   const statusText = (() => {
     if (isClosed) return "마감됨"
-    
-    // 커플 매칭 미션인 경우: 마감일 표시하지 않음
+
+    // 커플 매칭 미션인 경우: 마감되지 않았으면 진행중
     if (mission.form === "match") {
       return "진행중"
     }
-    
+
     // 일반 미션인 경우: 마감일 표시
     return mission.deadline ? getTimeRemaining(mission.deadline) : "진행중"
   })()
-  
+
   const kindText = mission.kind === "predict" ? "예측픽" : "다수픽"
 
   const cardClassName =
@@ -74,167 +81,210 @@ export function MissionCard({
   const closedOpacity = isClosed ? "opacity-80" : ""
 
   return (
-    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col h-[240px]`}>
-      <CardHeader className="pb-2 space-y-2">
-        {/* 상단: 좌측 배지들, 우측 시간 */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            {variant === "hot" && (
-              <Badge className="bg-pink-500 hover:bg-pink-600 text-white">HOT</Badge>
-            )}
-            {variant !== "hot" && (
-              <Badge 
-                className={`font-medium ${
-                  mission.kind === "predict" 
-                    ? "bg-blue-100 text-blue-700 border-blue-200" 
+    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col`}>
+      <CardHeader className="pb-2">
+        <div className="flex justify-between items-start gap-3">
+          {/* 좌측: 배지 + 제목 */}
+          <div className="flex flex-col gap-2 flex-1 min-w-0">
+            {/* 배지 그룹 */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {variant === "hot" && (
+                <Badge className="bg-pink-500 hover:bg-pink-600 text-white">HOT</Badge>
+              )}
+              {variant !== "hot" && (
+                <Badge
+                  className={`font-medium ${mission.kind === "predict"
+                    ? "bg-blue-100 text-blue-700 border-blue-200"
                     : "bg-green-100 text-green-700 border-green-200"
-                }`}
-              >
-                {kindText}
-              </Badge>
-            )}
-            {seasonBadgeText && (
-              <SeasonBadge
-                seasonType={mission.seasonType}
-                seasonNumber={mission.seasonNumber}
-                variant="default"
-              />
-            )}
+                    }`}
+                >
+                  {kindText}
+                </Badge>
+              )}
+              {seasonBadgeText && (
+                <SeasonBadge
+                  seasonType={mission.seasonType}
+                  seasonNumber={mission.seasonNumber}
+                  variant="default"
+                />
+              )}
+            </div>
+
+            {/* 제목 */}
+            <CardTitle className="text-base text-gray-900 font-semibold line-clamp-2 leading-tight">
+              {seasonBadgeText ? (
+                <>
+                  <span className="text-purple-600 font-bold">[{seasonBadgeText}]</span> {mission.title}
+                </>
+              ) : (
+                mission.title
+              )}
+            </CardTitle>
           </div>
-          <div className="flex items-center gap-1 text-xs text-gray-600">
-            <Clock className="w-3.5 h-3.5" />
-            <span>{statusText}</span>
-          </div>
-        </div>
-        
-        {/* 제목 - 고정 높이 */}
-        <CardTitle className="text-base text-gray-900 font-semibold line-clamp-2 h-[3rem]">
-          {seasonBadgeText ? (
-            <>
-              <span className="text-purple-600 font-bold">[{seasonBadgeText}]</span> {mission.title}
-            </>
-          ) : (
-            mission.title
+
+          {/* 우측: 딜러 정보 + 썸네일 */}
+          {(mission.creatorNickname || mission.thumbnailUrl) && (
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              {/* 캐릭터 + 닉네임 */}
+              {mission.creatorNickname && (
+                <div className="flex items-center gap-1">
+                  <div className="w-5 h-5 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center overflow-hidden">
+                    <img
+                      src="/tiers/tier-7.png"
+                      alt="딜러 캐릭터"
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
+                        (e.target as HTMLImageElement).parentElement!.classList.add('bg-purple-200');
+                      }}
+                    />
+                  </div>
+                  <span className="text-xs font-bold text-purple-600">{mission.creatorNickname}</span>
+                </div>
+              )}
+
+              {/* 썸네일 */}
+              {mission.thumbnailUrl && (
+                <div
+                  className={`w-32 h-[72px] rounded-md overflow-hidden border border-gray-200 shadow-sm ${targetUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
+                  onClick={(e) => {
+                    if (targetUrl) {
+                      e.stopPropagation() // 카드 클릭 이벤트 전파 방지 (필요 시)
+                      window.open(targetUrl, "_blank")
+                    }
+                  }}
+                >
+                  <img
+                    src={mission.thumbnailUrl}
+                    alt="썸네일"
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+              )}
+            </div>
           )}
-        </CardTitle>
+        </div>
       </CardHeader>
 
       <CardContent className="pt-0 pb-3 flex flex-col flex-1">
-        {/* 참여자 수 + 도표/D-Day (한 줄로, 고정 높이) */}
+        {/* 도표/상태(좌측) + 참여자 수(우측) */}
         <div className="flex items-center justify-between h-10 mb-2">
-          <div className="text-sm text-gray-600">
+
+          {/* 좌측: 차트 및 상태 표시 */}
+          <div className="flex items-center h-full">
+            {/* 실시간 공개: 투표 그래프 표시 (커플 매칭 제외) */}
+            {mission.revealPolicy === "realtime" && mission.form !== "match" && (
+              <div className="flex items-end gap-1 h-full">
+                {mission.result?.distribution && Object.keys(mission.result.distribution).length > 0 ? (
+                  Object.entries(mission.result.distribution)
+                    .sort(([, a], [, b]) => (b as number) - (a as number))
+                    .slice(0, 5)
+                    .map(([option, percentage], index) => {
+                      const height = Math.max(30, percentage as number)
+                      const colorClass = `bg-gradient-to-t ${index === 0 ? "from-purple-400 to-purple-500" :
+                        index === 1 ? "from-pink-400 to-pink-500" :
+                          "from-purple-300 to-pink-300"
+                        }${!isClosed ? " animate-pulse" : ""}`
+
+                      return (
+                        <div
+                          key={option}
+                          className={`w-5 rounded-t-md transition-all duration-700 ease-in-out ${colorClass}`}
+                          style={{
+                            height: `${height}%`,
+                            animationDuration: isClosed ? undefined : `${1.5 + index * 0.3}s`
+                          }}
+                        />
+                      )
+                    })
+                ) : (
+                  // 데이터가 없으면 기본 도표 표시
+                  (mission.options && Array.isArray(mission.options) ? mission.options.slice(0, 5) : Array.from({ length: 5 })).map((_, index) => (
+                    <div
+                      key={index}
+                      className="w-5 rounded-t-md bg-gradient-to-t from-purple-300 to-pink-300 opacity-60"
+                      style={{ height: `${30 + index * 15}%` }}
+                    />
+                  ))
+                )}
+              </div>
+            )}
+
+            {/* 마감 후 공개: 미스터리 박스 표시 (일반 미션만) */}
+            {mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && !isClosed && (
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+
+                <div className="relative flex items-center gap-1.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md animate-bounce">
+                    <span className="text-white text-sm font-bold">?</span>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <div className="text-purple-700 font-bold text-xs leading-tight">
+                      {getDDay(mission.deadline)}
+                    </div>
+                    <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                      마감 후 공개
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 커플 매칭 미션 진행중: 회차별 진행 상태 표시 */}
+            {mission.form === "match" && !isClosed && (
+              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
+
+                <div className="relative flex items-center gap-1.5">
+                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
+                    <span className="text-white text-xs font-bold">💕</span>
+                  </div>
+
+                  <div className="flex flex-col">
+                    <div className="text-purple-700 font-bold text-xs leading-tight">
+                      회차별 진행
+                    </div>
+                    <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                      모든 회차 완료시 마감
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 마감된 경우: 체크 아이콘 박스 (보라/핑크 색상) */}
+            {((mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && isClosed) ||
+              (mission.form === "match" && isClosed)) && (
+                <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-purple-300">
+                  <div className="flex items-center gap-1.5">
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
+                      <span className="text-white text-sm font-bold">✓</span>
+                    </div>
+
+                    <div className="flex flex-col">
+                      <div className="text-purple-700 font-bold text-xs leading-tight">
+                        마감됨
+                      </div>
+                      <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                        결과 공개
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+          </div>
+
+          {/* 우측: 참여자 수 */}
+          <div className="text-sm text-gray-600 text-right">
             <span className="text-gray-900 font-semibold">
               {mission.stats?.participants?.toLocaleString() || 0}
             </span>
             명 참여
           </div>
-
-          {/* 실시간 공개: 투표 그래프 표시 (커플 매칭 제외) */}
-          {mission.revealPolicy === "realtime" && mission.form !== "match" && (
-            <div className="flex items-end gap-1 h-full">
-              {mission.result?.distribution && Object.keys(mission.result.distribution).length > 0 ? (
-                Object.entries(mission.result.distribution)
-                  .sort(([, a], [, b]) => (b as number) - (a as number))
-                  .slice(0, 5)
-                  .map(([option, percentage], index) => {
-                    const height = Math.max(30, percentage as number)
-                    const colorClass = `bg-gradient-to-t ${
-                      index === 0 ? "from-purple-400 to-purple-500" :
-                      index === 1 ? "from-pink-400 to-pink-500" :
-                      "from-purple-300 to-pink-300"
-                    }${!isClosed ? " animate-pulse" : ""}`
-                    
-                    return (
-                      <div
-                        key={option}
-                        className={`w-5 rounded-t-md transition-all duration-700 ease-in-out ${colorClass}`}
-                        style={{ 
-                          height: `${height}%`,
-                          animationDuration: isClosed ? undefined : `${1.5 + index * 0.3}s`
-                        }}
-                      />
-                    )
-                  })
-              ) : (
-                // 데이터가 없으면 기본 도표 표시
-                (mission.options && Array.isArray(mission.options) ? mission.options.slice(0, 5) : Array.from({ length: 5 })).map((_, index) => (
-                  <div
-                    key={index}
-                    className="w-5 rounded-t-md bg-gradient-to-t from-purple-300 to-pink-300 opacity-60"
-                    style={{ height: `${30 + index * 15}%` }}
-                  />
-                ))
-              )}
-            </div>
-          )}
-
-          {/* 마감 후 공개: 미스터리 박스 표시 (일반 미션만) */}
-          {mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && !isClosed && (
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-              
-              <div className="relative flex items-center gap-1.5">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md animate-bounce">
-                  <span className="text-white text-sm font-bold">?</span>
-                </div>
-                
-                <div className="flex flex-col">
-                  <div className="text-purple-700 font-bold text-xs leading-tight">
-                    {getDDay(mission.deadline)}
-                  </div>
-                  <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
-                    마감 후 공개
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 커플 매칭 미션 진행중: 회차별 진행 상태 표시 */}
-          {mission.form === "match" && !isClosed && (
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-              
-              <div className="relative flex items-center gap-1.5">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
-                  <span className="text-white text-xs font-bold">💕</span>
-                </div>
-                
-                <div className="flex flex-col">
-                  <div className="text-purple-700 font-bold text-xs leading-tight">
-                    회차별 진행
-                  </div>
-                  <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
-                    모든 회차 완료시 마감
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 마감된 경우: 체크 아이콘 박스 (보라/핑크 색상) */}
-          {((mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && isClosed) || 
-            (mission.form === "match" && isClosed)) && (
-            <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-purple-300">
-              <div className="flex items-center gap-1.5">
-                <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
-                  <span className="text-white text-sm font-bold">✓</span>
-                </div>
-                
-                <div className="flex flex-col">
-                  <div className="text-purple-700 font-bold text-xs leading-tight">
-                    마감됨
-                  </div>
-                  <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
-                    결과 공개
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* 버튼 */}
         <div className="mt-auto">
           <MissionActionButtons
             missionId={mission.id}

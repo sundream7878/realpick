@@ -8,7 +8,12 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { isAuthenticated } from "@/lib/auth-utils"
 
-export function BottomNavigation() {
+interface BottomNavigationProps {
+  onMissionClick?: () => void
+  onStatusClick?: () => void
+}
+
+export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNavigationProps) {
   const pathname = usePathname()
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -20,7 +25,11 @@ export function BottomNavigation() {
       setPendingMissionCreation(true)
       setShowLoginModal(true)
     } else {
-      setIsMissionModalOpen(true)
+      if (onMissionClick) {
+        onMissionClick()
+      } else {
+        setIsMissionModalOpen(true)
+      }
     }
   }
 
@@ -40,8 +49,10 @@ export function BottomNavigation() {
     {
       icon: AlertCircle,
       label: "미션현황",
-      href: "/p-missions?season=all",
-      active: pathname === "/p-missions",
+      // onStatusClick이 있으면 onClick으로 처리, 없으면 href로 이동
+      ...(onStatusClick
+        ? { onClick: onStatusClick, active: false }
+        : { href: "/p-missions?season=all", active: pathname === "/p-missions" }),
     },
     {
       icon: User,
@@ -62,9 +73,8 @@ export function BottomNavigation() {
                 <button
                   key={index}
                   onClick={item.onClick}
-                  className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${
-                    item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                  }`}
+                  className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                    }`}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="text-xs font-medium">{item.label}</span>
@@ -75,9 +85,8 @@ export function BottomNavigation() {
               <Link
                 key={item.href}
                 href={item.href!}
-                className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${
-                  item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                }`}
+                className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  }`}
               >
                 <Icon className="w-5 h-5" />
                 <span className="text-xs font-medium">{item.label}</span>

@@ -31,6 +31,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
   const [userVote, setUserVote] = useState<string | null>(null)
   const [pendingSubmit, setPendingSubmit] = useState(false)
   const [currentMission, setCurrentMission] = useState<TMission>(mission)
+  const [isExpanded, setIsExpanded] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
 
@@ -48,7 +49,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
       if (isAuthenticated()) {
         const vote = await getVote1(userId, mission.id)
         if (vote && vote.choice) {
-          setUserVote(vote.choice)
+          setUserVote(Array.isArray(vote.choice) ? vote.choice[0] : vote.choice)
         }
       } else {
         // 비인증 사용자는 localStorage 확인
@@ -58,7 +59,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
         }
       }
     }
-    
+
     checkExistingVote()
   }, [mission.id, mission.form, userId])
 
@@ -104,9 +105,14 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
             totalVotes: updatedMissionResult.mission.f_stats_total_votes || 0
           },
           result: {
-            distribution: updatedMissionResult.mission.f_option_vote_counts || {}
+            distribution: updatedMissionResult.mission.f_option_vote_counts || {},
+            totalVotes: updatedMissionResult.mission.f_stats_total_votes || 0
           },
-          createdAt: updatedMissionResult.mission.f_created_at
+          createdAt: updatedMissionResult.mission.f_created_at,
+          description: updatedMissionResult.mission.f_description || undefined,
+          referenceUrl: updatedMissionResult.mission.f_reference_url || undefined,
+          imageUrl: updatedMissionResult.mission.f_image_url || undefined,
+          thumbnailUrl: updatedMissionResult.mission.f_thumbnail_url || undefined
         }
         setCurrentMission(updatedMission)
       }
@@ -116,7 +122,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
       localStorage.setItem(`rp_picked_${mission.id}`, subjectiveAnswer.trim())
       setShowSubmissionSheet(false)
       setSubjectiveAnswer("")
-      
+
       toast({
         title: "제출 완료!",
         description: "성공적으로 제출되었습니다",
@@ -165,6 +171,43 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
             )}
           </div>
           <h1 className="text-3xl font-bold text-gray-900 text-balance">{currentMission.title}</h1>
+
+          {/* 이미지 표시 */}
+          {currentMission.imageUrl && (
+            <div className="rounded-lg overflow-hidden border border-gray-200 mt-4">
+              <img
+                src={currentMission.imageUrl}
+                alt="미션 이미지"
+                className="w-full h-auto object-cover max-h-[400px]"
+              />
+            </div>
+          )}
+
+          {/* 설명 및 더보기 */}
+          <div className="relative mt-2">
+            <p className={`text-lg text-gray-600 ${!isExpanded ? "line-clamp-3" : ""}`}>
+              {currentMission.description}
+            </p>
+            {currentMission.description && currentMission.description.length > 100 && (
+              <Button
+                variant="link"
+                className="p-0 h-auto text-rose-500 font-semibold mt-1"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? "접기" : "더보기"}
+              </Button>
+            )}
+          </div>
+
+          {/* 참조 URL */}
+          {currentMission.referenceUrl && (
+            <div className="flex items-center gap-2 text-sm text-blue-600 mt-2">
+              <Link href={currentMission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                🔗 참고 링크 확인하기
+              </Link>
+            </div>
+          )}
+
           <div className="flex items-center gap-2 text-sm text-gray-600 mt-2">
             <Users className="w-4 h-4" />
             <span className="font-semibold text-gray-900">{currentMission.stats?.participants?.toLocaleString() || "0"}</span>명 참여
@@ -199,11 +242,10 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
             <div className="flex justify-center py-8">
               <Button
                 size="lg"
-                className={`px-16 py-4 text-lg font-semibold transition-all duration-200 ${
-                  subjectiveAnswer.trim()
+                className={`px-16 py-4 text-lg font-semibold transition-all duration-200 ${subjectiveAnswer.trim()
                     ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg hover:shadow-xl"
                     : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                }`}
+                  }`}
                 onClick={() => {
                   if (!subjectiveAnswer.trim()) return
                   // 로그인 체크
@@ -301,4 +343,3 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
     </div>
   )
 }
-

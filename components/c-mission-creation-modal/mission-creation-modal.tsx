@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c
 import { Plus, X, ArrowLeft, Check, Circle } from "lucide-react"
 import { createMission } from "@/lib/supabase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
+import { uploadMissionImage } from "@/lib/supabase/storage"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -43,10 +44,44 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [subjectivePlaceholder, setSubjectivePlaceholder] = useState("")
   const [totalEpisodes, setTotalEpisodes] = useState("8")
 
+  // 추가 필드 (영상, 설명, 이미지)
+  const [referenceUrl, setReferenceUrl] = useState("")
+  const [description, setDescription] = useState("")
+  const [imageUrl, setImageUrl] = useState("") // 실제 구현 시에는 파일 업로드 로직 필요 (여기선 URL 입력으로 대체하거나 추후 구현)
+
   const [showAIModal, setShowAIModal] = useState(false)
   const [aiResult, setAiResult] = useState<AIVerificationResult | null>(null)
   const [isVerifying, setIsVerifying] = useState(false)
   const [isPublishing, setIsPublishing] = useState(false)
+  const [isUploading, setIsUploading] = useState(false)
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setIsUploading(true)
+    try {
+      const result = await uploadMissionImage(file)
+      if (result.success && result.url) {
+        setImageUrl(result.url)
+        toast({
+          title: "이미지 업로드 성공",
+          description: "이미지가 성공적으로 업로드되었습니다.",
+        })
+      } else {
+        throw new Error(result.error || "이미지 업로드 실패")
+      }
+    } catch (error) {
+      console.error("Image upload failed:", error)
+      toast({
+        title: "이미지 업로드 실패",
+        description: "이미지 업로드 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsUploading(false)
+    }
+  }
 
   const handleTypeSelection = (type: MissionType, format: MissionFormat) => {
     setMissionType(type)
@@ -152,6 +187,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     setResultVisibility("")
     setSubjectivePlaceholder("")
     setTotalEpisodes("8")
+    setReferenceUrl("")
+    setDescription("")
+    setImageUrl("")
   }
 
   const handleClose = () => {
@@ -182,9 +220,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         matchPairs:
           missionFormat === "couple"
             ? {
-                left: maleOptions.filter((opt) => opt.trim()),
-                right: femaleOptions.filter((opt) => opt.trim()),
-              }
+              left: maleOptions.filter((opt) => opt.trim()),
+              right: femaleOptions.filter((opt) => opt.trim()),
+            }
             : undefined,
         revealPolicy: resultVisibility === "realtime" ? "realtime" : "onClose",
         deadline: deadline ? new Date(deadline).toISOString() : "",
@@ -241,9 +279,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         matchPairs:
           missionFormat === "couple"
             ? {
-                left: maleOptions.filter((opt) => opt.trim()),
-                right: femaleOptions.filter((opt) => opt.trim()),
-              }
+              left: maleOptions.filter((opt) => opt.trim()),
+              right: femaleOptions.filter((opt) => opt.trim()),
+            }
             : undefined,
         revealPolicy: resultVisibility === "realtime" ? "realtime" : "onClose",
         deadline: deadline ? new Date(deadline).toISOString() : "",
@@ -263,12 +301,15 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         femaleOptions: missionFormat === "couple" ? femaleOptions.filter((opt) => opt.trim()) : undefined,
         placeholder: missionFormat === "subjective" ? subjectivePlaceholder : undefined,
         totalEpisodes: missionFormat === "couple" ? parseInt(totalEpisodes) || 8 : undefined,
-        deadline: missionFormat === "couple" 
+        deadline: missionFormat === "couple"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString() // 커플매칭은 회차별 관리이므로 먼 미래 날짜로 설정
           : deadline ? new Date(deadline).toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        resultVisibility: missionFormat === "couple" 
+        resultVisibility: missionFormat === "couple"
           ? "onClose" // 커플매칭은 항상 마감 후 자동 공개
           : resultVisibility === "realtime" ? "realtime" : "onClose",
+        referenceUrl: referenceUrl.trim() || undefined,
+        description: description.trim() || undefined,
+        imageUrl: imageUrl.trim() || undefined,
       }
 
       const result = await createMission(missionData)
@@ -278,13 +319,13 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       }
 
       console.log("미션 게시 성공:", result.missionId)
-      
+
       // showUndoSnackbar() // 일단 주석 처리
 
       setShowAIModal(false)
       onClose()
       resetForm()
-      
+
       // 미션 생성 성공 후 콜백 호출 (메인 화면 목록 새로고침용)
       if (onMissionCreated) {
         onMissionCreated()
@@ -298,7 +339,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     } catch (error) {
       console.error("[v0] Publishing failed:", error)
       const errorMessage = error instanceof Error ? error.message : "알 수 없는 오류"
-      
+
       toast({
         title: "미션 게시 실패",
         description: `미션 게시 중 오류가 발생했습니다. ${errorMessage}`,
@@ -370,11 +411,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 <h3 className="text-base sm:text-lg font-medium mb-4">Mission 유형을 선택하세요</h3>
                 <div className="flex justify-center gap-3 sm:gap-4">
                   <Card
-                    className={`cursor-pointer transition-all border-2 ${
-                      missionType === "prediction"
-                        ? "bg-pink-100 border-pink-400 shadow-md"
-                        : "hover:bg-pink-50 border-pink-200"
-                    }`}
+                    className={`cursor-pointer transition-all border-2 ${missionType === "prediction"
+                      ? "bg-pink-100 border-pink-400 shadow-md"
+                      : "hover:bg-pink-50 border-pink-200"
+                      }`}
                     onClick={() => handleMissionTypeSelect("prediction")}
                   >
                     <CardContent className="p-4 sm:p-6 text-center">
@@ -387,11 +427,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </CardContent>
                   </Card>
                   <Card
-                    className={`cursor-pointer transition-all border-2 ${
-                      missionType === "majority"
-                        ? "bg-pink-100 border-pink-400 shadow-md"
-                        : "hover:bg-pink-50 border-pink-200"
-                    }`}
+                    className={`cursor-pointer transition-all border-2 ${missionType === "majority"
+                      ? "bg-pink-100 border-pink-400 shadow-md"
+                      : "hover:bg-pink-50 border-pink-200"
+                      }`}
                     onClick={() => handleMissionTypeSelect("majority")}
                   >
                     <CardContent className="p-4 sm:p-6 text-center">
@@ -459,11 +498,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "binary-choice" && (
             <div className="space-y-6">
-              <div>
-                <Button variant="outline" className="bg-purple-600 text-white hover:bg-purple-700">
-                  썸네일 업로드
-                </Button>
-              </div>
+
 
               <div>
                 <Label className="text-sm font-medium">기수 분류</Label>
@@ -503,6 +538,62 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   placeholder="제목을 입력하세요"
                   className="mt-1"
                 />
+              </div>
+
+              {/* 추가 정보 입력 섹션 (공통) */}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+                  <Input
+                    value={referenceUrl}
+                    onChange={(e) => setReferenceUrl(e.target.value)}
+                    placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
+                    className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    maxLength={1000}
+                  />
+                  <div className="text-right text-xs text-gray-400">
+                    {description.length}/1000
+                  </div>
+                </div>
+
+                {/* 이미지 업로드 (일단 URL 입력으로 대체, 추후 파일 업로드로 변경 가능) */}
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                      className="bg-white"
+                    />
+                  </div>
+                  {imageUrl && (
+                    <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+                      <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-1 right-1 bg-white/80 hover:bg-white p-1 h-auto rounded-full"
+                        onClick={() => setImageUrl("")}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -552,11 +643,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "multiple-choice" && (
             <div className="space-y-6">
-              <div>
-                <Button variant="outline" className="bg-purple-600 text-white hover:bg-purple-700">
-                  썸네일 업로드
-                </Button>
-              </div>
+
 
               <div>
                 <Label className="text-sm font-medium">기수 분류</Label>
@@ -596,6 +683,61 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   placeholder="제목을 입력하세요"
                   className="mt-1"
                 />
+              </div>
+
+              {/* 추가 정보 입력 섹션 (공통) */}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+                  <Input
+                    value={referenceUrl}
+                    onChange={(e) => setReferenceUrl(e.target.value)}
+                    placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
+                    className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    maxLength={1000}
+                  />
+                  <div className="text-right text-xs text-gray-400">
+                    {description.length}/1000
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                      className="bg-white"
+                    />
+                  </div>
+                  {imageUrl && (
+                    <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+                      <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-1 right-1 bg-white/80 hover:bg-white p-1 h-auto rounded-full"
+                        onClick={() => setImageUrl("")}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -666,11 +808,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "couple-matching" && (
             <div className="space-y-6">
-              <div>
-                <Button variant="outline" className="bg-purple-600 text-white hover:bg-purple-700">
-                  썸네일 업로드
-                </Button>
-              </div>
+
 
               <div>
                 <Label className="text-sm font-medium">기수 분류</Label>
@@ -710,6 +848,61 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   placeholder="제목을 입력하세요"
                   className="mt-1"
                 />
+              </div>
+
+              {/* 추가 정보 입력 섹션 (공통) */}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+                  <Input
+                    value={referenceUrl}
+                    onChange={(e) => setReferenceUrl(e.target.value)}
+                    placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
+                    className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    maxLength={1000}
+                  />
+                  <div className="text-right text-xs text-gray-400">
+                    {description.length}/1000
+                  </div>
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
+                  <div className="flex gap-2 mt-1">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      disabled={isUploading}
+                      className="bg-white"
+                    />
+                  </div>
+                  {imageUrl && (
+                    <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+                      <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute top-1 right-1 bg-white/80 hover:bg-white p-1 h-auto rounded-full"
+                        onClick={() => setImageUrl("")}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div>
@@ -800,9 +993,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800">
-                      💡 <strong>커플매칭 특성</strong><br/>
-                      • 모든 회차 방영이 끝난 후, 최종 커플 선택이 완료되었을 때만 결과를 알 수 있습니다.<br/>
-                      • 따라서 결과는 <strong>마감 후 자동 공개</strong>로만 설정됩니다.<br/>
+                      💡 <strong>커플매칭 특성</strong><br />
+                      • 모든 회차 방영이 끝난 후, 최종 커플 선택이 완료되었을 때만 결과를 알 수 있습니다.<br />
+                      • 따라서 결과는 <strong>마감 후 자동 공개</strong>로만 설정됩니다.<br />
                       • 전체 미션 마감 날짜는 설정하지 않으며, 각 회차별로 관리됩니다.
                     </p>
                   </div>
@@ -869,6 +1062,35 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 />
               </div>
 
+              {/* 추가 정보 입력 섹션 (공통) */}
+              <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+                <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+                  <Input
+                    value={referenceUrl}
+                    onChange={(e) => setReferenceUrl(e.target.value)}
+                    placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
+                    className="mt-1 bg-white"
+                  />
+                </div>
+
+                <div>
+                  <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
+                  <textarea
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
+                    className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    maxLength={1000}
+                  />
+                  <div className="text-right text-xs text-gray-400">
+                    {description.length}/1000
+                  </div>
+                </div>
+              </div>
+
               <div>
                 <Label className="text-sm font-medium">주관식 안내 문구</Label>
                 <Input
@@ -926,9 +1148,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           <div className="space-y-4">
             <div
-              className={`p-4 rounded-lg border-2 transition-all ${
-                aiResult?.status === "pass" ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200 opacity-60"
-              }`}
+              className={`p-4 rounded-lg border-2 transition-all ${aiResult?.status === "pass" ? "bg-green-50 border-green-200" : "bg-gray-50 border-gray-200 opacity-60"
+                }`}
             >
               <div className="flex items-center gap-3 mb-2">
                 {aiResult?.status === "pass" ? (
@@ -966,11 +1187,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
             </div>
 
             <div
-              className={`p-4 rounded-lg border-2 transition-all ${
-                aiResult?.status === "revise"
-                  ? "bg-yellow-50 border-yellow-200"
-                  : "bg-gray-50 border-gray-200 opacity-60"
-              }`}
+              className={`p-4 rounded-lg border-2 transition-all ${aiResult?.status === "revise"
+                ? "bg-yellow-50 border-yellow-200"
+                : "bg-gray-50 border-gray-200 opacity-60"
+                }`}
             >
               <div className="flex items-center gap-3 mb-2">
                 {aiResult?.status === "revise" ? (

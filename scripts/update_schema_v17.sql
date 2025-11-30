@@ -1,0 +1,1 @@
+-- Migration script cleared as per user request to rollback theme features

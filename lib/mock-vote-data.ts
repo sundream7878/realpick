@@ -2,9 +2,29 @@
 // 새 코드는 lib/utils/u-mock-vote-data/mock-vote-data.util.ts에서 import하세요.
 export * from "./utils/u-mock-vote-data/mock-vote-data.util"
 
+import type { TMission, TDealer, SuccessComment, TVoteSubmission } from "@/types/t-vote/vote.types"
+
+export const mockDealers: Record<string, TDealer> = {
+  "dealer-1": {
+    id: "dealer-1",
+    userId: "user-dealer-1",
+    channelName: "불타는바다",
+    channelUrl: "https://youtube.com/@burningsea",
+    subscriberCount: 12500,
+    introMessage: "나는솔로 전문 리뷰 채널입니다.",
+    broadcastSection: "나는솔로",
+    status: "ACTIVE",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  }
+}
+
 export const mockMissions: Record<string, TMission> = {
   "1": {
     id: "1",
+    creatorId: "user-dealer-1",
+    creatorNickname: "불타는바다", // 유저 닉네임 (딜러 채널명과 동일할 수 있음)
+    thumbnailUrl: "https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg",
     kind: "predict",
     form: "binary",
     title: "나는솔로 29기 광수와 영숙 ",
@@ -12,8 +32,8 @@ export const mockMissions: Record<string, TMission> = {
     seasonType: "기수별",
     seasonNumber: 29,
     revealPolicy: "realtime",
-    deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(), // Changed to future date for open status
-    status: "open", // Changed from "settled" to "open"
+    deadline: new Date(Date.now() + 1 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "open",
     options: ["커플 성사", "커플 실패"],
     result: {
       correctAnswer: "커플 성사",
@@ -21,6 +41,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 8432,
     },
     stats: { participants: 8432 },
+    createdAt: new Date().toISOString(),
   },
   "27기-커플매칭": {
     id: "27기-커플매칭",
@@ -31,12 +52,12 @@ export const mockMissions: Record<string, TMission> = {
     seasonType: "기수별",
     seasonNumber: 27,
     revealPolicy: "realtime",
-    deadline: new Date(Date.now() + 364 * 24 * 60 * 60 * 1000).toISOString(), // 364일 후 (마감일은 의미없음)
-    status: "settled", // 마감됨 (모든 회차 완료)
+    deadline: new Date(Date.now() + 364 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "settled",
     episodes: 8,
     episodeStatuses: {
-      1: "settled", // 모든 회차 완료
-      2: "settled", 
+      1: "settled",
+      2: "settled",
       3: "settled",
       4: "settled",
       5: "settled",
@@ -66,7 +87,8 @@ export const mockMissions: Record<string, TMission> = {
         "영식-순자": 25,
         "영철-영자": 18,
         "민수-옥순": 12,
-      }
+      },
+      totalVotes: 1247,
     },
     stats: { participants: 1247 },
     createdAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
@@ -80,7 +102,7 @@ export const mockMissions: Record<string, TMission> = {
     seasonType: "기수별",
     seasonNumber: 29,
     revealPolicy: "realtime",
-    deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(), // Past date for settled status
+    deadline: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
     status: "settled",
     episodes: 8,
     episodeStatuses: {
@@ -93,7 +115,7 @@ export const mockMissions: Record<string, TMission> = {
       7: "settled",
       8: "settled",
     },
-    matchPairs: {
+    options: {
       left: ["영수", "영호", "영식", "영철", "광수", "상철"],
       right: ["영순", "정숙", "순자", "영자", "옥순", "현숙"],
     },
@@ -119,6 +141,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 12847,
     },
     stats: { participants: 12847 },
+    createdAt: new Date().toISOString(),
   },
   "4": {
     id: "4",
@@ -128,8 +151,8 @@ export const mockMissions: Record<string, TMission> = {
     description: "역대 최고의 커플을 선택해주세요",
     seasonType: "전체",
     revealPolicy: "realtime",
-    deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(), // Changed to future date for open status
-    status: "open", // Changed from "settled" to "open"
+    deadline: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString(),
+    status: "open",
     options: ["1기 현우-지영", "3기 대훈-미정", "5기 상철-지현", "8기 정식-현숙"],
     result: {
       majorityOption: "1기 현우-지영",
@@ -137,6 +160,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 7123,
     },
     stats: { participants: 7123 },
+    createdAt: new Date().toISOString(),
   },
   "5": {
     id: "5",
@@ -155,6 +179,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 4567,
     },
     stats: { participants: 4567 },
+    createdAt: new Date().toISOString(),
   },
   "6": {
     id: "6",
@@ -173,6 +198,7 @@ export const mockMissions: Record<string, TMission> = {
       totalVotes: 6789,
     },
     stats: { participants: 6789 },
+    createdAt: new Date().toISOString(),
   },
 }
 

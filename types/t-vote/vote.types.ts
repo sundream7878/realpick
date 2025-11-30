@@ -8,11 +8,24 @@ export interface TUser {
   id: string
   email: string
   nickname: string
-  avatarUrl?: string
   points: number
   tier: TTier
   ageRange?: string // 나잇대 (10대, 20대, 30대, 40대, 50대, 60대, 70대, 80대, 90대)
   gender?: string // 성별 (남성, 여성)
+  createdAt: string
+  updatedAt: string
+  role: "PICKER" | "DEALER" | "ADMIN"
+}
+
+export interface TDealer {
+  id: string
+  userId: string
+  channelName: string
+  channelUrl?: string
+  subscriberCount: number
+  introMessage?: string
+  broadcastSection?: string
+  status: "PENDING" | "ACTIVE" | "STOP"
   createdAt: string
   updatedAt: string
 }
@@ -29,9 +42,29 @@ export type TTier =
 // ============================================
 // 2. Mission Types
 // ============================================
+export interface CreateMissionData {
+  title: string
+  type: "prediction" | "majority"
+  format: "binary" | "multiple" | "couple" | "subjective"
+  seasonType: "전체" | "기수별"
+  seasonNumber?: string
+  options?: string[]
+  maleOptions?: string[]
+  femaleOptions?: string[]
+  placeholder?: string
+  totalEpisodes?: number
+  deadline: string
+  resultVisibility: string
+  referenceUrl?: string
+  description?: string
+  imageUrl?: string
+}
+
 export interface TMission {
   id: string
   creatorId?: string
+  creatorNickname?: string // 딜러 닉네임
+  creatorTier?: string // 작성자 티어 (추가됨)
   kind: "predict" | "majority"
   form: "binary" | "multi" | "match" | "subjective"
   title: string
@@ -51,7 +84,9 @@ export interface TMission {
     participants: number
     totalVotes?: number
   }
-  thumbnailUrl?: string
+  thumbnailUrl?: string // 유튜브 썸네일 URL
+  referenceUrl?: string // 원본 레퍼런스 URL (유튜브 링크 등)
+  imageUrl?: string // 직접 업로드한 이미지 URL
   createdAt: string
   updatedAt?: string
 }
@@ -182,4 +217,3 @@ export type EpisodePick = TEpisodePick
 export type Result = TResult
 export type PointLog = TPointLog
 export type SuccessComment = TSuccessComment
-

@@ -3,6 +3,7 @@ export interface TTierInfo {
   name: string
   minPoints: number
   characterImage: string
+  description?: string
 }
 
 // Legacy Type Export (하위 호환성)

@@ -12,12 +12,12 @@ import { setAuthToken, setUserId, clearAuthToken, clearUserId } from "@/lib/auth
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createClient()
-    
+
     // 현재 URL 가져오기 (클라이언트 사이드에서만 가능)
-    const redirectUrl = typeof window !== "undefined" 
+    const redirectUrl = typeof window !== "undefined"
       ? `${window.location.origin}/auth/callback`
       : `${process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000"}/auth/callback`
-    
+
     // 링크 방식 사용
     const { data, error } = await supabase.auth.signInWithOtp({
       email: email,
@@ -59,19 +59,19 @@ export async function sendVerificationCode(email: string): Promise<{ success: bo
 /**
  * 링크 콜백 처리 (URL에서 토큰 추출 및 세션 생성)
  */
-export async function handleMagicLinkCallback(): Promise<{ 
+export async function handleMagicLinkCallback(): Promise<{
   success: boolean
   userId?: string
   isNewUser?: boolean
   needsSetup?: boolean
-  error?: string 
+  error?: string
 }> {
   try {
     const supabase = createClient()
-    
+
     // 먼저 현재 세션 확인 (Supabase가 자동으로 URL hash를 처리했을 수 있음)
     const { data: { session: existingSession } } = await supabase.auth.getSession()
-    
+
     if (existingSession?.user) {
       // 이미 세션이 있으면 사용
       const userId = existingSession.user.id
@@ -92,7 +92,6 @@ export async function handleMagicLinkCallback(): Promise<{
           nickname: email.split("@")[0] || "사용자",
           points: 0,
           tier: "루키",
-          avatarUrl: undefined,
         })
 
         if (!newUser) {
@@ -190,10 +189,9 @@ export async function handleMagicLinkCallback(): Promise<{
       const newUser = await createUser({
         id: userId,
         email: email,
-        nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
+        nickname: email.split("@")[0] || "사용자",
         points: 0,
         tier: "루키",
-        avatarUrl: undefined,
       })
 
       if (!newUser) {
@@ -268,16 +266,15 @@ export async function verifyCode(
     // 사용자 정보가 DB에 있는지 확인, 없으면 생성
     let userData = await getUser(userId)
     const isNewUser = !userData
-    
+
     if (isNewUser) {
       // 새 사용자 생성 (나잇대/성별은 아직 없음)
       const newUser = await createUser({
         id: userId,
         email: email,
-        nickname: email.split("@")[0] || "사용자", // 기본 닉네임은 이메일 앞부분
+        nickname: email.split("@")[0] || "사용자",
         points: 0,
         tier: "루키",
-        avatarUrl: undefined,
       })
 
       if (!newUser) {

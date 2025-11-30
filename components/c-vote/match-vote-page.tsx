@@ -92,6 +92,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   const [aggregatedResults, setAggregatedResults] = useState<Record<string, number>>({})
   const [totalParticipants, setTotalParticipants] = useState<number>(0)
   const [loadingResults, setLoadingResults] = useState(false)
+  const [isExpanded, setIsExpanded] = useState(false)
 
   const userId = getUserId() || "user123"
   // 커플매칭 미션은 항상 멀티 에피소드로 처리 (episodes가 없으면 기본값 8)
@@ -129,8 +130,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   // 실제 참여자 수 계산 (커플 매칭은 여러 회차에 참여할 수 있으므로, 실제 제출된 에피소드 수나 유니크 유저 수를 고려해야 함)
   // 여기서는 미션 전체 참여자 수를 보여주되, 만약 0명이면 임시로 1명으로 보여줌 (UX상)
   // 실제로는 DB에서 가져온 mission.stats.participants를 사용해야 함
-  const displayParticipants = mission.stats.participants > 0 
-    ? mission.stats.participants 
+  const displayParticipants = mission.stats.participants > 0
+    ? mission.stats.participants
     : (submittedEpisodes.size > 0 ? 1 : 0) // 내가 참여했으면 최소 1명으로 표시
 
   // EpisodeSelector에 전달할 status 객체 생성
@@ -160,81 +161,13 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
   useEffect(() => {
     let isMounted = true
-    
+
     const loadVotesFromDB = async () => {
       try {
         const currentUserId = getUserId()
         if (!currentUserId) {
-        // 로그인 안 된 경우 localStorage만 확인
-        if (!isMultiEpisode) {
-          const existingVote = localStorage.getItem(`rp_picked_${mission.id}`)
-          if (existingVote) {
-            try {
-              const parsedVote = JSON.parse(existingVote)
-              setUserVote(parsedVote)
-            } catch (error) {
-              console.error("Failed to parse existing vote:", error)
-            }
-          }
-        } else {
-          const loadedPicks: Record<number, Array<{ left: string; right: string }>> = {}
-          const saved = new Set<number>()
-          const submitted = new Set<number>()
-
-          for (let ep = 1; ep <= totalEpisodes; ep++) {
-            const key = `rp_matchpick_${mission.id}_${ep}`
-            const stored = localStorage.getItem(key)
-            if (stored) {
-              try {
-                const pairs = JSON.parse(stored)
-                if (pairs && pairs.length > 0) {
-                  loadedPicks[ep] = pairs
-                  saved.add(ep)
-                }
-              } catch (error) {
-                console.error(`Failed to parse episode ${ep} pick:`, error)
-              }
-            }
-
-            const submittedKey = `rp_matchpick_submitted_${mission.id}_${ep}`
-            const isSubmitted = localStorage.getItem(submittedKey)
-            if (isSubmitted === "true") {
-              submitted.add(ep)
-            }
-          }
-
-          setEpisodePicks(loadedPicks)
-          setSavedEpisodes(saved)
-          setSubmittedEpisodes(submitted)
-        }
-        return
-      }
-
-      // 로그인된 경우 DB에서 투표 데이터 불러오기
-      if (!isMultiEpisode) {
-        // 단일 에피소드: getVote2로 첫 번째 에피소드 조회
-        const vote = await getVote2(currentUserId, mission.id, 1)
-        if (isMounted) {
-          if (vote && vote.pairs) {
-            setUserVote(vote.pairs)
-            // connections도 업데이트
-            const voteConnections = vote.pairs.map((pair) => ({
-              left: pair.left,
-              right: pair.right,
-              id: `1-${pair.left}-${pair.right}`,
-              episodeNo: 1,
-            }))
-            setConnections(voteConnections)
-            
-            // 단일 에피소드여도 episodePicks에 저장하여 상태 일관성 유지
-            setEpisodePicks(prev => ({
-              ...prev,
-              1: vote.pairs || []
-            }))
-            setSavedEpisodes(new Set([1]))
-            setSubmittedEpisodes(new Set([1]))
-          } else {
-            // DB에 없으면 localStorage 확인
+          // 로그인 안 된 경우 localStorage만 확인
+          if (!isMultiEpisode) {
             const existingVote = localStorage.getItem(`rp_picked_${mission.id}`)
             if (existingVote) {
               try {
@@ -244,63 +177,131 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                 console.error("Failed to parse existing vote:", error)
               }
             }
-          }
-        }
-      } else {
-        // 멀티 에피소드: getAllVotes2로 모든 에피소드 조회
-        const allVotes = await getAllVotes2(currentUserId, mission.id)
-        const loadedPicks: Record<number, Array<{ left: string; right: string }>> = {}
-        const saved = new Set<number>()
-        const submitted = new Set<number>()
+          } else {
+            const loadedPicks: Record<number, Array<{ left: string; right: string }>> = {}
+            const saved = new Set<number>()
+            const submitted = new Set<number>()
 
-        // DB에서 불러온 데이터로 업데이트
-        allVotes.forEach((vote) => {
-          if (vote.episodeNo && vote.pairs) {
-            loadedPicks[vote.episodeNo] = vote.pairs
-            saved.add(vote.episodeNo)
-            submitted.add(vote.episodeNo)
-          }
-        })
-
-        // localStorage도 백업으로 확인
-        for (let ep = 1; ep <= totalEpisodes; ep++) {
-          if (!loadedPicks[ep]) {
-            const key = `rp_matchpick_${mission.id}_${ep}`
-            const stored = localStorage.getItem(key)
-            if (stored) {
-              try {
-                const pairs = JSON.parse(stored)
-                if (pairs && pairs.length > 0) {
-                  loadedPicks[ep] = pairs
-                  saved.add(ep)
+            for (let ep = 1; ep <= totalEpisodes; ep++) {
+              const key = `rp_matchpick_${mission.id}_${ep}`
+              const stored = localStorage.getItem(key)
+              if (stored) {
+                try {
+                  const pairs = JSON.parse(stored)
+                  if (pairs && pairs.length > 0) {
+                    loadedPicks[ep] = pairs
+                    saved.add(ep)
+                  }
+                } catch (error) {
+                  console.error(`Failed to parse episode ${ep} pick:`, error)
                 }
-              } catch (error) {
-                console.error(`Failed to parse episode ${ep} pick:`, error)
+              }
+
+              const submittedKey = `rp_matchpick_submitted_${mission.id}_${ep}`
+              const isSubmitted = localStorage.getItem(submittedKey)
+              if (isSubmitted === "true") {
+                submitted.add(ep)
+              }
+            }
+
+            setEpisodePicks(loadedPicks)
+            setSavedEpisodes(saved)
+            setSubmittedEpisodes(submitted)
+          }
+          return
+        }
+
+        // 로그인된 경우 DB에서 투표 데이터 불러오기
+        if (!isMultiEpisode) {
+          // 단일 에피소드: getVote2로 첫 번째 에피소드 조회
+          const vote = await getVote2(currentUserId, mission.id, 1)
+          if (isMounted) {
+            if (vote && vote.pairs) {
+              setUserVote(vote.pairs)
+              // connections도 업데이트
+              const voteConnections = vote.pairs.map((pair) => ({
+                left: pair.left,
+                right: pair.right,
+                id: `1-${pair.left}-${pair.right}`,
+                episodeNo: 1,
+              }))
+              setConnections(voteConnections)
+
+              // 단일 에피소드여도 episodePicks에 저장하여 상태 일관성 유지
+              setEpisodePicks(prev => ({
+                ...prev,
+                1: vote.pairs || []
+              }))
+              setSavedEpisodes(new Set([1]))
+              setSubmittedEpisodes(new Set([1]))
+            } else {
+              // DB에 없으면 localStorage 확인
+              const existingVote = localStorage.getItem(`rp_picked_${mission.id}`)
+              if (existingVote) {
+                try {
+                  const parsedVote = JSON.parse(existingVote)
+                  setUserVote(parsedVote)
+                } catch (error) {
+                  console.error("Failed to parse existing vote:", error)
+                }
               }
             }
           }
+        } else {
+          // 멀티 에피소드: getAllVotes2로 모든 에피소드 조회
+          const allVotes = await getAllVotes2(currentUserId, mission.id)
+          const loadedPicks: Record<number, Array<{ left: string; right: string }>> = {}
+          const saved = new Set<number>()
+          const submitted = new Set<number>()
 
-          const submittedKey = `rp_matchpick_submitted_${mission.id}_${ep}`
-          const isSubmitted = localStorage.getItem(submittedKey)
-          if (isSubmitted === "true" && !submitted.has(ep)) {
-            submitted.add(ep)
+          // DB에서 불러온 데이터로 업데이트
+          allVotes.forEach((vote) => {
+            if (vote.episodeNo && vote.pairs) {
+              loadedPicks[vote.episodeNo] = vote.pairs
+              saved.add(vote.episodeNo)
+              submitted.add(vote.episodeNo)
+            }
+          })
+
+          // localStorage도 백업으로 확인
+          for (let ep = 1; ep <= totalEpisodes; ep++) {
+            if (!loadedPicks[ep]) {
+              const key = `rp_matchpick_${mission.id}_${ep}`
+              const stored = localStorage.getItem(key)
+              if (stored) {
+                try {
+                  const pairs = JSON.parse(stored)
+                  if (pairs && pairs.length > 0) {
+                    loadedPicks[ep] = pairs
+                    saved.add(ep)
+                  }
+                } catch (error) {
+                  console.error(`Failed to parse episode ${ep} pick:`, error)
+                }
+              }
+            }
+
+            const submittedKey = `rp_matchpick_submitted_${mission.id}_${ep}`
+            const isSubmitted = localStorage.getItem(submittedKey)
+            if (isSubmitted === "true" && !submitted.has(ep)) {
+              submitted.add(ep)
+            }
+          }
+
+          if (isMounted) {
+            setEpisodePicks(loadedPicks)
+            setSavedEpisodes(saved)
+            setSubmittedEpisodes(submitted)
+            // connections는 useEffect에서 selectedEpisodes에 따라 자동으로 설정됨
           }
         }
-
-        if (isMounted) {
-          setEpisodePicks(loadedPicks)
-          setSavedEpisodes(saved)
-          setSubmittedEpisodes(submitted)
-          // connections는 useEffect에서 selectedEpisodes에 따라 자동으로 설정됨
-        }
-      }
       } catch (error) {
         console.error("투표 데이터 로딩 실패:", error)
       }
     }
 
     loadVotesFromDB()
-    
+
     return () => {
       isMounted = false
     }
@@ -424,10 +425,10 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
       // 드래그 가능 조건: canVote가 true이고, 회차가 선택되어 있고, 제출되지 않았고, episodeStatuses가 없거나 open인 경우
       // 수정: 1회차 외의 다른 회차도 드래그 가능해야 함.
       // canVote 체크 로직 수정: isMultiEpisode일 때는 현재 에피소드가 제출되었는지만 확인
-      
+
       if (selectedEpisodes.size !== 1) return
       if (isSubmitted) return
-      
+
       // episodeStatuses가 없으면 기본적으로 open으로 간주 -> 수정: getEpisodeStatus 사용
       const episodeStatus = getEpisodeStatus(currentEpisode || 1)
       if (episodeStatus === "settled" || episodeStatus === "locked") return
@@ -629,7 +630,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       const currentEpisode = Array.from(selectedEpisodes)[0]
       const currentEpisodeConnections = connections.filter((conn) => conn.episodeNo === currentEpisode)
-      
+
       if (currentEpisodeConnections.length === 0) {
         toast({
           title: "커플을 선택해주세요",
@@ -679,7 +680,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       // DB에서 제출한 투표 데이터 다시 불러오기
       const savedVote = await getVote2(currentUserId, mission.id, currentEpisode)
-      
+
       if (savedVote && savedVote.pairs) {
         // episodePicks 업데이트 (useEffect가 자동으로 connections를 업데이트함)
         setEpisodePicks((prev) => ({
@@ -710,8 +711,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         }, 3000)
 
         // 실시간 동기화를 위한 이벤트 발생
-        window.dispatchEvent(new CustomEvent('mission-vote-updated', { 
-          detail: { missionId: mission.id, userId, episodeNo: currentEpisode } 
+        window.dispatchEvent(new CustomEvent('mission-vote-updated', {
+          detail: { missionId: mission.id, userId, episodeNo: currentEpisode }
         }))
 
         toast({
@@ -762,9 +763,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
     }
   }
 
-  const getRevealBadge = () => {
-    return mission.revealPolicy === "realtime" ? "실시간" : "마감"
-  }
+
 
   const handleResultView = () => {
     if (mission.status === "settled") {
@@ -930,11 +929,21 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 mb-4">
           <Badge className="bg-rose-500 hover:bg-rose-600 text-white">{getTypeBadge()}</Badge>
-          <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-            {getRevealBadge()}
+
+          {/* 상태 배지 */}
+          <Badge variant="secondary" className={mission.status === 'open' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"}>
+            {mission.status === 'open' ? '진행중' : '마감됨'}
           </Badge>
-          {/* 커플매칭 미션은 회차별 관리이므로 마감 시간 표시하지 않음 */}
-          {mission.status === "open" && mission.form !== "match" && mission.deadline && !isDeadlinePassed(mission.deadline) && (
+
+          {/* 결과 공개 정책 배지 (실시간일 때만 표시) */}
+          {mission.revealPolicy === "realtime" && (
+            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
+              실시간 결과
+            </Badge>
+          )}
+
+          {/* 마감 시간 표시 (커플매칭도 마감일이 있으면 표시) */}
+          {mission.status === "open" && mission.deadline && !isDeadlinePassed(mission.deadline) && (
             <Badge variant="outline" className="border-rose-300 text-rose-600">
               <Clock className="w-3 h-3 mr-1" />
               {getTimeRemaining(mission.deadline)}
@@ -942,7 +951,43 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
           )}
         </div>
         <h1 className="text-3xl font-bold text-gray-900 text-balance">{mission.title}</h1>
-        <h2 className="text-lg text-gray-600">{mission.description}</h2>
+
+        {/* 이미지 표시 */}
+        {mission.imageUrl && (
+          <div className="rounded-lg overflow-hidden border border-gray-200">
+            <img
+              src={mission.imageUrl}
+              alt="미션 이미지"
+              className="w-full h-auto object-cover max-h-[400px]"
+            />
+          </div>
+        )}
+
+        {/* 설명 및 더보기 */}
+        <div className="relative">
+          <p className={`text-lg text-gray-600 ${!isExpanded ? "line-clamp-3" : ""}`}>
+            {mission.description}
+          </p>
+          {mission.description && mission.description.length > 100 && (
+            <Button
+              variant="link"
+              className="p-0 h-auto text-rose-500 font-semibold mt-1"
+              onClick={() => setIsExpanded(!isExpanded)}
+            >
+              {isExpanded ? "접기" : "더보기"}
+            </Button>
+          )}
+        </div>
+
+        {/* 참조 URL */}
+        {mission.referenceUrl && (
+          <div className="flex items-center gap-2 text-sm text-blue-600">
+            <Link href={mission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+              🔗 참고 링크 확인하기
+            </Link>
+          </div>
+        )}
+
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Users className="w-4 h-4" />
           <span className="font-semibold text-gray-900">{displayParticipants.toLocaleString()}</span>명 참여
@@ -1045,8 +1090,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                   ? `${Array.from(selectedEpisodes)[0]}차 커플 매칭하기`
                   : isMultiEpisode && selectedEpisodes.size > 1
                     ? `${Array.from(selectedEpisodes)
-                        .sort((a, b) => a - b)
-                        .join(", ")}차 보기`
+                      .sort((a, b) => a - b)
+                      .join(", ")}차 보기`
                     : isMultiEpisode && selectedEpisodes.size === 0
                       ? "에피소드를 선택해주세요"
                       : "커플 매칭하기"}
@@ -1166,10 +1211,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             className={`
                               relative p-4 rounded-xl border-2 transition-all duration-200 select-none
                               ${isSettled || isSubmitted || isLocked ? "cursor-not-allowed opacity-60" : "cursor-grab"}
-                              ${
-                                connected
-                                  ? "border-blue-400 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 shadow-md"
-                                  : "border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50"
+                              ${connected
+                                ? "border-blue-400 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 shadow-md"
+                                : "border-gray-300 bg-white hover:border-blue-300 hover:bg-blue-50"
                               }
                               ${isDragging ? "scale-105 shadow-lg border-blue-500" : ""}
                               ${isHovered ? "border-purple-400 bg-purple-50 shadow-lg" : ""}
@@ -1231,10 +1275,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             className={`
                               relative p-4 rounded-xl border-2 transition-all duration-200 select-none
                               ${isSettled || isSubmitted || isLocked ? "cursor-not-allowed opacity-60" : "cursor-grab"}
-                              ${
-                                connected
-                                  ? "border-rose-400 bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 shadow-md"
-                                  : "border-gray-300 bg-white hover:border-rose-300 hover:bg-rose-50"
+                              ${connected
+                                ? "border-rose-400 bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 shadow-md"
+                                : "border-gray-300 bg-white hover:border-rose-300 hover:bg-rose-50"
                               }
                               ${isDragging ? "scale-105 shadow-lg border-rose-500" : ""}
                               ${isHovered ? "border-purple-400 bg-purple-50 shadow-lg" : ""}
@@ -1274,13 +1317,13 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                   // 에피소드 번호를 포함한 고유 키 생성
                   const key = `${conn.episodeNo || 'default'}-${conn.left}-${conn.right}`
                   // 같은 키가 없거나, 있더라도 현재 연결이 더 최신인 경우 (id가 더 큰 경우) 업데이트
-                  if (!uniqueConnectionsMap.has(key) || 
-                      (uniqueConnectionsMap.get(key)?.id && conn.id > uniqueConnectionsMap.get(key)!.id)) {
+                  if (!uniqueConnectionsMap.has(key) ||
+                    (uniqueConnectionsMap.get(key)?.id && conn.id > uniqueConnectionsMap.get(key)!.id)) {
                     uniqueConnectionsMap.set(key, conn)
                   }
                 })
                 const uniqueConnections = Array.from(uniqueConnectionsMap.values())
-                
+
                 return (
                   <div className="mt-8 p-6 bg-white rounded-xl border border-rose-200">
                     <h4 className="text-lg font-semibold text-gray-900 mb-4">
@@ -1347,13 +1390,12 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                 return (
                   <Button
                     size="lg"
-                    className={`px-16 py-4 text-lg font-semibold transition-all duration-200 ${
-                      isSubmitted || isSettled
-                        ? "bg-green-500 text-white cursor-not-allowed opacity-75"
-                        : canSubmit
-                          ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg hover:shadow-xl"
-                          : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                    }`}
+                    className={`px-16 py-4 text-lg font-semibold transition-all duration-200 ${isSubmitted || isSettled
+                      ? "bg-green-500 text-white cursor-not-allowed opacity-75"
+                      : canSubmit
+                        ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg hover:shadow-xl"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      }`}
                     onClick={() => {
                       if (isSubmitted || isSettled || !canSubmit) return
                       // 로그인 체크
@@ -1475,7 +1517,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                     .map(([pair, count], index) => {
                       const totalVotes = Object.values(aggregatedResults).reduce((sum, c) => sum + c, 0)
                       const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
-                      
+
                       return (
                         <div key={pair} className="flex items-center justify-between p-3 rounded-lg bg-purple-50 border border-purple-200">
                           <div className="flex items-center gap-3">

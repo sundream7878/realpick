@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { Button } from "@/components/c-ui/button"
-import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User } from "lucide-react"
+import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -21,7 +21,7 @@ interface TSidebarNavigationProps {
   onMissionStatusToggle: () => void
   onSeasonSelect: (season: string) => void
   onMissionModalOpen: () => void
-  activeNavItem?: "home" | "missions" | "mypage"
+  activeNavItem?: "home" | "missions" | "mypage" | "casting"
   seasonOptions?: TSeasonOption[]
 }
 
@@ -76,18 +76,31 @@ export function SidebarNavigation({
   }
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 hidden md:block fixed h-full z-40 top-16">
+    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16">
       <div className="p-6">
         <nav className="space-y-2">
           <Link href="/">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${
-                activeNavItem === "home" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
-              }`}
+              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                }`}
             >
               <Home className="w-5 h-5" />
               홈
+            </Button>
+          </Link>
+
+          <Link href="/p-casting">
+            <Button
+              variant="ghost"
+              className={`w-full justify-start gap-3 relative ${activeNavItem === "casting" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                }`}
+            >
+              <Megaphone className="w-5 h-5" />
+              Real Casting
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+                New
+              </span>
             </Button>
           </Link>
 
@@ -103,9 +116,8 @@ export function SidebarNavigation({
           <div className="space-y-1">
             <Button
               variant="ghost"
-              className={`w-full justify-between gap-3 ${
-                activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
-              }`}
+              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                }`}
               onClick={onMissionStatusToggle}
             >
               <div className="flex items-center gap-3">
@@ -125,9 +137,8 @@ export function SidebarNavigation({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-full justify-start text-sm ${
-                        selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                      }`}
+                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
+                        }`}
                       onClick={() => onSeasonSelect(option.value)}
                     >
                       {option.label}
@@ -141,9 +152,8 @@ export function SidebarNavigation({
           <Link href="/p-mypage" onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${
-                activeNavItem === "mypage" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
-              }`}
+              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                }`}
             >
               <User className="w-5 h-5" />
               마이페이지
@@ -152,7 +162,7 @@ export function SidebarNavigation({
 
         </nav>
       </div>
-      
+
       {/* 로그인 모달 */}
       <LoginModal
         isOpen={showLoginModal}
