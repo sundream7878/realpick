@@ -57,7 +57,7 @@ export async function sendVerificationCode(email: string): Promise<{ success: bo
 }
 
 /**
- * 링크 콜백 처리 (URL에서 토큰 추출 및 세션 생성)
+ * 링크 콜백 처리 (최신 Supabase PKCE 플로우 방식)
  */
 export async function handleMagicLinkCallback(): Promise<{
   success: boolean
@@ -69,11 +69,90 @@ export async function handleMagicLinkCallback(): Promise<{
   try {
     const supabase = createClient()
 
-    // 먼저 현재 세션 확인 (Supabase가 자동으로 URL hash를 처리했을 수 있음)
+    console.log("[handleMagicLinkCallback] 시작")
+    console.log("[handleMagicLinkCallback] URL:", window.location.href)
+
+    // 1. PKCE 플로우: URL에서 code 파라미터 확인
+    const searchParams = new URLSearchParams(window.location.search)
+    const code = searchParams.get('code')
+
+    if (code) {
+      console.log("[handleMagicLinkCallback] PKCE code 발견, exchangeCodeForSession 시도")
+      
+      // code를 세션으로 교환
+      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+      
+      if (error) {
+        console.error("[handleMagicLinkCallback] exchangeCodeForSession 실패:", error)
+        return { 
+          success: false, 
+          error: error.message || "인증 코드 교환에 실패했습니다." 
+        }
+      }
+
+      if (!data.session || !data.user) {
+        return { success: false, error: "세션을 생성할 수 없습니다." }
+      }
+
+      console.log("[handleMagicLinkCallback] 세션 생성 성공:", data.user.id)
+
+      const userId = data.user.id
+      const email = data.user.email
+
+      if (!email) {
+        return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
+      }
+
+      // 사용자 정보가 DB에 있는지 확인
+      let userData = await getUser(userId)
+      const isNewUser = !userData
+
+      if (isNewUser) {
+        const newUser = await createUser({
+          id: userId,
+          email: email,
+          nickname: email.split("@")[0] || "사용자",
+          points: 0,
+          tier: "루키",
+        })
+
+        if (!newUser) {
+          return { success: false, error: "사용자 생성에 실패했습니다." }
+        }
+
+        userData = newUser
+      }
+
+      if (!userData) {
+        return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
+      }
+
+      const needsSetup = !userData.ageRange || !userData.gender
+
+      // 로그인 정보 저장
+      if (!needsSetup) {
+        if (data.session.access_token) {
+          setAuthToken(data.session.access_token)
+          setUserId(userId)
+          localStorage.setItem("rp_user_email", userData.email)
+          localStorage.setItem("rp_user_nickname", userData.nickname)
+        }
+      } else {
+        setUserId(userId)
+        localStorage.setItem("rp_user_email", userData.email)
+        localStorage.setItem("rp_user_nickname", userData.nickname)
+      }
+
+      return { success: true, userId, isNewUser, needsSetup }
+    }
+
+    // 2. 레거시 방식: 이미 세션이 있는지 확인
+    console.log("[handleMagicLinkCallback] code 없음, 기존 세션 확인")
     const { data: { session: existingSession } } = await supabase.auth.getSession()
 
     if (existingSession?.user) {
-      // 이미 세션이 있으면 사용
+      console.log("[handleMagicLinkCallback] 기존 세션 발견:", existingSession.user.id)
+      
       const userId = existingSession.user.id
       const email = existingSession.user.email
 
@@ -123,116 +202,18 @@ export async function handleMagicLinkCallback(): Promise<{
       return { success: true, userId, isNewUser, needsSetup }
     }
 
-    // 세션이 없으면 URL에서 토큰 추출 시도
-    // Hash fragment에서 추출
-    let accessToken: string | null = null
-    let refreshToken: string | null = null
-    let type: string | null = null
-
-    if (window.location.hash) {
-      const hashParams = new URLSearchParams(window.location.hash.substring(1))
-      accessToken = hashParams.get("access_token")
-      refreshToken = hashParams.get("refresh_token")
-      type = hashParams.get("type")
+    // 3. 세션도 없고 code도 없음
+    console.error("[handleMagicLinkCallback] 유효한 인증 정보를 찾을 수 없습니다.")
+    return { 
+      success: false, 
+      error: "유효하지 않은 인증 링크입니다. 다시 시도해주세요." 
     }
-
-    // Query parameter에서도 시도 (일부 환경에서 hash가 작동하지 않을 수 있음)
-    if (!accessToken && window.location.search) {
-      const queryParams = new URLSearchParams(window.location.search)
-      accessToken = queryParams.get("access_token")
-      refreshToken = queryParams.get("refresh_token")
-      type = queryParams.get("type")
-    }
-
-    console.log("[handleMagicLinkCallback] URL 정보:", {
-      hash: window.location.hash,
-      search: window.location.search,
-      accessToken: accessToken ? "있음" : "없음",
-      type,
-    })
-
-    if (!accessToken) {
-      console.error("[handleMagicLinkCallback] access_token을 찾을 수 없습니다.")
-      return { success: false, error: "유효하지 않은 링크입니다. 토큰을 찾을 수 없습니다." }
-    }
-
-    // 타입 체크 (magiclink 또는 email 모두 허용)
-    if (type && type !== "magiclink" && type !== "email") {
-      console.warn(`[handleMagicLinkCallback] 예상치 못한 타입: ${type}`)
-      // 타입이 없거나 다른 경우에도 계속 진행 (일부 환경에서 타입이 없을 수 있음)
-    }
-
-    // 세션 설정
-    const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-      access_token: accessToken,
-      refresh_token: refreshToken || "",
-    })
-
-    if (sessionError || !sessionData.user) {
-      console.error("[handleMagicLinkCallback] 세션 설정 실패:", sessionError)
-      return { success: false, error: `세션 설정에 실패했습니다: ${sessionError?.message || "알 수 없는 오류"}` }
-    }
-
-    const userId = sessionData.user.id
-    const email = sessionData.user.email
-
-    if (!email) {
-      return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
-    }
-
-    // 사용자 정보가 DB에 있는지 확인
-    let userData = await getUser(userId)
-    const isNewUser = !userData
-
-    if (isNewUser) {
-      // 새 사용자 생성 (나잇대/성별은 아직 없음, 추가 정보 입력 단계에서 입력)
-      const newUser = await createUser({
-        id: userId,
-        email: email,
-        nickname: email.split("@")[0] || "사용자",
-        points: 0,
-        tier: "루키",
-      })
-
-      if (!newUser) {
-        return { success: false, error: "사용자 생성에 실패했습니다." }
-      }
-
-      userData = newUser
-    }
-
-    if (!userData) {
-      return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
-    }
-
-    // 나잇대/성별이 없으면 추가 정보 입력 필요
-    const needsSetup = !userData.ageRange || !userData.gender
-
-    // 추가 정보 입력이 필요한 경우에는 완전한 로그인 상태로 만들지 않음
-    if (!needsSetup) {
-      // 인증 토큰 저장 (완전한 로그인)
-      if (sessionData.session?.access_token) {
-        setAuthToken(sessionData.session.access_token)
-        setUserId(userId)
-        // localStorage에도 이메일과 닉네임 저장
-        localStorage.setItem("rp_user_email", userData.email)
-        localStorage.setItem("rp_user_nickname", userData.nickname)
-      }
-    } else {
-      // 추가 정보 입력이 필요한 경우 세션만 임시 저장
-      if (sessionData.session?.access_token) {
-        // 세션은 Supabase가 자동으로 관리하므로, userId만 저장
-        setUserId(userId)
-        localStorage.setItem("rp_user_email", userData.email)
-        localStorage.setItem("rp_user_nickname", userData.nickname)
-        // auth-change 이벤트는 발생시키지 않음 (아직 완전한 로그인 아님)
-      }
-    }
-
-    return { success: true, userId, isNewUser, needsSetup }
   } catch (error) {
-    console.error("링크 콜백 처리 중 오류:", error)
-    return { success: false, error: "링크 처리 중 오류가 발생했습니다." }
+    console.error("[handleMagicLinkCallback] 처리 중 오류:", error)
+    return { 
+      success: false, 
+      error: error instanceof Error ? error.message : "링크 처리 중 오류가 발생했습니다." 
+    }
   }
 }
 
