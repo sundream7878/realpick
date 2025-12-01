@@ -128,7 +128,7 @@ export default function CastingPage() {
                     onAvatarClick={() => router.push("/p-profile")}
                 />
 
-                <main className="flex-1 p-4 md:pl-64">
+                <main className="flex-1 p-4 md:pl-72">
                     {/* 타이틀 섹션 */}
                     <div className="mb-6">
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -152,8 +152,8 @@ export default function CastingPage() {
                                     key={tab.id}
                                     onClick={() => setSelectedType(tab.id as any)}
                                     className={`flex-1 md:flex-none px-4 py-2 rounded-md text-sm font-medium transition-all flex items-center justify-center gap-1.5 ${selectedType === tab.id
-                                            ? "bg-white text-purple-600 shadow-sm"
-                                            : "text-gray-500 hover:text-gray-700"
+                                        ? "bg-white text-purple-600 shadow-sm"
+                                        : "text-gray-500 hover:text-gray-700"
                                         }`}
                                 >
                                     {tab.icon && <tab.icon className="w-4 h-4" />}
@@ -174,8 +174,8 @@ export default function CastingPage() {
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id as any)}
                                     className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${selectedCategory === cat.id
-                                            ? "bg-gray-900 text-white border-gray-900"
-                                            : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                                        ? "bg-gray-900 text-white border-gray-900"
+                                        : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                                         }`}
                                 >
                                     {cat.label}
@@ -196,10 +196,10 @@ export default function CastingPage() {
                                 <Card
                                     key={recruit.id}
                                     className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-l-4 ${isClosed
-                                            ? "border-l-gray-300 opacity-70 grayscale"
-                                            : recruit.type === "cast"
-                                                ? "border-l-purple-500"
-                                                : "border-l-pink-500"
+                                        ? "border-l-gray-300 opacity-70 grayscale"
+                                        : recruit.type === "cast"
+                                            ? "border-l-purple-500"
+                                            : "border-l-pink-500"
                                         }`}
                                 >
                                     <CardContent className="p-0">
@@ -255,8 +255,8 @@ export default function CastingPage() {
                                         {!isClosed && (
                                             <div
                                                 className={`py-2 text-center text-sm font-bold text-white cursor-pointer transition-colors ${recruit.type === "cast"
-                                                        ? "bg-purple-600 hover:bg-purple-700"
-                                                        : "bg-pink-500 hover:bg-pink-600"
+                                                    ? "bg-purple-600 hover:bg-purple-700"
+                                                    : "bg-pink-500 hover:bg-pink-600"
                                                     }`}
                                                 onClick={() => window.open(recruit.officialUrl || show?.officialUrl, "_blank")}
                                             >

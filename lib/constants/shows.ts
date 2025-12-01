@@ -48,20 +48,23 @@ export const CATEGORIES = {
     LOVE: {
         id: "LOVE" as TShowCategory,
         emoji: "❤️",
-        label: "LOVE",
+        iconPath: "/images/icons/romance.png",
+        label: "Romance",
         description: "로맨스",
     },
     VICTORY: {
         id: "VICTORY" as TShowCategory,
         emoji: "🏆",
-        label: "VICTORY",
-        description: "승부/생존",
+        iconPath: "/images/icons/survival.png",
+        label: "Survival",
+        description: "서바이벌",
     },
     STAR: {
         id: "STAR" as TShowCategory,
         emoji: "🌟",
-        label: "STAR",
-        description: "팬덤/오디션",
+        iconPath: "/images/icons/audition.png",
+        label: "Audition",
+        description: "오디션",
     },
 }
 

@@ -57,8 +57,12 @@ export function ShowMenu({ category }: TShowMenuProps) {
                     }
         `}
             >
-                {/* 모바일: 텍스트만, 데스크톱: 이모지 + 텍스트 */}
-                <span className="hidden sm:inline text-lg">{categoryInfo.emoji}</span>
+                {/* 모바일: 텍스트만, 데스크톱: 아이콘 + 텍스트 */}
+                <img
+                    src={(categoryInfo as any).iconPath}
+                    alt={categoryInfo.label}
+                    className="hidden sm:block w-7 h-7 object-contain"
+                />
                 <span className="text-sm sm:text-base">
                     {isOpen ? categoryInfo.label : categoryInfo.description}
                 </span>

@@ -216,14 +216,13 @@ export default function ProfilePage() {
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
-                등급 로드맵
-              </h1>
-            </div>
-
             <div className="flex flex-col-reverse lg:flex-row gap-8">
               <div className="flex-1 space-y-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
+                    등급 로드맵
+                  </h1>
+                </div>
                 {userTier.minPoints < 5000 && (
                   <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm border border-rose-100 p-6 relative overflow-hidden">
                     <div className="absolute top-0 right-0 w-32 h-32 bg-rose-100 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>

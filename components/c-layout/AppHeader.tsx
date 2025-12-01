@@ -28,7 +28,7 @@ export function AppHeader({
   userPoints,
   userTier,
   onAvatarClick,
-  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-8 md:h-10",
+  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-10 md:h-14",
   className = "",
 }: TAppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -55,7 +55,7 @@ export function AppHeader({
       className={`sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-16 ${className}`}
     >
       <div className="container mx-auto px-2 sm:px-4 lg:px-8 h-full">
-        <div className="flex items-center justify-between h-full gap-2 sm:gap-4">
+        <div className="flex items-center justify-between h-full gap-2 sm:gap-4 relative">
           {/* 로고 */}
           <div className="flex items-center flex-shrink-0">
             <Link href="/">
@@ -64,7 +64,7 @@ export function AppHeader({
           </div>
 
           {/* 3대 메인 메뉴 */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
             <ShowMenu category="LOVE" />
             <ShowMenu category="VICTORY" />
             <ShowMenu category="STAR" />

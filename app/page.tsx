@@ -254,7 +254,7 @@ export default function HomePage() {
         />
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 p-4 space-y-4 md:pl-64">
+        <main className="flex-1 p-4 space-y-4 md:pl-72">
           {/* 배너 영역 */}
           <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-4 text-white shadow-md relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>

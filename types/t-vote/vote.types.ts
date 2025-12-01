@@ -45,7 +45,7 @@ export type TTier =
 export interface CreateMissionData {
   title: string
   type: "prediction" | "majority"
-  format: "binary" | "multiple" | "couple" | "subjective"
+  format: "binary" | "multiple" | "couple" | "subjective" | "tournament"
   seasonType: "전체" | "기수별"
   seasonNumber?: string
   options?: string[]

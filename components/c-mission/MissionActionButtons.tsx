@@ -74,7 +74,7 @@ export function MissionActionButtons({
   return (
     <Link href={`/p-mission/${missionId}/vote`} className={className}>
       <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
-        (진행중) PIC하기
+        (진행중) PICK하기
       </Button>
     </Link>
   )
