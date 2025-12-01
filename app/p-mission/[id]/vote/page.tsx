@@ -149,6 +149,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
         userNickname={userNickname}
         userPoints={userPoints}
         userTier={userTier}
+        onAvatarClick={() => router.push("/p-profile")}
       />
 
       <main className="max-w-3xl mx-auto px-4 py-2">

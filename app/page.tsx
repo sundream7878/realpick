@@ -250,6 +250,7 @@ export default function HomePage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
+          onAvatarClick={() => router.push("/p-profile")}
         />
 
         {/* 메인 콘텐츠 */}

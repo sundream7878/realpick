@@ -1,6 +1,7 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
@@ -12,8 +13,13 @@ import { RECRUITS, TRecruit, TRecruitType } from "@/lib/constants/recruits"
 import { SHOWS, getShowById, TShowCategory } from "@/lib/constants/shows"
 import { getDDay, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { Calendar, User, Users, ExternalLink, Mic2, Ticket } from "lucide-react"
+import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import { getUser } from "@/lib/supabase/users"
+import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 export default function CastingPage() {
+    const router = useRouter()
     const [selectedType, setSelectedType] = useState<"all" | TRecruitType>("all")
     const [selectedCategory, setSelectedCategory] = useState<"ALL" | TShowCategory>("ALL")
 
@@ -22,6 +28,44 @@ export default function CastingPage() {
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
     const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+
+    // 유저 정보
+    const [userNickname, setUserNickname] = useState("")
+    const [userPoints, setUserPoints] = useState(0)
+    const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
+
+    // 유저 데이터 로드
+    useEffect(() => {
+        const loadUserData = async () => {
+            if (isAuthenticated()) {
+                const currentUserId = getUserId()
+                if (currentUserId) {
+                    try {
+                        const user = await getUser(currentUserId)
+                        if (user) {
+                            setUserNickname(user.nickname)
+                            setUserPoints(user.points)
+                            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
+                        }
+                    } catch (error) {
+                        console.error("유저 데이터 로딩 실패:", error)
+                    }
+                }
+            } else {
+                setUserNickname("")
+                setUserPoints(0)
+                setUserTier(getTierFromPoints(0))
+            }
+        }
+
+        loadUserData()
+
+        const handleAuthChange = () => {
+            loadUserData()
+        }
+        window.addEventListener('auth-change', handleAuthChange)
+        return () => window.removeEventListener('auth-change', handleAuthChange)
+    }, [])
 
     // 필터링 및 정렬 로직
     const filteredRecruits = RECRUITS.filter(recruit => {
@@ -78,9 +122,10 @@ export default function CastingPage() {
                 <AppHeader
                     selectedShow={selectedShow}
                     onShowChange={(show) => setSelectedShow(show)}
-                    userNickname=""
-                    userPoints={0}
-                    userTier={{ name: "루키", characterImage: "/tiers/tier-7.png", minPoints: 0 }}
+                    userNickname={userNickname}
+                    userPoints={userPoints}
+                    userTier={userTier}
+                    onAvatarClick={() => router.push("/p-profile")}
                 />
 
                 <main className="flex-1 p-4 md:pl-64">
