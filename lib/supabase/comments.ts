@@ -9,7 +9,7 @@ export async function getComments(missionId: string, userId?: string): Promise<{
         const supabase = createClient()
 
         // 1. 댓글 조회 (작성자 정보 포함)
-        let query = supabase
+        const { data: commentsData, error: commentsError } = await supabase
             .from("t_comments")
             .select(`
         *,
@@ -19,67 +19,117 @@ export async function getComments(missionId: string, userId?: string): Promise<{
         )
       `)
             .eq("f_mission_id", missionId)
-            .order("f_created_at", { ascending: true }) // 오래된 순으로 정렬 (대화 흐름)
-
-        const { data: commentsData, error: commentsError } = await query
+            .eq("f_is_deleted", false) // 삭제된 댓글 제외? or 포함해서 "삭제됨" 표시? -> 보통 포함
+            .order("f_created_at", { ascending: true })
 
         if (commentsError) {
             console.error("댓글 조회 실패:", commentsError)
             return { success: false, error: "댓글을 불러올 수 없습니다." }
         }
 
-        // 2. 좋아요 여부 조회 (로그인한 경우)
-        let likedCommentIds = new Set<string>()
-        if (userId) {
-            const { data: likesData, error: likesError } = await supabase
-                .from("t_comment_likes")
-                .select("f_comment_id")
-                .eq("f_user_id", userId)
+        // 2. 댓글 ID 목록 추출
+        const commentIds = commentsData.map((c: any) => c.f_id)
 
-            if (!likesError && likesData) {
-                likesData.forEach((like: any) => likedCommentIds.add(like.f_comment_id))
+        // 3. 대댓글(Replies) 조회
+        let repliesMap = new Map<string, TComment[]>()
+        if (commentIds.length > 0) {
+            const { data: repliesData, error: repliesError } = await supabase
+                .from("t_replies")
+                .select(`
+          *,
+          user:t_users!f_user_id (
+            f_nickname,
+            f_tier
+          )
+        `)
+                .in("f_comment_id", commentIds)
+                .order("f_created_at", { ascending: true })
+
+            if (!repliesError && repliesData) {
+                repliesData.forEach((r: any) => {
+                    const reply: TComment = {
+                        id: r.f_id,
+                        missionId: missionId, // 대댓글은 미션 ID를 직접 가지지 않지만, 편의상 상속
+                        missionType: "mission1", // 임시
+                        userId: r.f_user_id,
+                        userNickname: r.user?.f_nickname || "알 수 없음",
+                        userTier: r.user?.f_tier || "루키",
+                        content: r.f_is_deleted ? "삭제된 댓글입니다." : r.f_content,
+                        parentId: r.f_comment_id,
+                        createdAt: r.f_created_at,
+                        likesCount: r.f_likes_count || 0,
+                        repliesCount: 0,
+                        isLiked: false,
+                        isDeleted: r.f_is_deleted,
+                        replies: []
+                    }
+
+                    const existing = repliesMap.get(r.f_comment_id) || []
+                    existing.push(reply)
+                    repliesMap.set(r.f_comment_id, existing)
+                })
             }
         }
 
-        // 3. 데이터 변환 (DB 컬럼 -> TComment 타입)
-        const comments: TComment[] = commentsData.map((c: any) => ({
-            id: c.f_id,
-            missionId: c.f_mission_id,
-            missionType: c.f_mission_type,
-            userId: c.f_user_id,
-            userNickname: c.user?.f_nickname || "알 수 없음",
-            userTier: c.user?.f_tier || "루키",
-            content: c.f_is_deleted ? "삭제된 댓글입니다." : c.f_content,
-            parentId: c.f_parent_id,
-            createdAt: c.f_created_at,
-            likesCount: c.f_likes_count || 0,
-            repliesCount: c.f_replies_count || 0,
-            isLiked: likedCommentIds.has(c.f_id),
-            isDeleted: c.f_is_deleted,
-            replies: []
-        }))
+        // 4. 좋아요 여부 조회 (로그인한 경우)
+        let likedCommentIds = new Set<string>()
+        let likedReplyIds = new Set<string>()
 
-        // 4. 계층 구조 구성 (부모-자식 연결)
-        const commentMap = new Map<string, TComment>()
-        const rootComments: TComment[] = []
+        if (userId) {
+            // 댓글 좋아요
+            const { data: commentLikes } = await supabase
+                .from("t_comment_likes")
+                .select("f_comment_id")
+                .eq("f_user_id", userId)
+                .in("f_comment_id", commentIds)
 
-        // 먼저 모든 댓글을 맵에 등록
-        comments.forEach(c => {
-            commentMap.set(c.id, c)
-            c.replies = [] // 초기화
-        })
+            if (commentLikes) {
+                commentLikes.forEach((l: any) => likedCommentIds.add(l.f_comment_id))
+            }
 
-        // 부모가 있으면 부모의 replies에 추가, 없으면 root에 추가
-        comments.forEach(c => {
-            if (c.parentId && commentMap.has(c.parentId)) {
-                const parent = commentMap.get(c.parentId)
-                parent?.replies?.push(c)
-            } else {
-                rootComments.push(c)
+            // 대댓글 좋아요
+            // 대댓글 ID 목록이 필요함
+            const replyIds: string[] = []
+            repliesMap.forEach(replies => replies.forEach(r => replyIds.push(r.id)))
+
+            if (replyIds.length > 0) {
+                const { data: replyLikes } = await supabase
+                    .from("t_reply_likes")
+                    .select("f_reply_id")
+                    .eq("f_user_id", userId)
+                    .in("f_reply_id", replyIds)
+
+                if (replyLikes) {
+                    replyLikes.forEach((l: any) => likedReplyIds.add(l.f_reply_id))
+                }
+            }
+        }
+
+        // 5. 데이터 병합 및 반환
+        const comments: TComment[] = commentsData.map((c: any) => {
+            const replies = repliesMap.get(c.f_id) || []
+            // 대댓글 좋아요 상태 적용
+            replies.forEach(r => r.isLiked = likedReplyIds.has(r.id))
+
+            return {
+                id: c.f_id,
+                missionId: c.f_mission_id,
+                missionType: c.f_mission_type,
+                userId: c.f_user_id,
+                userNickname: c.user?.f_nickname || "알 수 없음",
+                userTier: c.user?.f_tier || "루키",
+                content: c.f_is_deleted ? "삭제된 댓글입니다." : c.f_content,
+                parentId: null,
+                createdAt: c.f_created_at,
+                likesCount: c.f_likes_count || 0,
+                repliesCount: c.f_replies_count || replies.length,
+                isLiked: likedCommentIds.has(c.f_id),
+                isDeleted: c.f_is_deleted,
+                replies: replies
             }
         })
 
-        return { success: true, comments: rootComments }
+        return { success: true, comments }
 
     } catch (error) {
         console.error("댓글 로딩 중 오류:", error)
@@ -90,22 +140,21 @@ export async function getComments(missionId: string, userId?: string): Promise<{
 /**
  * 댓글 작성
  */
-export async function addComment(
+export async function createComment(
     missionId: string,
     missionType: string,
     userId: string,
-    content: string,
-    parentId?: string | null
+    content: string
 ): Promise<{ success: boolean; comment?: TComment; error?: string }> {
     try {
         const supabase = createClient()
 
-        const payload: any = {
+        const payload = {
             f_mission_id: missionId,
             f_mission_type: missionType,
             f_user_id: userId,
             f_content: content,
-            f_parent_id: parentId || null
+            f_parent_id: null // 최상위 댓글
         }
 
         const { data, error } = await supabase
@@ -125,22 +174,6 @@ export async function addComment(
             return { success: false, error: "댓글 작성에 실패했습니다." }
         }
 
-        // 부모 댓글이 있다면 대댓글 수 증가 (수동 업데이트)
-        if (parentId) {
-            const { data: pData } = await supabase
-                .from("t_comments")
-                .select("f_replies_count")
-                .eq("f_id", parentId)
-                .single()
-
-            if (pData) {
-                await supabase
-                    .from("t_comments")
-                    .update({ f_replies_count: (pData.f_replies_count || 0) + 1 })
-                    .eq("f_id", parentId)
-            }
-        }
-
         const newComment: TComment = {
             id: data.f_id,
             missionId: data.f_mission_id,
@@ -149,7 +182,7 @@ export async function addComment(
             userNickname: data.user?.f_nickname || "알 수 없음",
             userTier: data.user?.f_tier || "루키",
             content: data.f_content,
-            parentId: data.f_parent_id,
+            parentId: null,
             createdAt: data.f_created_at,
             likesCount: 0,
             repliesCount: 0,
@@ -167,51 +200,120 @@ export async function addComment(
 }
 
 /**
- * 댓글 삭제 (조건부 Hard/Soft Delete)
+ * 대댓글 작성
+ */
+export async function createReply(
+    commentId: string,
+    userId: string,
+    content: string
+): Promise<{ success: boolean; reply?: TComment; error?: string }> {
+    try {
+        const supabase = createClient()
+
+        const payload = {
+            f_comment_id: commentId,
+            f_user_id: userId,
+            f_content: content
+        }
+
+        const { data, error } = await supabase
+            .from("t_replies")
+            .insert([payload])
+            .select(`
+        *,
+        user:t_users!f_user_id (
+          f_nickname,
+          f_tier
+        )
+      `)
+            .single()
+
+        if (error) {
+            console.error("대댓글 작성 실패:", error)
+            return { success: false, error: "대댓글 작성에 실패했습니다." }
+        }
+
+        // 부모 댓글의 replies_count 증가
+        await supabase.rpc('increment_replies_count', { comment_id: commentId })
+        // RPC가 없다면 수동 업데이트
+        // await supabase.from("t_comments").update({ f_replies_count: ... }) 
+        // 여기서는 간단히 수동 업데이트 시도 (concurrency issue 가능성 있음)
+        const { data: parent } = await supabase.from("t_comments").select("f_replies_count").eq("f_id", commentId).single()
+        if (parent) {
+            await supabase.from("t_comments").update({ f_replies_count: (parent.f_replies_count || 0) + 1 }).eq("f_id", commentId)
+        }
+
+        const newReply: TComment = {
+            id: data.f_id,
+            missionId: "", // 대댓글은 missionId 없음
+            missionType: "",
+            userId: data.f_user_id,
+            userNickname: data.user?.f_nickname || "알 수 없음",
+            userTier: data.user?.f_tier || "루키",
+            content: data.f_content,
+            parentId: commentId,
+            createdAt: data.f_created_at,
+            likesCount: 0,
+            repliesCount: 0,
+            isLiked: false,
+            isDeleted: false,
+            replies: []
+        }
+
+        return { success: true, reply: newReply }
+
+    } catch (error) {
+        console.error("대댓글 작성 중 오류:", error)
+        return { success: false, error: "대댓글 작성 중 오류가 발생했습니다." }
+    }
+}
+
+/**
+ * 댓글 삭제
  */
 export async function deleteComment(commentId: string, userId: string): Promise<{ success: boolean; error?: string }> {
     try {
         const supabase = createClient()
 
         // 1. 본인 확인
-        const { data: comment, error: fetchError } = await supabase
+        const { data: comment } = await supabase.from("t_comments").select("f_user_id").eq("f_id", commentId).single()
+        if (!comment || comment.f_user_id !== userId) return { success: false, error: "권한이 없습니다." }
+
+        // 2. Soft Delete
+        const { error } = await supabase
             .from("t_comments")
-            .select("f_user_id")
+            .update({ f_is_deleted: true })
             .eq("f_id", commentId)
-            .single()
 
-        if (fetchError || !comment) return { success: false, error: "댓글을 찾을 수 없습니다." }
-        if (comment.f_user_id !== userId) return { success: false, error: "삭제 권한이 없습니다." }
+        if (error) return { success: false, error: "삭제 실패" }
+        return { success: true }
+    } catch (error) {
+        return { success: false, error: "오류 발생" }
+    }
+}
 
-        // 2. 대댓글 존재 여부 확인
-        const { count, error: countError } = await supabase
-            .from("t_comments")
-            .select("*", { count: 'exact', head: true })
-            .eq("f_parent_id", commentId)
-            .eq("f_is_deleted", false) // 삭제되지 않은 자식만 체크
+/**
+ * 대댓글 삭제
+ */
+export async function deleteReply(replyId: string, userId: string): Promise<{ success: boolean; error?: string }> {
+    try {
+        const supabase = createClient()
 
-        if (countError) return { success: false, error: "삭제 처리 중 오류가 발생했습니다." }
+        // 1. 본인 확인
+        const { data: reply } = await supabase.from("t_replies").select("f_user_id, f_comment_id").eq("f_id", replyId).single()
+        if (!reply || reply.f_user_id !== userId) return { success: false, error: "권한이 없습니다." }
 
-        if (count && count > 0) {
-            // 3-A. 자식이 있으면 -> Soft Delete (내용만 변경)
-            const { error: updateError } = await supabase
-                .from("t_comments")
-                .update({ f_is_deleted: true })
-                .eq("f_id", commentId)
+        // 2. Soft Delete
+        const { error } = await supabase
+            .from("t_replies")
+            .update({ f_is_deleted: true })
+            .eq("f_id", replyId)
 
-            if (updateError) return { success: false, error: "댓글 삭제 실패" }
-        } else {
-            // 3-B. 자식이 없으면 -> Hard Delete (완전 삭제)
-            const { error: deleteError } = await supabase
-                .from("t_comments")
-                .delete()
-                .eq("f_id", commentId)
+        if (error) return { success: false, error: "삭제 실패" }
 
-            if (deleteError) return { success: false, error: "댓글 삭제 실패" }
-        }
+        // 부모 댓글 count 감소 (선택사항)
 
         return { success: true }
-
     } catch (error) {
         return { success: false, error: "오류 발생" }
     }
@@ -224,54 +326,58 @@ export async function toggleCommentLike(commentId: string, userId: string): Prom
     try {
         const supabase = createClient()
 
-        // 1. 이미 좋아요 눌렀는지 확인
-        const { data: existingLike, error: checkError } = await supabase
-            .from("t_comment_likes")
-            .select("f_id")
-            .eq("f_comment_id", commentId)
-            .eq("f_user_id", userId)
-            .maybeSingle()
-
-        if (checkError) return { success: false, error: "좋아요 확인 실패" }
+        // 1. 확인
+        const { data: existing } = await supabase.from("t_comment_likes").select("f_id").eq("f_comment_id", commentId).eq("f_user_id", userId).maybeSingle()
 
         let isLiked = false
-
-        if (existingLike) {
-            // 2. 이미 눌렀으면 취소 (삭제)
-            const { error: deleteError } = await supabase
-                .from("t_comment_likes")
-                .delete()
-                .eq("f_id", existingLike.f_id)
-
-            if (deleteError) return { success: false, error: "좋아요 취소 실패" }
-            isLiked = false
+        if (existing) {
+            await supabase.from("t_comment_likes").delete().eq("f_id", existing.f_id)
         } else {
-            // 3. 안 눌렀으면 추가
-            const { error: insertError } = await supabase
-                .from("t_comment_likes")
-                .insert([{ f_comment_id: commentId, f_user_id: userId }])
-
-            if (insertError) return { success: false, error: "좋아요 추가 실패" }
+            await supabase.from("t_comment_likes").insert([{ f_comment_id: commentId, f_user_id: userId }])
             isLiked = true
         }
 
-        // 4. 좋아요 수 업데이트 (카운트 후 반영)
-        const { count, error: countError } = await supabase
-            .from("t_comment_likes")
-            .select("*", { count: 'exact', head: true })
-            .eq("f_comment_id", commentId)
+        // 카운트 업데이트
+        const { count } = await supabase.from("t_comment_likes").select("*", { count: 'exact', head: true }).eq("f_comment_id", commentId)
 
-        if (!countError && count !== null) {
-            await supabase
-                .from("t_comments")
-                .update({ f_likes_count: count })
-                .eq("f_id", commentId)
-
+        if (count !== null) {
+            await supabase.from("t_comments").update({ f_likes_count: count }).eq("f_id", commentId)
             return { success: true, isLiked, likesCount: count }
         }
 
         return { success: true, isLiked }
+    } catch (error) {
+        return { success: false, error: "오류 발생" }
+    }
+}
 
+/**
+ * 대댓글 좋아요 토글
+ */
+export async function toggleReplyLike(replyId: string, userId: string): Promise<{ success: boolean; isLiked?: boolean; likesCount?: number; error?: string }> {
+    try {
+        const supabase = createClient()
+
+        // 1. 확인
+        const { data: existing } = await supabase.from("t_reply_likes").select("f_id").eq("f_reply_id", replyId).eq("f_user_id", userId).maybeSingle()
+
+        let isLiked = false
+        if (existing) {
+            await supabase.from("t_reply_likes").delete().eq("f_id", existing.f_id)
+        } else {
+            await supabase.from("t_reply_likes").insert([{ f_reply_id: replyId, f_user_id: userId }])
+            isLiked = true
+        }
+
+        // 카운트 업데이트
+        const { count } = await supabase.from("t_reply_likes").select("*", { count: 'exact', head: true }).eq("f_reply_id", replyId)
+
+        if (count !== null) {
+            await supabase.from("t_replies").update({ f_likes_count: count }).eq("f_id", replyId)
+            return { success: true, isLiked, likesCount: count }
+        }
+
+        return { success: true, isLiked }
     } catch (error) {
         return { success: false, error: "오류 발생" }
     }

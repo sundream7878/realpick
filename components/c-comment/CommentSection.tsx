@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react"
-import { getComments, addComment, deleteComment, toggleCommentLike } from "@/lib/supabase/comments"
+import { getComments, createComment, createReply, deleteComment, deleteReply, toggleCommentLike, toggleReplyLike } from "@/lib/supabase/comments"
 import { TComment } from "@/types/t-vote/vote.types"
 import { CommentInput } from "./CommentInput"
 import { CommentList } from "./CommentList"
@@ -47,12 +47,11 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
         }
 
         setIsSubmitting(true)
-        const result = await addComment(missionId, missionType, currentUserId, content)
+        const result = await createComment(missionId, missionType, currentUserId, content)
 
         if (result.success && result.comment) {
             // 즉시 UI 업데이트 (목록 끝에 추가)
             setComments(prev => [...prev, result.comment!])
-            // toast({ title: "댓글 등록 완료", description: "소중한 의견 감사합니다!" }) // 인스타 감성을 위해 토스트 제거 (너무 시끄러움)
         } else {
             toast({
                 title: "등록 실패",
@@ -64,7 +63,7 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     }
 
     // 답글 작성 핸들러
-    const handleReply = async (parentId: string, content: string) => {
+    const handleReply = async (targetId: string, content: string) => {
         if (!currentUserId) {
             toast({
                 title: "로그인 필요",
@@ -74,23 +73,41 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
             return
         }
 
-        const result = await addComment(missionId, missionType, currentUserId, content, parentId)
+        // 타겟 댓글 찾기 (재귀 탐색)
+        const findComment = (list: TComment[], id: string): TComment | null => {
+            for (const c of list) {
+                if (c.id === id) return c
+                if (c.replies) {
+                    const found = findComment(c.replies, id)
+                    if (found) return found
+                }
+            }
+            return null
+        }
 
-        if (result.success && result.comment) {
-            // 즉시 UI 업데이트 (재귀적으로 부모 찾아 추가)
+        const targetComment = findComment(comments, targetId)
+        if (!targetComment) return
+
+        // 부모 ID 결정 (타겟이 대댓글이면 그 부모가 부모, 아니면 타겟이 부모)
+        const parentId = targetComment.parentId || targetComment.id
+
+        // 대댓글 작성 요청
+        // 주의: createReply는 'commentId'(부모)를 받음
+        const result = await createReply(parentId, currentUserId, content)
+
+        if (result.success && result.reply) {
+            // 즉시 UI 업데이트
             setComments(prev => {
                 const updateTree = (list: TComment[]): TComment[] => {
                     return list.map(c => {
                         if (c.id === parentId) {
-                            // 부모 찾음: replies에 새 답글 추가 및 카운트 증가
                             return {
                                 ...c,
-                                replies: [...(c.replies || []), result.comment!],
+                                replies: [...(c.replies || []), result.reply!],
                                 repliesCount: (c.repliesCount || 0) + 1
                             }
                         }
                         if (c.replies && c.replies.length > 0) {
-                            // 자식으로 더 깊이 탐색
                             return { ...c, replies: updateTree(c.replies) }
                         }
                         return c
@@ -98,8 +115,6 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
                 }
                 return updateTree(prev)
             })
-
-            // toast({ title: "답글 등록 완료", description: "답글이 등록되었습니다." })
         } else {
             toast({
                 title: "등록 실패",
@@ -113,45 +128,53 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     const handleDelete = async (commentId: string) => {
         if (!currentUserId) return
 
-        // 즉시 UI 업데이트 (삭제 처리)
+        // 타겟 찾기
+        const findComment = (list: TComment[], id: string): TComment | null => {
+            for (const c of list) {
+                if (c.id === id) return c
+                if (c.replies) {
+                    const found = findComment(c.replies, id)
+                    if (found) return found
+                }
+            }
+            return null
+        }
+        const target = findComment(comments, commentId)
+        if (!target) return
+
+        // UI 업데이트
         setComments(prev => {
-            // 재귀적으로 삭제 처리하는 함수
             const deleteNode = (list: TComment[]): TComment[] => {
                 return list.filter(c => {
                     if (c.id === commentId) {
-                        // 삭제 대상 발견
                         if (c.replies && c.replies.length > 0) {
-                            // 대댓글이 있으면 내용만 변경 (Soft Delete 표시)
                             c.isDeleted = true
                             c.content = "삭제된 댓글입니다."
-                            return true // 목록에는 유지
+                            return true
                         } else {
-                            // 대댓글이 없으면 아예 제거
                             return false
                         }
                     }
-
-                    // 자식이 있으면 재귀 호출
                     if (c.replies && c.replies.length > 0) {
                         c.replies = deleteNode(c.replies)
                     }
                     return true
                 })
             }
-
             return deleteNode([...prev])
         })
 
-        const result = await deleteComment(commentId, currentUserId)
+        // 서버 요청
+        const isReply = !!target.parentId
+        const result = isReply
+            ? await deleteReply(commentId, currentUserId)
+            : await deleteComment(commentId, currentUserId)
 
-        if (result.success) {
-            // toast({ title: "삭제 완료", description: "댓글이 삭제되었습니다." })
-        } else {
-            // 실패 시 롤백 (목록 다시 로드)
+        if (!result.success) {
             await loadComments()
             toast({
                 title: "삭제 실패",
-                description: result.error || "댓글 삭제 중 오류가 발생했습니다.",
+                description: result.error || "삭제 중 오류가 발생했습니다.",
                 variant: "destructive"
             })
         }
@@ -168,9 +191,22 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
             return
         }
 
-        // 낙관적 업데이트 (UI 먼저 반영)
+        // 타겟 찾기
+        const findComment = (list: TComment[], id: string): TComment | null => {
+            for (const c of list) {
+                if (c.id === id) return c
+                if (c.replies) {
+                    const found = findComment(c.replies, id)
+                    if (found) return found
+                }
+            }
+            return null
+        }
+        const target = findComment(comments, commentId)
+        if (!target) return
+
+        // UI 업데이트
         setComments(prevComments => {
-            // 재귀적으로 댓글 트리 탐색 및 업데이트하는 함수
             const updateTree = (list: TComment[]): TComment[] => {
                 return list.map(c => {
                     if (c.id === commentId) {
@@ -191,10 +227,12 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
         })
 
         // 서버 요청
-        const result = await toggleCommentLike(commentId, currentUserId)
+        const isReply = !!target.parentId
+        const result = isReply
+            ? await toggleReplyLike(commentId, currentUserId)
+            : await toggleCommentLike(commentId, currentUserId)
 
         if (!result.success) {
-            // 실패 시 롤백 (원래대로 되돌리기 위해 목록 다시 로드)
             await loadComments()
             toast({
                 title: "오류 발생",
