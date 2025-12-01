@@ -74,8 +74,10 @@ export async function handleMagicLinkCallback(): Promise<{
 
     // 0. Supabase 에러 먼저 확인
     const searchParams = new URLSearchParams(window.location.search)
-    const error = searchParams.get('error')
-    const errorDescription = searchParams.get('error_description')
+    const hashParams = new URLSearchParams(window.location.hash.substring(1))
+    
+    const error = searchParams.get('error') || hashParams.get('error')
+    const errorDescription = searchParams.get('error_description') || hashParams.get('error_description')
     
     if (error) {
       console.error("[handleMagicLinkCallback] Supabase 에러:", error, errorDescription)
@@ -89,31 +91,21 @@ export async function handleMagicLinkCallback(): Promise<{
       }
     }
 
-    // 1. PKCE 플로우: URL에서 code 파라미터 확인
-    const code = searchParams.get('code')
-
-    if (code) {
-      console.log("[handleMagicLinkCallback] PKCE code 발견, exchangeCodeForSession 시도")
+    // 1. Token Hash 플로우 (매직링크 기본 방식) - URL에서 자동으로 처리됨
+    // Supabase는 URL에 token_hash가 있으면 자동으로 세션을 생성합니다
+    console.log("[handleMagicLinkCallback] 세션 확인 중...")
+    
+    // 잠시 대기 (Supabase가 URL을 처리할 시간)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    
+    // 세션 확인
+    const { data: { session: currentSession } } = await supabase.auth.getSession()
+    
+    if (currentSession?.user) {
+      console.log("[handleMagicLinkCallback] 매직링크로 세션 생성 성공:", currentSession.user.id)
       
-      // code를 세션으로 교환
-      const { data, error } = await supabase.auth.exchangeCodeForSession(code)
-      
-      if (error) {
-        console.error("[handleMagicLinkCallback] exchangeCodeForSession 실패:", error)
-        return { 
-          success: false, 
-          error: error.message || "인증 코드 교환에 실패했습니다." 
-        }
-      }
-
-      if (!data.session || !data.user) {
-        return { success: false, error: "세션을 생성할 수 없습니다." }
-      }
-
-      console.log("[handleMagicLinkCallback] 세션 생성 성공:", data.user.id)
-
-      const userId = data.user.id
-      const email = data.user.email
+      const userId = currentSession.user.id
+      const email = currentSession.user.email
 
       if (!email) {
         return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
@@ -147,8 +139,8 @@ export async function handleMagicLinkCallback(): Promise<{
 
       // 로그인 정보 저장
       if (!needsSetup) {
-        if (data.session.access_token) {
-          setAuthToken(data.session.access_token)
+        if (currentSession.access_token) {
+          setAuthToken(currentSession.access_token)
           setUserId(userId)
           localStorage.setItem("rp_user_email", userData.email)
           localStorage.setItem("rp_user_nickname", userData.nickname)
@@ -162,15 +154,95 @@ export async function handleMagicLinkCallback(): Promise<{
       return { success: true, userId, isNewUser, needsSetup }
     }
 
-    // 2. 레거시 방식: 이미 세션이 있는지 확인
-    console.log("[handleMagicLinkCallback] code 없음, 기존 세션 확인")
-    const { data: { session: existingSession } } = await supabase.auth.getSession()
+    // 2. PKCE 플로우 (OAuth 앱용, 매직링크에서는 거의 사용 안 함)
+    const code = searchParams.get('code')
 
-    if (existingSession?.user) {
-      console.log("[handleMagicLinkCallback] 기존 세션 발견:", existingSession.user.id)
+    if (code) {
+      console.log("[handleMagicLinkCallback] PKCE code 발견, exchangeCodeForSession 시도")
       
-      const userId = existingSession.user.id
-      const email = existingSession.user.email
+      try {
+        // code를 세션으로 교환
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code)
+        
+        if (error) {
+          console.error("[handleMagicLinkCallback] exchangeCodeForSession 실패:", error)
+          // PKCE 실패 시 일반 세션 확인으로 fallback
+          console.log("[handleMagicLinkCallback] PKCE 실패, 일반 세션 확인으로 전환")
+          const { data: { session: fallbackSession } } = await supabase.auth.getSession()
+          if (!fallbackSession) {
+            return { 
+              success: false, 
+              error: "매직링크가 만료되었습니다. 다시 로그인해주세요." 
+            }
+          }
+          // fallbackSession이 있으면 아래에서 처리
+        } else if (data.session && data.user) {
+          console.log("[handleMagicLinkCallback] PKCE 세션 생성 성공:", data.user.id)
+
+          const userId = data.user.id
+          const email = data.user.email
+
+          if (!email) {
+            return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
+          }
+
+          // 사용자 정보가 DB에 있는지 확인
+          let userData = await getUser(userId)
+          const isNewUser = !userData
+
+          if (isNewUser) {
+            const newUser = await createUser({
+              id: userId,
+              email: email,
+              nickname: email.split("@")[0] || "사용자",
+              points: 0,
+              tier: "루키",
+            })
+
+            if (!newUser) {
+              return { success: false, error: "사용자 생성에 실패했습니다." }
+            }
+
+            userData = newUser
+          }
+
+          if (!userData) {
+            return { success: false, error: "사용자 정보를 가져올 수 없습니다." }
+          }
+
+          const needsSetup = !userData.ageRange || !userData.gender
+
+          // 로그인 정보 저장
+          if (!needsSetup) {
+            if (data.session.access_token) {
+              setAuthToken(data.session.access_token)
+              setUserId(userId)
+              localStorage.setItem("rp_user_email", userData.email)
+              localStorage.setItem("rp_user_nickname", userData.nickname)
+            }
+          } else {
+            setUserId(userId)
+            localStorage.setItem("rp_user_email", userData.email)
+            localStorage.setItem("rp_user_nickname", userData.nickname)
+          }
+
+          return { success: true, userId, isNewUser, needsSetup }
+        }
+      } catch (err) {
+        console.error("[handleMagicLinkCallback] PKCE 처리 중 오류:", err)
+        // 오류 발생 시에도 일반 세션 확인으로 계속
+      }
+    }
+
+    // 3. 최종 확인: 혹시 세션이 생성되었는지 다시 확인
+    console.log("[handleMagicLinkCallback] 최종 세션 확인")
+    const { data: { session: finalSession } } = await supabase.auth.getSession()
+
+    if (finalSession?.user) {
+      console.log("[handleMagicLinkCallback] 세션 발견:", finalSession.user.id)
+      
+      const userId = finalSession.user.id
+      const email = finalSession.user.email
 
       if (!email) {
         return { success: false, error: "이메일 정보를 가져올 수 없습니다." }
@@ -203,8 +275,8 @@ export async function handleMagicLinkCallback(): Promise<{
       const needsSetup = !userData.ageRange || !userData.gender
 
       if (!needsSetup) {
-        if (existingSession.access_token) {
-          setAuthToken(existingSession.access_token)
+        if (finalSession.access_token) {
+          setAuthToken(finalSession.access_token)
           setUserId(userId)
           localStorage.setItem("rp_user_email", userData.email)
           localStorage.setItem("rp_user_nickname", userData.nickname)
@@ -218,11 +290,12 @@ export async function handleMagicLinkCallback(): Promise<{
       return { success: true, userId, isNewUser, needsSetup }
     }
 
-    // 3. 세션도 없고 code도 없음
+    // 4. 모든 방법 실패
     console.error("[handleMagicLinkCallback] 유효한 인증 정보를 찾을 수 없습니다.")
+    console.error("[handleMagicLinkCallback] URL:", window.location.href)
     return { 
       success: false, 
-      error: "유효하지 않은 인증 링크입니다. 다시 시도해주세요." 
+      error: "매직링크가 만료되었거나 이미 사용되었습니다. 다시 로그인해주세요." 
     }
   } catch (error) {
     console.error("[handleMagicLinkCallback] 처리 중 오류:", error)
