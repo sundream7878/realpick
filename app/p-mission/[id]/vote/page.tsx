@@ -143,14 +143,15 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <AppHeader
-        selectedShow={selectedShow}
-        onShowChange={setSelectedShow}
-        userNickname={userNickname}
-        userPoints={userPoints}
-        userTier={userTier}
-        onAvatarClick={() => router.push("/p-profile")}
-      />
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+        <AppHeader
+          selectedShow={selectedShow}
+          onShowChange={setSelectedShow}
+          userNickname={userNickname}
+          userPoints={userPoints}
+          userTier={userTier}
+          onAvatarClick={() => router.push("/p-profile")}
+        />
 
       <main className="max-w-3xl mx-auto px-4 py-2">
         {mission.form === "binary" && (
@@ -175,6 +176,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
       </main>
 
       <BottomNavigation />
+      </div>
     </div>
   )
 }

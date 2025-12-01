@@ -125,7 +125,8 @@ export default function RankingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-16">
         <div className="container mx-auto px-4 h-full">
@@ -415,8 +416,8 @@ export default function RankingPage() {
         </Tabs>
       </div>
 
-      {/* Bottom Padding */}
       <BottomNavigation />
+      </div>
     </div>
   )
 }

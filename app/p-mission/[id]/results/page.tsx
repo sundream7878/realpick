@@ -351,24 +351,16 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      {showCharacterPopup && userVote && (
-        <ResultCharacterPopup
-          isSuccess={isSuccess}
-          missionType={characterPopupType}
-          comment={successComment}
-          missionId={params.id}
-        />
-      )}
-
-      <SidebarNavigation
-        selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => setIsMissionModalOpen(true)}
-      />
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+        {showCharacterPopup && userVote && (
+          <ResultCharacterPopup
+            isSuccess={isSuccess}
+            missionType={characterPopupType}
+            comment={successComment}
+            missionId={params.id}
+          />
+        )}
 
       <div className="flex-1 flex flex-col">
         <AppHeader
@@ -669,6 +661,14 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
       <BottomNavigation />
 
+      <SidebarNavigation
+        selectedShow={selectedShow}
+        selectedSeason={selectedSeason}
+        isMissionStatusOpen={isMissionStatusOpen}
+        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+        onSeasonSelect={handleSeasonSelect}
+        onMissionModalOpen={() => setIsMissionModalOpen(true)}
+      />
 
       {
         mission.form === "match" && mission.finalAnswer && (
@@ -680,6 +680,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           />
         )
       }
+      </div>
     </div >
   )
 }

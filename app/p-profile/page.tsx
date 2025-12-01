@@ -203,18 +203,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex">
-      <SidebarNavigation
-        selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => { }}
-        activeNavItem="mypage"
-      />
-
-      <div className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={selectedShow}
           onShowChange={setSelectedShow}
@@ -429,6 +419,16 @@ export default function ProfilePage() {
         </main>
 
         <BottomNavigation />
+
+        <SidebarNavigation
+          selectedShow={selectedShow}
+          selectedSeason={selectedSeason}
+          isMissionStatusOpen={isMissionStatusOpen}
+          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+          onSeasonSelect={handleSeasonSelect}
+          onMissionModalOpen={() => { }}
+          activeNavItem="mypage"
+        />
       </div>
     </div>
   )

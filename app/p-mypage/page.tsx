@@ -916,18 +916,8 @@ export default function MyPage() {
   const majorityMissionCards = createdMissions.filter(m => m.kind === "majority")
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <SidebarNavigation
-        selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => setIsMissionModalOpen(true)}
-        activeNavItem="mypage"
-      />
-
-      <div className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={selectedShow}
           onShowChange={setSelectedShow}
@@ -1175,17 +1165,27 @@ export default function MyPage() {
             </Tabs>
           </div>
         </main>
+
+        <BottomNavigation />
+
+        <SidebarNavigation
+          selectedShow={selectedShow}
+          selectedSeason={selectedSeason}
+          isMissionStatusOpen={isMissionStatusOpen}
+          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+          onSeasonSelect={handleSeasonSelect}
+          onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          activeNavItem="mypage"
+        />
+
+        <MissionCreationModal isOpen={isMissionModalOpen} onClose={() => setIsMissionModalOpen(false)} />
+        <MyPickViewModal
+          isOpen={isPickViewModalOpen}
+          onClose={() => setIsPickViewModalOpen(false)}
+          mission={selectedMissionForView!}
+          userVote={null} // TODO: 실제 유저 투표 데이터 가져오기
+        />
       </div>
-
-      <BottomNavigation />
-
-      <MissionCreationModal isOpen={isMissionModalOpen} onClose={() => setIsMissionModalOpen(false)} />
-      <MyPickViewModal
-        isOpen={isPickViewModalOpen}
-        onClose={() => setIsPickViewModalOpen(false)}
-        mission={selectedMissionForView!}
-        userVote={null} // TODO: 실제 유저 투표 데이터 가져오기
-      />
     </div>
   )
 }

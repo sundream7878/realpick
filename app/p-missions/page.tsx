@@ -297,18 +297,8 @@ export default function MissionsPage() {
     }) : []
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <SidebarNavigation
-        selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => setIsMissionModalOpen(true)}
-        activeNavItem="missions"
-      />
-
-      <div className="flex-1 flex flex-col">
+    <div className="min-h-screen bg-gray-50 pb-20">
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={selectedShow}
           onShowChange={setSelectedShow}
@@ -359,15 +349,25 @@ export default function MissionsPage() {
             )}
           </div>
         </main>
+
+        <BottomNavigation />
+
+        <SidebarNavigation
+          selectedShow={selectedShow}
+          selectedSeason={selectedSeason}
+          isMissionStatusOpen={isMissionStatusOpen}
+          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+          onSeasonSelect={handleSeasonSelect}
+          onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          activeNavItem="missions"
+        />
+
+        <MissionCreationModal
+          isOpen={isMissionModalOpen}
+          onClose={() => setIsMissionModalOpen(false)}
+          onMissionCreated={handleMissionCreated}
+        />
       </div>
-
-      <BottomNavigation />
-
-      <MissionCreationModal
-        isOpen={isMissionModalOpen}
-        onClose={() => setIsMissionModalOpen(false)}
-        onMissionCreated={handleMissionCreated}
-      />
     </div>
   )
 }
