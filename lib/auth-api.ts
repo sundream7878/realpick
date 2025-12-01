@@ -72,8 +72,24 @@ export async function handleMagicLinkCallback(): Promise<{
     console.log("[handleMagicLinkCallback] 시작")
     console.log("[handleMagicLinkCallback] URL:", window.location.href)
 
-    // 1. PKCE 플로우: URL에서 code 파라미터 확인
+    // 0. Supabase 에러 먼저 확인
     const searchParams = new URLSearchParams(window.location.search)
+    const error = searchParams.get('error')
+    const errorDescription = searchParams.get('error_description')
+    
+    if (error) {
+      console.error("[handleMagicLinkCallback] Supabase 에러:", error, errorDescription)
+      const friendlyError = errorDescription 
+        ? decodeURIComponent(errorDescription.replace(/\+/g, ' '))
+        : '인증 링크가 만료되었거나 유효하지 않습니다.'
+      
+      return { 
+        success: false, 
+        error: friendlyError + ' 다시 로그인해주세요.'
+      }
+    }
+
+    // 1. PKCE 플로우: URL에서 code 파라미터 확인
     const code = searchParams.get('code')
 
     if (code) {
