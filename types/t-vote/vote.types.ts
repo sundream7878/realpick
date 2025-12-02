@@ -58,6 +58,8 @@ export interface CreateMissionData {
   referenceUrl?: string
   description?: string
   imageUrl?: string
+  showId?: string
+  category?: string
 }
 
 export interface TMission {

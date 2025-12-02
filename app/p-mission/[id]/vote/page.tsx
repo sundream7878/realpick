@@ -105,8 +105,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
         // 4. 투표 정보 로드 (로그인한 경우)
         if (userId) {
           if (mappedMission.form === "match") {
-            // 커플 매칭은 별도 로직 (필요시 구현)
-            // const votes = await getAllVotes2(userId, params.id)
+            const votes = await getAllVotes2(userId, params.id)
+            if (votes.length > 0) {
+              setUserVote(votes[0])
+            }
           } else {
             const vote = await getVote1(userId, params.id)
             if (vote) {
@@ -155,10 +157,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
         <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">
           {mission.form === "binary" && (
-            <MultiVotePage mission={mission} userVote={userVote} />
+            <MultiVotePage mission={mission} />
           )}
           {mission.form === "multi" && (
-            <MultiVotePage mission={mission} userVote={userVote} />
+            <MultiVotePage mission={mission} />
           )}
           {mission.form === "match" && (
             <MatchVotePage mission={mission} />

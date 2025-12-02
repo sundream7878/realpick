@@ -10,7 +10,6 @@ import { MissionCard } from "@/components/c-mission/MissionCard"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { MockVoteRepo, mockMissions, mockDealers } from "@/lib/mock-vote-data"
 import { getMissions, getMissions2 } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted, getVote1, getAllVotes2 } from "@/lib/supabase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
@@ -19,6 +18,7 @@ import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { getMainMissionId } from "@/lib/supabase/admin"
 
 export default function HomePage() {
   const router = useRouter()
@@ -28,8 +28,6 @@ export default function HomePage() {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState("전체")
-  // const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로") // Removed
-  // const [selectedSeason, setSelectedSeason] = useState<string>("전체") // Replaced by selectedFilter
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [selectedUserVote, setSelectedUserVote] = useState<TVoteSubmission | null>(null)
@@ -37,6 +35,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
+  const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
   const userId = getUserId() || "user123"
 
   // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합
@@ -44,6 +43,12 @@ export default function HomePage() {
     const loadMissions = async () => {
       setIsLoading(true)
       try {
+        // 0. 관리자 설정 메인 미션 ID 가져오기
+        const adminSetting = await getMainMissionId()
+        if (adminSetting.success) {
+          setAdminMainMissionId(adminSetting.missionId)
+        }
+
         // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
         const result = await getMissions(10)
         let realMissions: TMission[] = []
@@ -118,9 +123,8 @@ export default function HomePage() {
           }))
         }
 
-        // 4. 두 데이터 합치기 (Mock 데이터 로직 제거)
+        // 4. 두 데이터 합치기
         const combinedMissions = [...realMissions, ...coupleMissions]
-        console.log("🎯 최종 미션 목록 (DB 데이터):", combinedMissions)
         setMissions(combinedMissions)
 
         // 5. 인증된 사용자의 경우 투표 여부 확인
@@ -195,9 +199,6 @@ export default function HomePage() {
     return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [])
 
-  // 탭 변경 핸들러 (Removed)
-  // const handleTabChange = (show: "나는솔로" | "돌싱글즈") => { ... }
-
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
     if (selectedFilter === "전체") return true
@@ -231,12 +232,19 @@ export default function HomePage() {
   })
 
   // 메인 미션 선정 로직
+  // 0. 관리자 설정이 있으면 최우선
   // 1. 로맨스(LOVE) 카테고리 -> 커플 매칭(match) 우선
   // 2. 서바이벌/오디션(SURVIVAL) 카테고리 -> 토너먼트(tournament) 우선
   // 3. 그 외 참여자 수 순
   const mainMission = missions
     .filter(m => m.status === 'open' && !isDeadlinePassed(m.deadline))
     .sort((a, b) => {
+      // 0. 관리자 설정 체크
+      if (adminMainMissionId) {
+        if (a.id === adminMainMissionId) return -1
+        if (b.id === adminMainMissionId) return 1
+      }
+
       const getPriority = (m: TMission) => {
         // 카테고리 체크 (대소문자 무시 및 부분 일치 허용)
         const cat = (m.category || "").toUpperCase()

@@ -13,6 +13,7 @@ import { createMission } from "@/lib/supabase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { uploadMissionImage } from "@/lib/supabase/storage"
 import { createClient } from "@/lib/supabase/client"
+import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -45,6 +46,8 @@ interface MissionCommonFieldsProps {
   setImageUrl: (value: string) => void
   isUploading: boolean
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+  hideSeason?: boolean
+  hideSeason?: boolean
 }
 
 const MissionCommonFields = ({
@@ -62,34 +65,37 @@ const MissionCommonFields = ({
   setImageUrl,
   isUploading,
   handleImageUpload,
+  hideSeason = false,
 }: MissionCommonFieldsProps) => (
   <>
-    <div>
-      <Label className="text-sm font-medium">기수 분류</Label>
-      <div className="space-y-3 mt-2">
-        <Select value={seasonType} onValueChange={setSeasonType}>
-          <SelectTrigger>
-            <SelectValue placeholder="기수 분류 선택" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="전체">전체</SelectItem>
-            <SelectItem value="기수별">기수별</SelectItem>
-          </SelectContent>
-        </Select>
-        {seasonType === "기수별" && (
-          <div>
-            <Label className="text-sm font-medium">기수 번호</Label>
-            <Input
-              value={seasonNumber}
-              onChange={(e) => setSeasonNumber(e.target.value)}
-              placeholder="예: 29"
-              type="number"
-              className="mt-1"
-            />
-          </div>
-        )}
+    {!hideSeason && (
+      <div>
+        <Label className="text-sm font-medium">기수 분류</Label>
+        <div className="space-y-3 mt-2">
+          <Select value={seasonType} onValueChange={setSeasonType}>
+            <SelectTrigger>
+              <SelectValue placeholder="기수 분류 선택" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="전체">전체</SelectItem>
+              <SelectItem value="기수별">기수별</SelectItem>
+            </SelectContent>
+          </Select>
+          {seasonType === "기수별" && (
+            <div>
+              <Label className="text-sm font-medium">기수 번호</Label>
+              <Input
+                value={seasonNumber}
+                onChange={(e) => setSeasonNumber(e.target.value)}
+                placeholder="예: 29"
+                type="number"
+                className="mt-1"
+              />
+            </div>
+          )}
+        </div>
       </div>
-    </div>
+    )}
 
     <div>
       <Label htmlFor="title" className="text-sm font-medium">
@@ -234,9 +240,6 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     } else if (format === "subjective") {
       setCurrentStep("subjective-choice")
       setSubjectivePlaceholder("")
-    } else if (format === "tournament") {
-      setCurrentStep("tournament-choice")
-      setOptions(["", "", "", ""]) // 토너먼트는 최소 4강? 일단 4개 시작
     }
   }
 
@@ -407,6 +410,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     try {
       // Supabase 미션 생성 API 호출
       const missionData = {
+        showId: undefined,
+        category: undefined,
         title,
         type: missionType === "prediction" ? "prediction" : "majority",
         format: missionFormat === "binary" ? "binary" : missionFormat === "multiple" ? "multiple" : missionFormat === "couple" ? "couple" : missionFormat === "tournament" ? "tournament" : "subjective",
@@ -535,7 +540,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
             <div className="space-y-6">
               <div>
                 <h3 className="text-base sm:text-lg font-medium mb-4">Mission 형식을 선택하세요</h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <Card
                     className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
                     onClick={() => handleFormatSelection("binary")}
@@ -556,16 +561,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                       <p className="text-xs text-pink-600 mt-1">여러 보기 중 선택</p>
                     </CardContent>
                   </Card>
-                  <Card
-                    className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
-                    onClick={() => handleFormatSelection("tournament")}
-                  >
-                    <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px]">
-                      <div className="text-xl sm:text-2xl mb-2">🏆</div>
-                      <p className="text-sm font-medium text-gray-900">토너먼트</p>
-                      <p className="text-xs text-pink-600 mt-1">이상형 월드컵 방식</p>
-                    </CardContent>
-                  </Card>
+
                   <Card
                     className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
                     onClick={() => handleFormatSelection("couple")}
@@ -589,7 +585,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 </div>
                 <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
                   <p className="text-xs sm:text-sm text-yellow-800">
-                    💡 보기가 20개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
+                    💡 보기가 11개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
                   </p>
                 </div>
               </div>
@@ -765,40 +761,71 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
+                hideSeason={true}
               />
 
               <div>
-                <Label className="text-sm font-medium">토너먼트 후보 (최소 4개)</Label>
-                <div className="space-y-2 mt-2">
-                  {options.map((option, index) => (
-                    <div key={index} className="flex gap-2">
-                      <div className="flex items-center justify-center w-8 h-10 bg-gray-100 rounded text-sm font-bold text-gray-500">
-                        {index + 1}
-                      </div>
-                      <Input
-                        value={option}
-                        onChange={(e) => updateOption(index, e.target.value)}
-                        placeholder={`후보 ${index + 1} 이름`}
-                      />
-                      {options.length > 4 && (
-                        <Button variant="outline" size="sm" onClick={() => removeOption(index)} className="px-3">
-                          <X className="w-4 h-4" />
-                        </Button>
-                      )}
-                    </div>
-                  ))}
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={addOption}
-                    className="w-full border-dashed bg-transparent"
+                <Label className="text-sm font-medium">토너먼트 강수 선택</Label>
+                <div className="mt-2">
+                  <Select
+                    value={options.length.toString()}
+                    onValueChange={(value) => {
+                      const count = parseInt(value)
+                      // 기존 옵션 유지하면서 크기 조절
+                      const newOptions = Array(count).fill("").map((_, i) => options[i] || "")
+                      setOptions(newOptions)
+                    }}
                   >
-                    <Plus className="w-4 h-4 mr-2" />
-                    후보 추가
-                  </Button>
+                    <SelectTrigger>
+                      <SelectValue placeholder="강수 선택" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="32">32강 (32명)</SelectItem>
+                      <SelectItem value="16">16강 (16명)</SelectItem>
+                      <SelectItem value="8">8강 (8명)</SelectItem>
+                      <SelectItem value="4">4강 (4명)</SelectItem>
+                      <SelectItem value="2">결승 (2명)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              <div>
+                <Label className="text-sm font-medium mb-2 block">대진표 입력 ({options.length}명)</Label>
+                <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 border rounded-lg p-4 bg-gray-50/50">
+                  {Array.from({ length: Math.ceil(options.length / 2) }).map((_, matchIndex) => {
+                    const player1Index = matchIndex * 2
+                    const player2Index = matchIndex * 2 + 1
+                    return (
+                      <div key={matchIndex} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
+                        <div className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-2">
+                          <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">MATCH {matchIndex + 1}</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <div className="flex-1">
+                            <Input
+                              value={options[player1Index] || ""}
+                              onChange={(e) => updateOption(player1Index, e.target.value)}
+                              placeholder={`후보 ${player1Index + 1}`}
+                              className="text-sm"
+                            />
+                          </div>
+                          <div className="font-bold text-gray-400 text-sm">VS</div>
+                          <div className="flex-1">
+                            <Input
+                              value={options[player2Index] || ""}
+                              onChange={(e) => updateOption(player2Index, e.target.value)}
+                              placeholder={`후보 ${player2Index + 1}`}
+                              className="text-sm"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
                 <p className="text-xs text-gray-500 mt-2">
-                  * 토너먼트는 4강, 8강, 16강 등으로 진행됩니다. 후보 수를 맞춰주세요.
+                  * 대진표 순서대로 매칭됩니다. (1번 vs 2번, 3번 vs 4번...)
                 </p>
               </div>
 
@@ -1035,7 +1062,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
             </div>
           )}
         </DialogContent>
-      </Dialog>
+      </Dialog >
 
       <Dialog open={showAIModal} onOpenChange={setShowAIModal}>
         <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-lg">

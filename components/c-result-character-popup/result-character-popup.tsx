@@ -2,21 +2,23 @@
 
 import { useEffect, useState } from "react"
 import Image from "next/image"
+import { Clock } from "lucide-react"
 
 interface ResultCharacterPopupProps {
   isSuccess: boolean
+  isPending?: boolean
   missionType: "predict" | "majority" | "match"
   comment: string
   missionId: string
 }
 
-export function ResultCharacterPopup({ isSuccess, missionType, comment, missionId }: ResultCharacterPopupProps) {
+export function ResultCharacterPopup({ isSuccess, isPending, missionType, comment, missionId }: ResultCharacterPopupProps) {
   const [isVisible, setIsVisible] = useState(false)
   const [shouldRender, setShouldRender] = useState(false)
 
   useEffect(() => {
     // Check if popup was already shown for this mission in this session
-    const storageKey = `result-popup-shown-${missionId}`
+    const storageKey = `result-popup-shown-${missionId}-${isPending ? 'pending' : 'result'}`
     const alreadyShown = sessionStorage.getItem(storageKey)
 
     if (alreadyShown) {
@@ -43,13 +45,16 @@ export function ResultCharacterPopup({ isSuccess, missionType, comment, missionI
     setTimeout(() => {
       setShouldRender(false)
     }, 4000)
-  }, [missionId])
+  }, [missionId, isPending])
 
   if (!shouldRender) {
     return null
   }
 
   const getTitle = () => {
+    if (isPending) {
+      return "결과 집계 중..."
+    }
     if (missionType === "predict") {
       return isSuccess ? "예측픽 성공!" : "예측픽 실패!"
     } else if (missionType === "majority") {
@@ -61,26 +66,30 @@ export function ResultCharacterPopup({ isSuccess, missionType, comment, missionI
 
   return (
     <div
-      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-500 ${
-        isVisible ? "opacity-100" : "opacity-0"
-      }`}
+      className={`fixed inset-0 z-50 flex items-center justify-center bg-black/50 transition-opacity duration-500 ${isVisible ? "opacity-100" : "opacity-0"
+        }`}
     >
       <div
-        className={`flex flex-col items-center gap-6 rounded-3xl bg-white p-8 shadow-2xl transition-all duration-500 ${
-          isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
-        }`}
+        className={`flex flex-col items-center gap-6 rounded-3xl bg-white p-8 shadow-2xl transition-all duration-500 ${isVisible ? "scale-100 opacity-100" : "scale-95 opacity-0"
+          }`}
       >
-        <Image
-          src={isSuccess ? "/images/success.png" : "/images/failure.png"}
-          alt={isSuccess ? "성공" : "실패"}
-          width={200}
-          height={200}
-          className="animate-bounce"
-          style={{ animationDuration: "1s", animationIterationCount: "3" }}
-        />
+        {isPending ? (
+          <div className="w-[200px] h-[200px] flex items-center justify-center bg-gray-50 rounded-full animate-pulse">
+            <Clock className="w-24 h-24 text-gray-400" />
+          </div>
+        ) : (
+          <Image
+            src={isSuccess ? "/images/success.png" : "/images/failure.png"}
+            alt={isSuccess ? "성공" : "실패"}
+            width={200}
+            height={200}
+            className="animate-bounce"
+            style={{ animationDuration: "1s", animationIterationCount: "3" }}
+          />
+        )}
         <div className="flex flex-col items-center gap-2">
           <h2 className="text-2xl font-bold text-gray-900">{getTitle()}</h2>
-          <p className="text-center text-lg text-gray-600">{comment}</p>
+          <p className="text-center text-lg text-gray-600 whitespace-pre-line">{comment}</p>
         </div>
       </div>
     </div>

@@ -266,13 +266,22 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
           // ⭐ 성공/실패 판단과 팝업은 마감된 미션에만 표시
           if (isMissionClosed) {
-            setIsSuccess(success)
-            setCharacterPopupType(popupType)
-            setShowCharacterPopup(true)
+            if (missionData.status === "settled") {
+              // 정산 완료된 경우: 성공/실패 팝업
+              setIsSuccess(success)
+              setCharacterPopupType(popupType)
+              setShowCharacterPopup(true)
 
-            const missionType = missionData.kind === "predict" ? "prediction" : "majority"
-            const comment = getRandomComment("user123", params.id, missionType, success)
-            setSuccessComment(comment)
+              const missionType = missionData.kind === "predict" ? "prediction" : "majority"
+              const comment = getRandomComment("user123", params.id, missionType, success)
+              setSuccessComment(comment)
+            } else if (missionData.revealPolicy === "onClose") {
+              // 정산 미완료 & 마감 후 공개인 경우: 대기 팝업
+              setIsSuccess(false) // pending 상태에서는 의미 없음
+              setCharacterPopupType(popupType)
+              setShowCharacterPopup(true)
+              setSuccessComment("아직 정답이 공개되지 않았습니다.\n딜러가 정답을 입력할 때까지 기다려주세요!")
+            }
           }
         }
       } catch (error) {
@@ -356,330 +365,331 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         {showCharacterPopup && userVote && (
           <ResultCharacterPopup
             isSuccess={isSuccess}
+            isPending={isMissionClosed && mission.status !== "settled" && mission.revealPolicy === "onClose"}
             missionType={characterPopupType}
             comment={successComment}
             missionId={params.id}
           />
         )}
 
-      <div className="flex-1 flex flex-col">
-        <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
-          userNickname={userNickname}
-          userPoints={userPoints}
-          userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
-        />
+        <div className="flex-1 flex flex-col">
+          <AppHeader
+            selectedShow={selectedShow}
+            onShowChange={setSelectedShow}
+            userNickname={userNickname}
+            userPoints={userPoints}
+            userTier={userTier}
+            onAvatarClick={() => router.push("/p-profile")}
+          />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
-          <div className="max-w-6xl mx-auto">
-            <div className="mb-6">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => router.back()}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-              >
-                <ArrowLeft className="w-4 h-4" />
-              </Button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between gap-4">
-                  <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate flex-1">{mission.title}</h1>
-                  {
-                    mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => setIsMyPicksModalOpen(true)}
-                        className="flex items-center gap-2 flex-shrink-0"
-                      >
-                        <FileText className="w-4 h-4" />
-                        <span className="hidden sm:inline">내가 픽한 결과</span>
-                        <span className="sm:hidden">내 픽</span>
-                      </Button>
-                    )
-                  }
-                </div >
-                <div className="flex flex-wrap items-center gap-3">
-                  <Badge variant={!isMissionClosed ? "default" : "secondary"} className="text-sm">
-                    {!isMissionClosed ? "진행중" : "마감됨"}
-                  </Badge>
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
-                    <Users className="w-4 h-4" />
-                    <span className="font-semibold text-gray-900">
-                      {mission.stats?.participants?.toLocaleString() || 0}
-                    </span>
-                    명 참여
-                  </div>
-                  {mission.revealPolicy === "realtime" && (
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <TrendingUp className="w-4 h-4" />
-                      <span>실시간 집계</span>
-                    </div>
-                  )}
-                  {!isMissionClosed && mission.deadline && (
-                    <div className="flex items-center gap-1 text-sm text-gray-600">
-                      <Clock className="w-4 h-4" />
-                      <span>{getTimeRemaining(mission.deadline)}</span>
-                    </div>
-                  )}
-                </div>
-              </div >
-
-              {userVote && successComment && mission.deadline && isDeadlinePassed(mission.deadline) && (
-                <Card
-                  className={`border-2 ${isSuccess
-                    ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
-                    : "border-red-200 bg-gradient-to-r from-red-50 to-rose-50"
-                    }`}
+          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="mb-6">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
                 >
-                  <CardContent className="p-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`p-2 rounded-full ${isSuccess ? "bg-green-500" : "bg-red-500"}`}>
-                        <Trophy className="w-4 h-4 text-white" />
-                      </div>
-                      <div>
-                        <h3
-                          className={`font-semibold text-sm ${isSuccess ? "text-green-700" : "text-red-700"}`}
-                          style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
-                        >
-                          {mission.kind === "predict"
-                            ? isSuccess
-                              ? "예측픽 성공!"
-                              : "예측픽 실패"
-                            : isSuccess
-                              ? "다수픽 성공!"
-                              : "다수픽 실패"}
-                        </h3>
-                        <p
-                          className={`text-sm ${isSuccess ? "text-green-600" : "text-red-600"}`}
-                          style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
-                        >
-                          {successComment}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-              }
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </div>
 
-              {
-                !(mission.form === "match" && mission.status === "settled") && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle className="text-xl">투표 결과</CardTitle>
-                      <p className="text-sm text-muted-foreground">
-                        {mission.status === "open" ? "실시간 중간 결과" : "최종 결과"}
-                      </p>
-                    </CardHeader>
-                    <CardContent>
-                      <ResultsChart mission={mission} userVote={userVote} />
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate flex-1">{mission.title}</h1>
+                    {
+                      mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsMyPicksModalOpen(true)}
+                          className="flex items-center gap-2 flex-shrink-0"
+                        >
+                          <FileText className="w-4 h-4" />
+                          <span className="hidden sm:inline">내가 픽한 결과</span>
+                          <span className="sm:hidden">내 픽</span>
+                        </Button>
+                      )
+                    }
+                  </div >
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant={!isMissionClosed ? "default" : "secondary"} className="text-sm">
+                      {!isMissionClosed ? "진행중" : "마감됨"}
+                    </Badge>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="w-4 h-4" />
+                      <span className="font-semibold text-gray-900">
+                        {mission.stats?.participants?.toLocaleString() || 0}
+                      </span>
+                      명 참여
+                    </div>
+                    {mission.revealPolicy === "realtime" && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <TrendingUp className="w-4 h-4" />
+                        <span>실시간 집계</span>
+                      </div>
+                    )}
+                    {!isMissionClosed && mission.deadline && (
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{getTimeRemaining(mission.deadline)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div >
+
+                {userVote && successComment && mission.deadline && isDeadlinePassed(mission.deadline) && (
+                  <Card
+                    className={`border-2 ${isSuccess
+                      ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
+                      : "border-red-200 bg-gradient-to-r from-red-50 to-rose-50"
+                      }`}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2 rounded-full ${isSuccess ? "bg-green-500" : "bg-red-500"}`}>
+                          <Trophy className="w-4 h-4 text-white" />
+                        </div>
+                        <div>
+                          <h3
+                            className={`font-semibold text-sm ${isSuccess ? "text-green-700" : "text-red-700"}`}
+                            style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
+                          >
+                            {mission.kind === "predict"
+                              ? isSuccess
+                                ? "예측픽 성공!"
+                                : "예측픽 실패"
+                              : isSuccess
+                                ? "다수픽 성공!"
+                                : "다수픽 실패"}
+                          </h3>
+                          <p
+                            className={`text-sm ${isSuccess ? "text-green-600" : "text-red-600"}`}
+                            style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
+                          >
+                            {successComment}
+                          </p>
+                        </div>
+                      </div>
                     </CardContent>
                   </Card>
                 )
-              }
+                }
 
-              {
-                mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (
-                  <>
-                    <Card className="bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200">
-                      <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          <Trophy className="w-6 h-6 text-pink-600" />
-                          최종 커플 결과
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">모든 회차가 종료되어 최종 커플이 확정되었습니다</p>
-                      </CardHeader>
-                      <CardContent>
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {mission.finalAnswer.map((couple, index) => (
-                            <div
-                              key={index}
-                              className="flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-lg border-2 border-pink-200"
-                            >
-                              <span className="font-semibold text-base sm:text-lg truncate">{couple.left}</span>
-                              <span className="text-pink-600 text-lg sm:text-xl flex-shrink-0">💕</span>
-                              <span className="font-semibold text-base sm:text-lg truncate">{couple.right}</span>
-                            </div>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-
+                {
+                  !(mission.form === "match" && mission.status === "settled") && (
                     <Card>
                       <CardHeader>
-                        <CardTitle className="text-xl flex items-center gap-2">
-                          <Crown className="w-6 h-6 text-amber-500" />
-                          참여자 랭킹
-                        </CardTitle>
-                        <p className="text-sm text-muted-foreground">회차별 정답 예측에 따른 누적 점수 순위입니다</p>
+                        <CardTitle className="text-xl">투표 결과</CardTitle>
+                        <p className="text-sm text-muted-foreground">
+                          {mission.status === "open" ? "실시간 중간 결과" : "최종 결과"}
+                        </p>
                       </CardHeader>
                       <CardContent>
-                        <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                          {generateMockUserRanking(mission.finalAnswer, mission.stats?.participants || 0).map((user) => (
-                            <div
-                              key={user.rank}
-                              className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser
-                                ? "bg-blue-50 border-2 border-blue-200"
-                                : "bg-gray-50 hover:bg-gray-100"
-                                }`}
-                            >
-                              <div
-                                className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold ${user.rank === 1
-                                  ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white"
-                                  : user.rank === 2
-                                    ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
-                                    : user.rank === 3
-                                      ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white"
-                                      : "bg-gray-200 text-gray-700"
-                                  }`}
-                              >
-                                {user.rank}
-                              </div>
-
-                              <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
-                                <AvatarImage src={user.tierInfo.characterImage || "/placeholder.svg"} />
-                                <AvatarFallback>{user.nickname[0]}</AvatarFallback>
-                              </Avatar>
-
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <span className="font-semibold text-sm sm:text-base truncate">{user.nickname}</span>
-                                  {user.isCurrentUser && (
-                                    <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">나</Badge>
-                                  )}
-                                  {user.tierUpgraded && (
-                                    <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs flex-shrink-0">
-                                      등급 UP!
-                                    </Badge>
-                                  )}
-                                </div>
-                                <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                                  <span className="text-pink-600 font-medium truncate">{user.tierInfo.name}</span>
-                                </div>
-                              </div>
-
-                              <div className="text-right flex-shrink-0">
-                                <div className="font-bold text-base sm:text-lg text-amber-600">{user.totalScore}점</div>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
+                        <ResultsChart mission={mission} userVote={userVote} />
                       </CardContent>
                     </Card>
-                  </>
-                )
-              }
+                  )
+                }
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">통계</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {mission.form === "match" && mission.status === "settled" && mission.finalAnswer ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-muted/50 rounded-lg">
-                        <p className="text-2xl font-bold text-primary">
-                          {mission.stats?.participants?.toLocaleString() || 0}
-                        </p>
-                        <p className="text-sm text-muted-foreground">총 참여자</p>
-                      </div>
-                      <div className="text-center p-4 bg-green-50 rounded-lg">
-                        <p className="text-2xl font-bold text-green-600">
-                          {(() => {
-                            const ranking = generateMockUserRanking(
-                              mission.finalAnswer,
-                              mission.stats?.participants || 0,
-                            )
-                            const successfulUsers = ranking.filter((u) => u.correctRounds.length > 0).length
-                            const percentage = Math.round((successfulUsers / ranking.length) * 100)
-                            return `${percentage}%`
-                          })()}
-                        </p>
-                        <p className="text-sm text-muted-foreground">최종 커플 예측 성공</p>
-                      </div>
-                      <div className="text-center p-4 bg-purple-50 rounded-lg">
-                        <p className="text-2xl font-bold text-purple-600">
-                          {(() => {
-                            const ranking = generateMockUserRanking(
-                              mission.finalAnswer,
-                              mission.stats?.participants || 0,
-                            )
-                            const upgradedUsers = ranking.filter((u) => u.tierUpgraded).length
-                            const percentage = Math.round((upgradedUsers / ranking.length) * 100)
-                            return `${percentage}%`
-                          })()}
-                        </p>
-                        <p className="text-sm text-muted-foreground">등급 업그레이드</p>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      <div className="text-center p-4 bg-muted/50 rounded-lg">
-                        <p className="text-2xl font-bold text-primary">
-                          {mission.stats?.participants?.toLocaleString() || 0}
-                        </p>
-                        <p className="text-sm text-muted-foreground">총 참여자</p>
-                      </div>
-                      <div className="text-center p-4 bg-muted/50 rounded-lg">
-                        <p className="text-2xl font-bold text-accent">
-                          {mission.options?.length || Object.keys(mission.result?.distribution || {}).length}
-                        </p>
-                        <p className="text-sm text-muted-foreground">선택지</p>
-                      </div>
-                      <div className="text-center p-4 bg-primary/5 rounded-lg">
-                        <p className="text-lg font-bold text-primary">
-                          {Object.values(mission.result?.distribution || {})[0] || 0}%
-                        </p>
-                        <p className="text-sm text-muted-foreground">1위 득표율</p>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                {
+                  mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (
+                    <>
+                      <Card className="bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200">
+                        <CardHeader>
+                          <CardTitle className="text-xl flex items-center gap-2">
+                            <Trophy className="w-6 h-6 text-pink-600" />
+                            최종 커플 결과
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground">모든 회차가 종료되어 최종 커플이 확정되었습니다</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {mission.finalAnswer.map((couple, index) => (
+                              <div
+                                key={index}
+                                className="flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-lg border-2 border-pink-200"
+                              >
+                                <span className="font-semibold text-base sm:text-lg truncate">{couple.left}</span>
+                                <span className="text-pink-600 text-lg sm:text-xl flex-shrink-0">💕</span>
+                                <span className="font-semibold text-base sm:text-lg truncate">{couple.right}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
 
-              <div className="space-y-2">
-                <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700" variant="default">
-                  <Share2 className="w-4 h-4 mr-2" />
-                  결과 공유하기
-                </Button>
-                <Link href="/" className="block">
-                  <Button size="lg" className="w-full bg-transparent" variant="outline">
-                    다른 미션 보기
+                      <Card>
+                        <CardHeader>
+                          <CardTitle className="text-xl flex items-center gap-2">
+                            <Crown className="w-6 h-6 text-amber-500" />
+                            참여자 랭킹
+                          </CardTitle>
+                          <p className="text-sm text-muted-foreground">회차별 정답 예측에 따른 누적 점수 순위입니다</p>
+                        </CardHeader>
+                        <CardContent>
+                          <div className="space-y-2 max-h-[600px] overflow-y-auto">
+                            {generateMockUserRanking(mission.finalAnswer, mission.stats?.participants || 0).map((user) => (
+                              <div
+                                key={user.rank}
+                                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser
+                                  ? "bg-blue-50 border-2 border-blue-200"
+                                  : "bg-gray-50 hover:bg-gray-100"
+                                  }`}
+                              >
+                                <div
+                                  className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold ${user.rank === 1
+                                    ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white"
+                                    : user.rank === 2
+                                      ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
+                                      : user.rank === 3
+                                        ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white"
+                                        : "bg-gray-200 text-gray-700"
+                                    }`}
+                                >
+                                  {user.rank}
+                                </div>
+
+                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
+                                  <AvatarImage src={user.tierInfo.characterImage || "/placeholder.svg"} />
+                                  <AvatarFallback>{user.nickname[0]}</AvatarFallback>
+                                </Avatar>
+
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold text-sm sm:text-base truncate">{user.nickname}</span>
+                                    {user.isCurrentUser && (
+                                      <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">나</Badge>
+                                    )}
+                                    {user.tierUpgraded && (
+                                      <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs flex-shrink-0">
+                                        등급 UP!
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                                    <span className="text-pink-600 font-medium truncate">{user.tierInfo.name}</span>
+                                  </div>
+                                </div>
+
+                                <div className="text-right flex-shrink-0">
+                                  <div className="font-bold text-base sm:text-lg text-amber-600">{user.totalScore}점</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </>
+                  )
+                }
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-lg">통계</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {mission.form === "match" && mission.status === "settled" && mission.finalAnswer ? (
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="text-center p-4 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold text-primary">
+                            {mission.stats?.participants?.toLocaleString() || 0}
+                          </p>
+                          <p className="text-sm text-muted-foreground">총 참여자</p>
+                        </div>
+                        <div className="text-center p-4 bg-green-50 rounded-lg">
+                          <p className="text-2xl font-bold text-green-600">
+                            {(() => {
+                              const ranking = generateMockUserRanking(
+                                mission.finalAnswer,
+                                mission.stats?.participants || 0,
+                              )
+                              const successfulUsers = ranking.filter((u) => u.correctRounds.length > 0).length
+                              const percentage = Math.round((successfulUsers / ranking.length) * 100)
+                              return `${percentage}%`
+                            })()}
+                          </p>
+                          <p className="text-sm text-muted-foreground">최종 커플 예측 성공</p>
+                        </div>
+                        <div className="text-center p-4 bg-purple-50 rounded-lg">
+                          <p className="text-2xl font-bold text-purple-600">
+                            {(() => {
+                              const ranking = generateMockUserRanking(
+                                mission.finalAnswer,
+                                mission.stats?.participants || 0,
+                              )
+                              const upgradedUsers = ranking.filter((u) => u.tierUpgraded).length
+                              const percentage = Math.round((upgradedUsers / ranking.length) * 100)
+                              return `${percentage}%`
+                            })()}
+                          </p>
+                          <p className="text-sm text-muted-foreground">등급 업그레이드</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                        <div className="text-center p-4 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold text-primary">
+                            {mission.stats?.participants?.toLocaleString() || 0}
+                          </p>
+                          <p className="text-sm text-muted-foreground">총 참여자</p>
+                        </div>
+                        <div className="text-center p-4 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold text-accent">
+                            {mission.options?.length || Object.keys(mission.result?.distribution || {}).length}
+                          </p>
+                          <p className="text-sm text-muted-foreground">선택지</p>
+                        </div>
+                        <div className="text-center p-4 bg-primary/5 rounded-lg">
+                          <p className="text-lg font-bold text-primary">
+                            {Object.values(mission.result?.distribution || {})[0] || 0}%
+                          </p>
+                          <p className="text-sm text-muted-foreground">1위 득표율</p>
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
+                <div className="space-y-2">
+                  <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700" variant="default">
+                    <Share2 className="w-4 h-4 mr-2" />
+                    결과 공유하기
                   </Button>
-                </Link>
-              </div>
+                  <Link href="/" className="block">
+                    <Button size="lg" className="w-full bg-transparent" variant="outline">
+                      다른 미션 보기
+                    </Button>
+                  </Link>
+                </div>
+              </div >
             </div >
-          </div >
-        </main >
-      </div >
+          </main >
+        </div >
 
-      <BottomNavigation />
+        <BottomNavigation />
 
-      <SidebarNavigation
-        selectedShow={selectedShow}
-        selectedSeason={selectedSeason}
-        isMissionStatusOpen={isMissionStatusOpen}
-        onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-        onSeasonSelect={handleSeasonSelect}
-        onMissionModalOpen={() => setIsMissionModalOpen(true)}
-      />
+        <SidebarNavigation
+          selectedShow={selectedShow}
+          selectedSeason={selectedSeason}
+          isMissionStatusOpen={isMissionStatusOpen}
+          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+          onSeasonSelect={handleSeasonSelect}
+          onMissionModalOpen={() => setIsMissionModalOpen(true)}
+        />
 
-      {
-        mission.form === "match" && mission.finalAnswer && (
-          <MyPicksModal
-            isOpen={isMyPicksModalOpen}
-            onClose={() => setIsMyPicksModalOpen(false)}
-            userPredictions={mockUserPredictions}
-            finalAnswer={mission.finalAnswer}
-          />
-        )
-      }
+        {
+          mission.form === "match" && mission.finalAnswer && (
+            <MyPicksModal
+              isOpen={isMyPicksModalOpen}
+              onClose={() => setIsMyPicksModalOpen(false)}
+              userPredictions={mockUserPredictions}
+              finalAnswer={mission.finalAnswer}
+            />
+          )
+        }
       </div>
     </div >
   )
@@ -705,8 +715,9 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
     isClosed = allEpisodesSettled
   }
 
-  // 마감 후 공개(onClose)인 경우, 마감되지 않았으면 결과를 숨김
-  const shouldHideResults = mission.revealPolicy === "onClose" && !isClosed
+  // 마감 후 공개(onClose)인 경우, 정산(settled)되지 않았으면 결과를 숨김
+  // (마감 시간이 지났어도 딜러가 정답을 입력하지 않았으면 숨김)
+  const shouldHideResults = mission.revealPolicy === "onClose" && mission.status !== "settled"
 
   const entries = Object.entries(mission.result.distribution).sort(([, a], [, b]) => b - a)
 
