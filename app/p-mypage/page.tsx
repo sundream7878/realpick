@@ -344,7 +344,8 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
-      const result = await submitPredictMissionAnswer(missionId, answer)
+      // 딜러가 정답을 확정하는 것이므로 settleMissionWithFinalAnswer 호출
+      const result = await settleMissionWithFinalAnswer(missionId, answer)
       if (!result.success) {
         toast({
           title: "정답 저장 실패",
@@ -384,7 +385,8 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
-      const result = await updatePredictMissionAnswer(missionId, answer)
+      // 정답 수정도 동일하게 settleMissionWithFinalAnswer 호출 (이미 settled 상태여도 업데이트 가능하도록)
+      const result = await settleMissionWithFinalAnswer(missionId, answer)
       if (!result.success) {
         toast({
           title: "정답 수정 실패",
@@ -963,7 +965,7 @@ export default function MyPage() {
                     </CardContent>
                   </Card>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                     {participatedMissions.map((mission) => (
                       <MissionCard
                         key={mission.id}
@@ -1010,7 +1012,7 @@ export default function MyPage() {
                           <h3 className="text-lg font-semibold text-purple-900">예측픽 미션</h3>
                           <span className="text-sm text-purple-600">{predictMissionCards.length}개</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
                           {predictMissionCards.map((mission) => {
                             const participants = mission.stats?.participants?.toLocaleString() ?? "0"
                             const missionSettledText =
@@ -1093,7 +1095,7 @@ export default function MyPage() {
                           <h3 className="text-lg font-semibold text-slate-900">다수픽 미션</h3>
                           <span className="text-sm text-slate-600">{majorityMissionCards.length}개</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
                           {majorityMissionCards.map((mission) => {
                             const participants = mission.stats?.participants?.toLocaleString() ?? "0"
                             const missionSettledText = mission.result?.majority ? `최종 다수: ${mission.result.majority}` : "결과 미확정"

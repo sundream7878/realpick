@@ -27,8 +27,9 @@ export default function HomePage() {
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
-  const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  const [selectedFilter, setSelectedFilter] = useState("전체")
+  // const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로") // Removed
+  // const [selectedSeason, setSelectedSeason] = useState<string>("전체") // Replaced by selectedFilter
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [selectedUserVote, setSelectedUserVote] = useState<TVoteSubmission | null>(null)
@@ -194,37 +195,26 @@ export default function HomePage() {
     return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [])
 
-  // 탭 변경 핸들러
-  const handleTabChange = (show: "나는솔로" | "돌싱글즈") => {
-    setSelectedShow(show)
-    setSelectedSeason("전체") // 탭 변경 시 시즌 선택 초기화
-  }
+  // 탭 변경 핸들러 (Removed)
+  // const handleTabChange = (show: "나는솔로" | "돌싱글즈") => { ... }
 
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
-    // 1. 프로그램 필터 (현재는 '나는솔로'만 데이터가 있으므로 패스)
-    // if (selectedShow === "나는솔로" && !mission.title.includes("나는솔로")) return false
-    // if (selectedShow === "돌싱글즈" && !mission.title.includes("돌싱글즈")) return false
-
-    // 2. 시즌 필터
-    if (selectedSeason !== "전체") {
-      // "29기" -> 29 (숫자 추출)
-      const seasonNum = parseInt(selectedSeason.replace(/[^0-9]/g, ""))
-      if (mission.seasonNumber !== seasonNum) return false
-    }
-
-    // 3. 마감된 미션 제외 (진행중인 미션만 표시)
-    // 단, 내가 투표한 미션은 마감되어도 보여줄 수 있음 (기획에 따라 다름)
-    // 현재는 '진행중' 탭이므로 마감되지 않은 것만 보여주는 것이 기본
-    // 하지만 커플 매칭(match)은 회차별로 진행되므로 status가 settled여도 보여줄 수 있음
-
-    // 여기서는 간단하게 모든 미션을 보여주되, 정렬로 해결
+    if (selectedFilter === "전체") return true
+    if (selectedFilter === "진행중") return mission.status === "open" && !isDeadlinePassed(mission.deadline)
+    if (selectedFilter === "마감") return mission.status !== "open" || isDeadlinePassed(mission.deadline)
+    if (selectedFilter === "핫이슈") return true // 정렬에서 처리
     return true
   })
 
   // 정렬: 진행중(open) > 마감됨(settled/closed)
   // 진행중인 미션 내에서는 최신순(createdAt)으로 정렬
   const sortedMissions = [...filteredMissions].sort((a, b) => {
+    // 핫이슈 필터일 경우 참여자 수 순으로 정렬
+    if (selectedFilter === "핫이슈") {
+      return (b.stats?.participants || 0) - (a.stats?.participants || 0)
+    }
+
     // 1. 상태 우선순위 (실제 진행중인 것만 open 취급)
     // DB 상태가 open이어도 마감일이 지났으면 closed로 취급하여 정렬
     const isAOpen = a.status === "open" && !isDeadlinePassed(a.deadline)
@@ -240,13 +230,44 @@ export default function HomePage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
   })
 
+  // 메인 미션 선정 로직
+  // 1. 로맨스(LOVE) 카테고리 -> 커플 매칭(match) 우선
+  // 2. 서바이벌/오디션(SURVIVAL) 카테고리 -> 토너먼트(tournament) 우선
+  // 3. 그 외 참여자 수 순
+  const mainMission = missions
+    .filter(m => m.status === 'open' && !isDeadlinePassed(m.deadline))
+    .sort((a, b) => {
+      const getPriority = (m: TMission) => {
+        // 카테고리 체크 (대소문자 무시 및 부분 일치 허용)
+        const cat = (m.category || "").toUpperCase()
+        const isRomance = cat.includes("LOVE") || cat.includes("ROMANCE")
+        const isSurvival = cat.includes("SURVIVAL") || cat.includes("AUDITION")
+
+        if (isRomance && m.form === 'match') return 3
+        if (isSurvival && m.form === 'tournament') return 3
+        // 매칭이나 토너먼트면 일단 가산점 (카테고리 정보가 없을 수도 있으므로)
+        if (m.form === 'match' || m.form === 'tournament') return 2
+        return 1
+      }
+
+      const priorityA = getPriority(a)
+      const priorityB = getPriority(b)
+
+      if (priorityA !== priorityB) return priorityB - priorityA
+      // 우선순위가 같으면 참여자 수 내림차순
+      return (b.stats?.participants || 0) - (a.stats?.participants || 0)
+    })[0]
+
+  // 메인 미션을 제외한 나머지 리스트
+  const displayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         {/* 상단 헤더 */}
         <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={handleTabChange}
+          selectedShow="나는솔로" // Default or remove prop if optional
+          onShowChange={() => { }} // No-op
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
@@ -255,67 +276,80 @@ export default function HomePage() {
 
         {/* 메인 콘텐츠 */}
         <main className="flex-1 p-4 space-y-4 md:pl-72">
-          {/* 배너 영역 */}
-          <div className="bg-gradient-to-r from-purple-600 to-pink-500 rounded-xl p-4 text-white shadow-md relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white opacity-10 rounded-full -mr-10 -mt-10"></div>
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white opacity-10 rounded-full -ml-10 -mb-10"></div>
+          {/* 메인 미션 배너 */}
+          {mainMission && (
+            <div className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 md:p-6 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer" onClick={() => router.push(`/p-mission/${mainMission.id}/vote`)}>
+              {/* 배경 애니메이션 효과 */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl -mr-16 -mt-16 animate-pulse" />
+              <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -ml-16 -mb-16 animate-pulse delay-700" />
+              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-soft-light"></div>
+              {/* 반짝이는 효과 (Shimmer) */}
+              <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent z-0"></div>
 
-            <div className="relative z-10">
-              <h2 className="text-lg font-bold mb-1">이번 주 핫한 예측! 🔥</h2>
-              <p className="text-sm opacity-90 mb-3 truncate max-w-[80%]">
-                {sortedMissions.length > 0 ? sortedMissions[0].title : "진행 중인 미션을 확인해보세요!"}
-              </p>
-              <Button
-                size="sm"
-                variant="secondary"
-                className="bg-white text-purple-600 hover:bg-gray-100 border-none font-bold text-xs h-8"
-                onClick={() => {
-                  if (sortedMissions.length > 0) {
-                    router.push(`/p-mission/${sortedMissions[0].id}/vote`)
-                  }
-                }}
-              >
-                지금 참여하기
-              </Button>
-            </div>
-          </div>
+              <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                {/* 왼쪽: 미션 카드 (원본 크기 유지 & 3D 효과) */}
+                <div className="w-full md:w-1/2 perspective-1000 flex-shrink-0">
+                  <div className="pointer-events-none transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-y-6">
+                    <MissionCard
+                      mission={mainMission}
+                      shouldShowResults={false}
+                      onViewPick={() => { }}
+                      variant="hot"
+                    />
+                  </div>
+                </div>
 
-          {/* 프로그램 탭 (나는솔로 / 돌싱글즈) */}
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => handleTabChange("나는솔로")}
-              className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${selectedShow === "나는솔로" ? "text-purple-600" : "text-gray-400 hover:text-gray-600"
-                }`}
-            >
-              나는 SOLO
-              {selectedShow === "나는솔로" && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-purple-600"></div>
-              )}
-            </button>
-            <button
-              onClick={() => handleTabChange("돌싱글즈")}
-              className={`flex-1 py-3 text-sm font-bold text-center transition-colors relative ${selectedShow === "돌싱글즈" ? "text-pink-500" : "text-gray-400 hover:text-gray-600"
-                }`}
-            >
-              돌싱글즈
-              {selectedShow === "돌싱글즈" && (
-                <div className="absolute bottom-0 left-0 w-full h-0.5 bg-pink-500"></div>
-              )}
-            </button>
-          </div>
+                {/* 오른쪽: 상세 설명 */}
+                <div className="w-full md:w-1/2 text-center md:text-left space-y-3">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-purple-300 mb-1 animate-fade-in-up">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                    </span>
+                    {mainMission.form === 'match' ? '💖 MAIN MATCH' : mainMission.form === 'tournament' ? '🏆 MAIN TOURNAMENT' : '🔥 HOT ISSUE'}
+                  </div>
 
-          {/* 시즌 필터 (가로 스크롤) */}
-          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-            {["전체", "29기", "28기", "27기", "26기"].map((season) => (
+                  <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
+                    {mainMission.title}
+                  </h1>
+
+                  <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep line-clamp-2 animate-fade-in-up delay-200">
+                    {mainMission.description || "여러분의 촉으로 결과를 예측해보세요! 가장 많은 사람들이 선택한 결과는 무엇일까요?"}
+                  </p>
+
+                  <div className="flex flex-col md:flex-row items-center gap-3 pt-2 justify-center md:justify-start animate-fade-in-up delay-300">
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        router.push(`/p-mission/${mainMission.id}/vote`)
+                      }}
+                      className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-sm px-6 py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
+                      size="default"
+                    >
+                      지금 투표 참여하기
+                    </Button>
+                    <p className="text-xs text-gray-400">
+                      현재 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span> 참여 중
+                    </p>
+                  </div>
+                </div>
+              </div >
+            </div >
+          )
+          }
+
+          {/* 필터 (가로 스크롤) */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 pt-2">
+            {["전체", "진행중", "마감", "핫이슈"].map((filter) => (
               <button
-                key={season}
-                onClick={() => setSelectedSeason(season)}
-                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${selectedSeason === season
+                key={filter}
+                onClick={() => setSelectedFilter(filter)}
+                className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${selectedFilter === filter
                   ? "bg-gray-900 text-white"
                   : "bg-gray-100 text-gray-500 hover:bg-gray-200"
                   }`}
               >
-                {season}
+                {filter}
               </button>
             ))}
           </div>
@@ -332,8 +366,8 @@ export default function HomePage() {
                   <div className="h-10 bg-gray-200 rounded w-full"></div>
                 </div>
               ))
-            ) : sortedMissions.length > 0 ? (
-              sortedMissions.slice(1).map((mission) => (
+            ) : displayMissions.length > 0 ? (
+              displayMissions.map((mission, index) => (
                 <div key={mission.id} id={`mission-${mission.id}`}>
                   <MissionCard
                     mission={mission}
@@ -367,7 +401,7 @@ export default function HomePage() {
                       }
                       setIsPickViewModalOpen(true)
                     }}
-                    variant={mission.id === "1" ? "hot" : "default"}
+                    variant={index === 0 && !mainMission ? "hot" : "default"} // 메인 미션이 있으면 리스트 첫번째는 hot 아님
                   />
                 </div>
               ))
@@ -377,21 +411,21 @@ export default function HomePage() {
               </div>
             )}
           </div>
-        </main>
+        </main >
 
         {/* 하단 네비게이션 */}
-        <BottomNavigation
+        < BottomNavigation
           onMissionClick={() => setIsMissionModalOpen(true)}
           onStatusClick={() => setIsMissionStatusOpen(true)}
         />
 
         {/* 사이드바 (햄버거 메뉴) */}
         <SidebarNavigation
-          selectedShow={selectedShow}
-          selectedSeason={selectedSeason}
+          selectedShow="나는솔로" // Default
+          selectedSeason={selectedFilter} // Map filter to season prop for now
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-          onSeasonSelect={setSelectedSeason}
+          onSeasonSelect={setSelectedFilter} // Map filter select
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
         />
 
@@ -403,18 +437,20 @@ export default function HomePage() {
         />
 
         {/* 내 픽 보기 모달 */}
-        {selectedMissionForView && (
-          <MyPickViewModal
-            isOpen={isPickViewModalOpen}
-            onClose={() => {
-              setIsPickViewModalOpen(false)
-              setSelectedMissionForView(null)
-            }}
-            mission={selectedMissionForView}
-            userVote={selectedUserVote}
-          />
-        )}
-      </div>
-    </div>
+        {
+          selectedMissionForView && (
+            <MyPickViewModal
+              isOpen={isPickViewModalOpen}
+              onClose={() => {
+                setIsPickViewModalOpen(false)
+                setSelectedMissionForView(null)
+              }}
+              mission={selectedMissionForView}
+              userVote={selectedUserVote}
+            />
+          )
+        }
+      </div >
+    </div >
   )
 }

@@ -66,7 +66,7 @@ export interface TMission {
   creatorNickname?: string // 딜러 닉네임
   creatorTier?: string // 작성자 티어 (추가됨)
   kind: "predict" | "majority"
-  form: "binary" | "multi" | "match" | "subjective"
+  form: "binary" | "multi" | "match" | "subjective" | "tournament"
   title: string
   description?: string
   seasonType?: "전체" | "기수별"

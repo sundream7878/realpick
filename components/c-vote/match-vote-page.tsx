@@ -1125,7 +1125,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
               </p>
             </CardHeader>
             <CardContent className="p-8">
-              <div ref={canvasRef} className="relative w-full max-w-4xl mx-auto" style={{ minHeight: "400px" }}>
+              <div ref={canvasRef} className="relative w-full mx-auto" style={{ minHeight: "400px" }}>
                 <svg
                   className="absolute inset-0 w-full h-full pointer-events-none z-30"
                   style={{ overflow: "visible" }}
@@ -1192,7 +1192,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                   )}
                 </svg>
 
-                <div className="grid grid-cols-2 gap-8 relative z-20 max-w-3xl mx-auto">
+                <div className="grid grid-cols-2 gap-8 relative z-20 w-full mx-auto">
                   <div className="space-y-4">
                     <div className="text-center">
                       <h3 className="text-xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">

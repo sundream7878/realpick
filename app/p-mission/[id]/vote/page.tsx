@@ -153,29 +153,29 @@ export default function VotePage({ params }: { params: { id: string } }) {
           onAvatarClick={() => router.push("/p-profile")}
         />
 
-      <main className="max-w-3xl mx-auto px-4 py-2">
-        {mission.form === "binary" && (
-          <MultiVotePage mission={mission} userVote={userVote} />
-        )}
-        {mission.form === "multi" && (
-          <MultiVotePage mission={mission} userVote={userVote} />
-        )}
-        {mission.form === "match" && (
-          <MatchVotePage mission={mission} />
-        )}
-        {mission.form === "subjective" && (
-          <SubjectiveVotePage mission={mission} />
-        )}
+        <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">
+          {mission.form === "binary" && (
+            <MultiVotePage mission={mission} userVote={userVote} />
+          )}
+          {mission.form === "multi" && (
+            <MultiVotePage mission={mission} userVote={userVote} />
+          )}
+          {mission.form === "match" && (
+            <MatchVotePage mission={mission} />
+          )}
+          {mission.form === "subjective" && (
+            <SubjectiveVotePage mission={mission} />
+          )}
 
-        {/* 댓글 섹션 추가 */}
-        <CommentSection
-          missionId={mission.id}
-          missionType={mission.form === "match" ? "mission2" : "mission1"}
-          currentUserId={userId || undefined}
-        />
-      </main>
+          {/* 댓글 섹션 추가 */}
+          <CommentSection
+            missionId={mission.id}
+            missionType={mission.form === "match" ? "mission2" : "mission1"}
+            currentUserId={userId || undefined}
+          />
+        </main>
 
-      <BottomNavigation />
+        <BottomNavigation />
       </div>
     </div>
   )

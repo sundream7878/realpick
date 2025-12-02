@@ -12,6 +12,7 @@ import { Plus, X, ArrowLeft, Check, Circle, Trophy } from "lucide-react"
 import { createMission } from "@/lib/supabase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { uploadMissionImage } from "@/lib/supabase/storage"
+import { createClient } from "@/lib/supabase/client"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -28,6 +29,137 @@ interface AIVerificationResult {
   suggestions: string[]
   reasons: string[]
 }
+
+interface MissionCommonFieldsProps {
+  seasonType: "전체" | "기수별"
+  setSeasonType: (value: "전체" | "기수별") => void
+  seasonNumber: string
+  setSeasonNumber: (value: string) => void
+  title: string
+  setTitle: (value: string) => void
+  referenceUrl: string
+  setReferenceUrl: (value: string) => void
+  description: string
+  setDescription: (value: string) => void
+  imageUrl: string
+  setImageUrl: (value: string) => void
+  isUploading: boolean
+  handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
+}
+
+const MissionCommonFields = ({
+  seasonType,
+  setSeasonType,
+  seasonNumber,
+  setSeasonNumber,
+  title,
+  setTitle,
+  referenceUrl,
+  setReferenceUrl,
+  description,
+  setDescription,
+  imageUrl,
+  setImageUrl,
+  isUploading,
+  handleImageUpload,
+}: MissionCommonFieldsProps) => (
+  <>
+    <div>
+      <Label className="text-sm font-medium">기수 분류</Label>
+      <div className="space-y-3 mt-2">
+        <Select value={seasonType} onValueChange={setSeasonType}>
+          <SelectTrigger>
+            <SelectValue placeholder="기수 분류 선택" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="전체">전체</SelectItem>
+            <SelectItem value="기수별">기수별</SelectItem>
+          </SelectContent>
+        </Select>
+        {seasonType === "기수별" && (
+          <div>
+            <Label className="text-sm font-medium">기수 번호</Label>
+            <Input
+              value={seasonNumber}
+              onChange={(e) => setSeasonNumber(e.target.value)}
+              placeholder="예: 29"
+              type="number"
+              className="mt-1"
+            />
+          </div>
+        )}
+      </div>
+    </div>
+
+    <div>
+      <Label htmlFor="title" className="text-sm font-medium">
+        제목입력
+      </Label>
+      <Input
+        id="title"
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder="제목을 입력하세요"
+        className="mt-1"
+      />
+    </div>
+
+    {/* 추가 정보 입력 섹션 */}
+    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+      <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+      <div>
+        <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+        <Input
+          value={referenceUrl}
+          onChange={(e) => setReferenceUrl(e.target.value)}
+          placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
+          className="mt-1 bg-white"
+        />
+      </div>
+
+      <div>
+        <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
+          className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
+          maxLength={1000}
+        />
+        <div className="text-right text-xs text-gray-400">
+          {description.length}/1000
+        </div>
+      </div>
+
+      <div>
+        <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
+        <div className="flex gap-2 mt-1">
+          <Input
+            type="file"
+            accept="image/*"
+            onChange={handleImageUpload}
+            disabled={isUploading}
+            className="bg-white"
+          />
+        </div>
+        {imageUrl && (
+          <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+            <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
+            <Button
+              variant="ghost"
+              size="sm"
+              className="absolute top-1 right-1 bg-white/80 hover:bg-white p-1 h-auto rounded-full"
+              onClick={() => setImageUrl("")}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </div>
+    </div>
+  </>
+)
 
 export default function MissionCreationModal({ isOpen, onClose, onMissionCreated }: MissionCreationModalProps) {
   const { toast } = useToast()
@@ -296,7 +428,20 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         imageUrl: imageUrl.trim() || undefined,
       }
 
-      const result = await createMission(missionData as any) // Type assertion for now as createMission might need update
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+
+      if (!user) {
+        toast({
+          title: "로그인 필요",
+          description: "미션을 생성하려면 로그인이 필요합니다.",
+          variant: "destructive",
+        })
+        setIsPublishing(false)
+        return
+      }
+
+      const result = await createMission(missionData as any, user.id)
 
       if (!result.success) {
         throw new Error(result.error || "미션 게시에 실패했습니다")
@@ -336,105 +481,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     setShowAIModal(false)
   }
 
-  // 공통 입력 필드 컴포넌트
-  const CommonFields = () => (
-    <>
-      <div>
-        <Label className="text-sm font-medium">기수 분류</Label>
-        <div className="space-y-3 mt-2">
-          <Select value={seasonType} onValueChange={(value: "전체" | "기수별") => setSeasonType(value)}>
-            <SelectTrigger>
-              <SelectValue placeholder="기수 분류 선택" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="전체">전체</SelectItem>
-              <SelectItem value="기수별">기수별</SelectItem>
-            </SelectContent>
-          </Select>
-          {seasonType === "기수별" && (
-            <div>
-              <Label className="text-sm font-medium">기수 번호</Label>
-              <Input
-                value={seasonNumber}
-                onChange={(e) => setSeasonNumber(e.target.value)}
-                placeholder="예: 29"
-                type="number"
-                className="mt-1"
-              />
-            </div>
-          )}
-        </div>
-      </div>
 
-      <div>
-        <Label htmlFor="title" className="text-sm font-medium">
-          제목입력
-        </Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="제목을 입력하세요"
-          className="mt-1"
-        />
-      </div>
-
-      {/* 추가 정보 입력 섹션 */}
-      <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-        <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
-
-        <div>
-          <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
-          <Input
-            value={referenceUrl}
-            onChange={(e) => setReferenceUrl(e.target.value)}
-            placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
-            className="mt-1 bg-white"
-          />
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
-            className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-            maxLength={1000}
-          />
-          <div className="text-right text-xs text-gray-400">
-            {description.length}/1000
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
-          <div className="flex gap-2 mt-1">
-            <Input
-              type="file"
-              accept="image/*"
-              onChange={handleImageUpload}
-              disabled={isUploading}
-              className="bg-white"
-            />
-          </div>
-          {imageUrl && (
-            <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
-              <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-1 right-1 bg-white/80 hover:bg-white p-1 h-auto rounded-full"
-                onClick={() => setImageUrl("")}
-              >
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </div>
-    </>
-  )
 
   // 공감픽 체크박스 컴포넌트
   const ConsensusCheckbox = () => (
@@ -552,7 +599,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           {currentStep === "binary-choice" && (
             <div className="space-y-6">
               <ConsensusCheckbox />
-              <CommonFields />
+              <MissionCommonFields
+                seasonType={seasonType}
+                setSeasonType={setSeasonType}
+                seasonNumber={seasonNumber}
+                setSeasonNumber={setSeasonNumber}
+                title={title}
+                setTitle={setTitle}
+                referenceUrl={referenceUrl}
+                setReferenceUrl={setReferenceUrl}
+                description={description}
+                setDescription={setDescription}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isUploading={isUploading}
+                handleImageUpload={handleImageUpload}
+              />
 
               <div>
                 <Label className="text-sm font-medium">Pick 선택지</Label>
@@ -602,7 +664,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           {currentStep === "multiple-choice" && (
             <div className="space-y-6">
               <ConsensusCheckbox />
-              <CommonFields />
+              <MissionCommonFields
+                seasonType={seasonType}
+                setSeasonType={setSeasonType}
+                seasonNumber={seasonNumber}
+                setSeasonNumber={setSeasonNumber}
+                title={title}
+                setTitle={setTitle}
+                referenceUrl={referenceUrl}
+                setReferenceUrl={setReferenceUrl}
+                description={description}
+                setDescription={setDescription}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isUploading={isUploading}
+                handleImageUpload={handleImageUpload}
+              />
 
               <div>
                 <Label className="text-sm font-medium">Pick 선택지</Label>
@@ -673,7 +750,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           {currentStep === "tournament-choice" && (
             <div className="space-y-6">
               {/* 토너먼트는 공감픽 옵션 없음 (기본 예측픽) */}
-              <CommonFields />
+              <MissionCommonFields
+                seasonType={seasonType}
+                setSeasonType={setSeasonType}
+                seasonNumber={seasonNumber}
+                setSeasonNumber={setSeasonNumber}
+                title={title}
+                setTitle={setTitle}
+                referenceUrl={referenceUrl}
+                setReferenceUrl={setReferenceUrl}
+                description={description}
+                setDescription={setDescription}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isUploading={isUploading}
+                handleImageUpload={handleImageUpload}
+              />
 
               <div>
                 <Label className="text-sm font-medium">토너먼트 후보 (최소 4개)</Label>
@@ -750,7 +842,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           {currentStep === "couple-matching" && (
             <div className="space-y-6">
               {/* 커플매칭은 공감픽 옵션 없음 */}
-              <CommonFields />
+              <MissionCommonFields
+                seasonType={seasonType}
+                setSeasonType={setSeasonType}
+                seasonNumber={seasonNumber}
+                setSeasonNumber={setSeasonNumber}
+                title={title}
+                setTitle={setTitle}
+                referenceUrl={referenceUrl}
+                setReferenceUrl={setReferenceUrl}
+                description={description}
+                setDescription={setDescription}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isUploading={isUploading}
+                handleImageUpload={handleImageUpload}
+              />
 
               <div>
                 <Label className="text-sm font-medium">Pick 선택지</Label>
@@ -864,7 +971,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           {currentStep === "subjective-choice" && (
             <div className="space-y-6">
               <ConsensusCheckbox />
-              <CommonFields />
+              <MissionCommonFields
+                seasonType={seasonType}
+                setSeasonType={setSeasonType}
+                seasonNumber={seasonNumber}
+                setSeasonNumber={setSeasonNumber}
+                title={title}
+                setTitle={setTitle}
+                referenceUrl={referenceUrl}
+                setReferenceUrl={setReferenceUrl}
+                description={description}
+                setDescription={setDescription}
+                imageUrl={imageUrl}
+                setImageUrl={setImageUrl}
+                isUploading={isUploading}
+                handleImageUpload={handleImageUpload}
+              />
 
               <div>
                 <Label className="text-sm font-medium">주관식 안내 문구</Label>
