@@ -90,7 +90,7 @@ export function MissionCard({
     return mission.deadline ? getTimeRemaining(mission.deadline) : "진행중"
   })()
 
-  const kindText = mission.kind === "predict" ? "예측픽" : "다수픽"
+  const kindText = mission.kind === "predict" ? "예측픽" : "공감픽"
 
   const cardClassName =
     variant === "hot"

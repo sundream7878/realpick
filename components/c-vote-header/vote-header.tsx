@@ -11,7 +11,7 @@ export function VoteHeader({ mission }: VoteHeaderProps) {
     if (mission.type === "prediction") {
       return <Badge className="bg-blue-500 text-white">예측픽</Badge>
     }
-    return <Badge className="bg-purple-500 text-white">다수픽</Badge>
+    return <Badge className="bg-purple-500 text-white">공감픽</Badge>
   }
 
   const getStatusBadge = () => {

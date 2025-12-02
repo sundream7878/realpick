@@ -119,10 +119,11 @@ export default function MyPage() {
               },
               result: {
                 distribution: {},
-                correct:
+                correctAnswer:
                   mission.f_final_answer && mission.f_final_answer.length > 0
                     ? "최종 커플 확정"
                     : undefined,
+                totalVotes: mission.f_stats_total_votes || 0,
               },
               createdAt: mission.f_created_at,
               updatedAt: mission.f_updated_at,
@@ -146,8 +147,9 @@ export default function MyPage() {
             },
             result: {
               distribution: mission.f_option_vote_counts || {},
-              correct: mission.f_correct_answer || undefined,
-              majority: mission.f_majority_option || undefined,
+              correctAnswer: mission.f_correct_answer || undefined,
+              majorityOption: mission.f_majority_option || undefined,
+              totalVotes: mission.f_stats_total_votes || 0,
             },
             createdAt: mission.f_created_at,
             updatedAt: mission.f_updated_at,
@@ -176,8 +178,9 @@ export default function MyPage() {
           },
           result: {
             distribution: mission.f_option_vote_counts || {},
-            correct: mission.f_correct_answer || undefined,
-            majority: mission.f_majority_option || undefined,
+            correctAnswer: mission.f_correct_answer || undefined,
+            majorityOption: mission.f_majority_option || undefined,
+            totalVotes: mission.f_stats_total_votes || 0,
           },
           createdAt: mission.f_created_at,
         }))
@@ -200,7 +203,7 @@ export default function MyPage() {
 
       createdMissions.forEach((mission) => {
         if (mission.kind === "predict" && mission.form !== "match") {
-          const serverAnswer = mission.result?.correct ?? ""
+          const serverAnswer = mission.result?.correctAnswer ?? ""
           next[mission.id] =
             mission.status === "settled"
               ? serverAnswer
@@ -289,7 +292,7 @@ export default function MyPage() {
     }
   }
 
-  const getKindLabel = (mission: TMission) => (mission.kind === "predict" ? "예측픽" : "다수픽")
+  const getKindLabel = (mission: TMission) => (mission.kind === "predict" ? "예측픽" : "공감픽")
 
   const getFormLabel = (mission: TMission) => {
     switch (mission.form) {
@@ -533,7 +536,7 @@ export default function MyPage() {
     }))
     setAnswerDrafts(prev => ({
       ...prev,
-      [mission.id]: mission.result?.correct ?? "",
+      [mission.id]: mission.result?.correctAnswer ?? "",
     }))
   }
 
@@ -545,7 +548,7 @@ export default function MyPage() {
     })
     setAnswerDrafts(prev => ({
       ...prev,
-      [mission.id]: mission.result?.correct ?? "",
+      [mission.id]: mission.result?.correctAnswer ?? "",
     }))
   }
 
@@ -559,7 +562,7 @@ export default function MyPage() {
       return (
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <AlertCircle className="h-4 w-4 text-amber-500" />
-          <span>다수픽/주관식 미션은 정답 입력이 필요 없습니다.</span>
+          <span>공감픽/주관식 미션은 정답 입력이 필요 없습니다.</span>
         </div>
       )
     }
@@ -859,9 +862,9 @@ export default function MyPage() {
           </div>
 
           <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-            {mission.result?.correct && (
+            {mission.result?.correctAnswer && (
               <Badge className="w-fit bg-emerald-50 text-emerald-700 border-emerald-200">
-                최종 정답: {mission.result.correct}
+                최종 정답: {mission.result.correctAnswer}
               </Badge>
             )}
             {!isSettled ? (
@@ -1018,8 +1021,8 @@ export default function MyPage() {
                             const missionSettledText =
                               mission.form === "match"
                                 ? `${mission.finalAnswer?.length ?? 0}쌍 확정`
-                                : mission.result?.correct
-                                  ? `정답: ${mission.result.correct}`
+                                : mission.result?.correctAnswer
+                                  ? `정답: ${mission.result.correctAnswer}`
                                   : "정답 미입력"
 
                             return (
@@ -1098,14 +1101,14 @@ export default function MyPage() {
                         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
                           {majorityMissionCards.map((mission) => {
                             const participants = mission.stats?.participants?.toLocaleString() ?? "0"
-                            const missionSettledText = mission.result?.majority ? `최종 다수: ${mission.result.majority}` : "결과 미확정"
+                            const missionSettledText = mission.result?.majorityOption ? `최종 다수: ${mission.result.majorityOption}` : "결과 미확정"
 
                             return (
                               <div key={mission.id} className="flex flex-col rounded-2xl border border-slate-100 bg-white shadow-sm">
                                 <div className="flex flex-col gap-4 p-5 h-full">
                                   <div className="space-y-2">
                                     <div className="flex flex-wrap items-center gap-2">
-                                      <Badge className="border bg-green-50 text-green-700 border-green-200">다수픽</Badge>
+                                      <Badge className="border bg-green-50 text-green-700 border-green-200">공감픽</Badge>
                                       <Badge className="border border-purple-200 bg-purple-50 text-purple-700">
                                         {getFormLabel(mission)}
                                       </Badge>

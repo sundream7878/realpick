@@ -58,7 +58,7 @@ export function ResultCharacterPopup({ isSuccess, isPending, missionType, commen
     if (missionType === "predict") {
       return isSuccess ? "예측픽 성공!" : "예측픽 실패!"
     } else if (missionType === "majority") {
-      return isSuccess ? "다수픽 성공!" : "다수픽 실패!"
+      return isSuccess ? "공감픽 성공!" : "공감픽 실패!"
     } else {
       return isSuccess ? "예측 성공!" : "예측 실패!"
     }

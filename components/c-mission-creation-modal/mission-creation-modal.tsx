@@ -505,7 +505,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           공감픽으로 설정
         </label>
         <p className="text-xs text-pink-600">
-          체크 시 정답이 없는 '다수결' 미션이 됩니다.
+          체크 시 정답이 없는 '공감픽' 미션이 됩니다.
         </p>
       </div>
     </div>

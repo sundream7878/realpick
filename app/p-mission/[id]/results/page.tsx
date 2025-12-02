@@ -462,8 +462,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                                 ? "예측픽 성공!"
                                 : "예측픽 실패"
                               : isSuccess
-                                ? "다수픽 성공!"
-                                : "다수픽 실패"}
+                                ? "공감픽 성공!"
+                                : "공감픽 실패"}
                           </h3>
                           <p
                             className={`text-sm ${isSuccess ? "text-green-600" : "text-red-600"}`}
