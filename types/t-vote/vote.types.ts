@@ -45,7 +45,7 @@ export type TTier =
 export interface CreateMissionData {
   title: string
   type: "prediction" | "majority"
-  format: "binary" | "multiple" | "couple" | "subjective" | "tournament"
+  format: "binary" | "multi" | "couple" | "tournament"
   seasonType: "전체" | "기수별"
   seasonNumber?: string
   options?: string[]
@@ -60,6 +60,8 @@ export interface CreateMissionData {
   imageUrl?: string
   showId?: string
   category?: string
+  submissionType?: "selection" | "text"
+  requiredAnswerCount?: number
 }
 
 export interface TMission {
@@ -68,7 +70,7 @@ export interface TMission {
   creatorNickname?: string // 딜러 닉네임
   creatorTier?: string // 작성자 티어 (추가됨)
   kind: "predict" | "majority"
-  form: "binary" | "multi" | "match" | "subjective" | "tournament"
+  form: "binary" | "multi" | "match" | "tournament"
   title: string
   description?: string
   seasonType?: "전체" | "기수별"
@@ -91,6 +93,8 @@ export interface TMission {
   thumbnailUrl?: string // 유튜브 썸네일 URL
   referenceUrl?: string // 원본 레퍼런스 URL (유튜브 링크 등)
   imageUrl?: string // 직접 업로드한 이미지 URL
+  submissionType?: "selection" | "text"
+  requiredAnswerCount?: number
   createdAt: string
   updatedAt?: string
 }

@@ -120,12 +120,14 @@ export function MissionCard({
 
                   if (mission.form === 'match') {
                     type = 'match';
+                  } else if (mission.submissionType === 'text') {
+                    type = 'multi';
                   } else if (Array.isArray(mission.options)) {
                     optionsCount = mission.options.length;
                     if (optionsCount >= 3) type = 'multi';
                   }
 
-                  return calculatePotentialPoints(type, optionsCount).label;
+                  return calculatePotentialPoints(mission.kind, type, optionsCount).label;
                 })()}
               </Badge>
 

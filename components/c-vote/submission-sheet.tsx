@@ -5,7 +5,7 @@ import type { TMission } from "@/types/t-vote/vote.types"
 
 interface SubmissionSheetProps {
   mission: TMission
-  selectedChoice?: string
+  selectedChoice?: string | string[]
   selectedPairs?: Array<{ left: string; right: string }>
   onSubmit: () => Promise<void>
   onCancel: () => void
@@ -30,6 +30,9 @@ export function SubmissionSheet({
   const getSelectionText = () => {
     if (mission.form === "match" && selectedPairs) {
       return selectedPairs.map((p) => `${p.left} - ${p.right}`).join(", ")
+    }
+    if (Array.isArray(selectedChoice)) {
+      return selectedChoice.join(", ")
     }
     return selectedChoice || ""
   }

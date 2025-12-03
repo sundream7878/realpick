@@ -43,75 +43,77 @@ export async function addPointLog(
 ): Promise<TPointLog | null> {
   const supabase = createClient()
 
-  const logData = {
-    f_user_id: userId,
-    f_mission_id: missionId || null,
-    f_mission_type: missionType || null,
-    f_diff: diff,
-    f_reason: reason,
-    f_metadata: metadata || null,
-  }
+  try {
+    // RPC 함수 호출 (Security Definier로 RLS 우회)
+    const { data, error } = await supabase.rpc('add_user_points', {
+      p_user_id: userId,
+      p_diff: diff,
+      p_reason: reason,
+      p_mission_id: missionId || null,
+      p_mission_type: missionType || null,
+      p_metadata: metadata || null
+    })
 
-  console.log(`[addPointLog] 포인트 로그 저장 시도:`, logData)
-  
-  const { data, error } = await supabase.from("t_pointlogs").insert(logData).select().single()
+    if (error) {
+      console.error("[addPointLog] RPC 호출 실패:", error)
+      // RPC가 없거나 실패하면 기존 로직으로 폴백 (선택 사항, 여기서는 에러 로그만 남김)
+      // return null
+      throw error
+    }
 
-  if (error) {
-    console.error("[addPointLog] 포인트 로그 저장 실패:", error)
-    console.error("[addPointLog] 에러 상세:", JSON.stringify(error, null, 2))
-    return null
-  }
-  
-  console.log(`[addPointLog] 포인트 로그 저장 성공:`, data)
+    if (!data || !data.success) {
+      console.error("[addPointLog] 포인트 업데이트 실패:", data?.error)
+      return null
+    }
 
-  // 사용자 포인트 업데이트 (티어도 자동 업데이트)
-  const { data: user, error: userError } = await supabase.from("t_users").select("f_points").eq("f_id", userId).single()
-  
-  if (userError) {
-    console.error("[addPointLog] 사용자 정보 조회 실패:", userError)
+    console.log(`[addPointLog] 포인트 업데이트 성공: ${userId}, ${diff}P`)
+
+    // 성공 시 로그 데이터 반환 (RPC가 반환한 log_id 사용 가능하지만, 여기서는 간단히 구성)
     return {
-      id: data.f_id,
-      userId: data.f_user_id,
-      missionId: data.f_mission_id || undefined,
-      diff: data.f_diff,
-      reason: data.f_reason,
-      createdAt: data.f_created_at,
+      id: data.log_id,
+      userId: userId,
+      missionId: missionId,
+      diff: diff,
+      reason: reason,
+      createdAt: new Date().toISOString()
     }
-  }
-  
-  if (user) {
-    const oldPoints = user.f_points
-    const newPoints = Math.max(0, user.f_points + diff)
-    
-    // 포인트에 따른 티어 계산 (TypeScript 코드 기준)
-    const tierInfo = getTierFromPoints(newPoints)
-    const tierName = tierInfo.name as TTier
-    
-    console.log(`[addPointLog] 사용자 ${userId} 포인트 업데이트: ${oldPoints} → ${newPoints} (변동: ${diff > 0 ? '+' : ''}${diff}), 티어: ${tierName}`)
-    
-    // 포인트와 티어를 함께 업데이트
-    const { error: updateError } = await supabase
-      .from("t_users")
-      .update({ 
-        f_points: newPoints,
-        f_tier: tierName
-      })
-      .eq("f_id", userId)
-    
-    if (updateError) {
-      console.error("[addPointLog] 사용자 포인트/티어 업데이트 실패:", updateError)
-    } else {
-      console.log(`[addPointLog] 사용자 ${userId} 포인트/티어 업데이트 성공`)
-    }
-  }
 
-  return {
-    id: data.f_id,
-    userId: data.f_user_id,
-    missionId: data.f_mission_id || undefined,
-    diff: data.f_diff,
-    reason: data.f_reason,
-    createdAt: data.f_created_at,
+  } catch (rpcError) {
+    console.error("[addPointLog] RPC 에러, 기존 방식으로 시도:", rpcError)
+
+    // Fallback: 기존 방식 (RLS 문제 가능성 있음)
+    const logData = {
+      f_user_id: userId,
+      f_mission_id: missionId || null,
+      f_mission_type: missionType || null,
+      f_diff: diff,
+      f_reason: reason,
+      f_metadata: metadata || null,
+    }
+
+    const { data: log, error: logError } = await supabase.from("t_pointlogs").insert(logData).select().single()
+
+    if (logError) {
+      console.error("[addPointLog] 포인트 로그 저장 실패 (Fallback):", logError)
+      return null
+    }
+
+    // 사용자 포인트 업데이트
+    const { data: user } = await supabase.from("t_users").select("f_points").eq("f_id", userId).single()
+    if (user) {
+      const newPoints = Math.max(0, user.f_points + diff)
+      const tierInfo = getTierFromPoints(newPoints)
+      await supabase.from("t_users").update({ f_points: newPoints, f_tier: tierInfo.name }).eq("f_id", userId)
+    }
+
+    return {
+      id: log.f_id,
+      userId: log.f_user_id,
+      missionId: log.f_mission_id || undefined,
+      diff: log.f_diff,
+      reason: log.f_reason,
+      createdAt: log.f_created_at,
+    }
   }
 }
 

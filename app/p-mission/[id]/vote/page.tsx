@@ -9,12 +9,13 @@ import { getUser } from "@/lib/supabase/users"
 import { getTierFromDbOrPoints, getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { MultiVotePage } from "@/components/c-vote/multi-vote-page"
 import { MatchVotePage } from "@/components/c-vote/match-vote-page"
-import { SubjectiveVotePage } from "@/components/c-vote/subjective-vote-page"
+
 import { CommentSection } from "@/components/c-comment/CommentSection"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 
 export default function VotePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -70,7 +71,9 @@ export default function VotePage({ params }: { params: { id: string } }) {
           title: missionData.f_title,
           description: missionData.f_description,
           kind: missionData.f_kind,
-          form: missionType === "mission2" ? "match" : missionData.f_form,
+          form: missionType === "mission2" ? "match" : (missionData.f_form === "subjective" ? "multi" : missionData.f_form),
+          submissionType: missionData.f_form === "subjective" ? "text" : (missionData.f_submission_type || "selection"),
+          requiredAnswerCount: missionData.f_required_answer_count || 1,
           seasonType: missionData.f_season_type || "전체",
           seasonNumber: missionData.f_season_number,
           options: missionData.f_options || missionData.f_match_pairs,
@@ -101,6 +104,13 @@ export default function VotePage({ params }: { params: { id: string } }) {
         }
 
         setMission(mappedMission)
+
+        // 마감된 미션이면 결과 페이지로 이동
+        const isClosed = mappedMission.deadline ? isDeadlinePassed(mappedMission.deadline) : mappedMission.status === "settled"
+        if (isClosed) {
+          router.replace(`/p-mission/${params.id}/results`)
+          return
+        }
 
         // 4. 투표 정보 로드 (로그인한 경우)
         if (userId) {
@@ -165,9 +175,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
           {mission.form === "match" && (
             <MatchVotePage mission={mission} />
           )}
-          {mission.form === "subjective" && (
-            <SubjectiveVotePage mission={mission} />
-          )}
+
 
           {/* 댓글 섹션 추가 */}
           <CommentSection

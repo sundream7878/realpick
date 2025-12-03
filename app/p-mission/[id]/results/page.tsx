@@ -7,7 +7,7 @@ import { Badge } from "@/components/c-ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/c-ui/avatar"
 import { Progress } from "@/components/c-ui/progress"
 import { useRouter } from "next/navigation"
-import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText } from "lucide-react"
+import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2 } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
 import { getMission, getMission2 } from "@/lib/supabase/missions"
@@ -25,6 +25,47 @@ import { AppHeader } from "@/components/c-layout/AppHeader"
 import { isAuthenticated } from "@/lib/auth-utils"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+
+import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
+
+function calculateEarnedPoints(mission: TMission, userVote: any): number {
+  if (mission.kind === 'majority' || (mission as any).kind === 'poll') return 10;
+  if (!mission.result?.correctAnswer) return 0;
+
+  if (mission.form === 'multi' || mission.submissionType === 'text') {
+    let correctAnswers: string[] = [];
+    try {
+      const parsed = JSON.parse(mission.result.correctAnswer);
+      correctAnswers = Array.isArray(parsed) ? parsed : [mission.result.correctAnswer];
+    } catch {
+      correctAnswers = [mission.result.correctAnswer as string];
+    }
+
+    let userAnswers: string[] = [];
+    if (Array.isArray(userVote?.choice)) {
+      userAnswers = userVote.choice;
+    } else if (typeof userVote?.choice === 'string') {
+      try {
+        const parsed = JSON.parse(userVote.choice);
+        userAnswers = Array.isArray(parsed) ? parsed : [userVote.choice];
+      } catch {
+        userAnswers = [userVote.choice];
+      }
+    }
+
+    let correctCount = 0;
+    let incorrectCount = 0;
+    userAnswers.forEach(ans => {
+      if (correctAnswers.includes(ans)) correctCount++;
+      else incorrectCount++;
+    });
+
+    return (correctCount * 100) - (incorrectCount * 50);
+  } else {
+    // Binary / Single
+    return userVote?.choice === mission.result.correctAnswer ? 100 : -50;
+  }
+}
 
 export default function ResultsPage({ params }: { params: { id: string } }) {
   const [mission, setMission] = useState<TMission | null>(null)
@@ -119,7 +160,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             },
             result: {
               distribution: {},
-              finalAnswer: coupleResult.mission.f_final_answer || undefined
+              finalAnswer: coupleResult.mission.f_final_answer || undefined,
+              totalVotes: coupleResult.mission.f_stats_total_votes || 0
             },
             createdAt: coupleResult.mission.f_created_at
           }
@@ -137,6 +179,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               seasonType: result.mission.f_season_type || "전체",
               seasonNumber: result.mission.f_season_number || undefined,
               options: result.mission.f_options || [],
+              submissionType: result.mission.f_form === "subjective" ? "text" : (result.mission.f_submission_type || "selection"),
               subjectivePlaceholder: result.mission.f_subjective_placeholder || undefined,
               deadline: result.mission.f_deadline,
               revealPolicy: result.mission.f_reveal_policy,
@@ -147,8 +190,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               },
               result: {
                 distribution: result.mission.f_option_vote_counts || {},
-                correct: result.mission.f_correct_answer || undefined,
-                majority: result.mission.f_majority_option || undefined
+                correctAnswer: result.mission.f_correct_answer || undefined,
+                majorityOption: result.mission.f_majority_option || undefined,
+                totalVotes: result.mission.f_stats_total_votes || 0
               },
               createdAt: result.mission.f_created_at
             }
@@ -245,21 +289,17 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                 popupType = "match"
               } else if (missionData.form === "match") {
                 success =
-                  userVoteData.pairs?.some((p: any) => `${p.left}-${p.right}` === missionData.result?.correct) || false
+                  userVoteData.pairs?.some((p: any) => `${p.left}-${p.right}` === missionData.result?.correctAnswer) || false
                 popupType = "predict"
               } else {
-                success = userVoteData.choice === missionData.result?.correct
+                success = userVoteData.choice === missionData.result?.correctAnswer
                 popupType = "predict"
               }
               commentType = success ? "predict-success" : "predict-fail"
             } else if (missionData.kind === "majority") {
-              if (missionData.form === "match") {
-                success =
-                  userVoteData.pairs?.some((p: any) => `${p.left}-${p.right}` === missionData.result?.majority) || false
-              } else {
-                success = userVoteData.choice === missionData.result?.majority
-              }
-              commentType = success ? "majority-success" : "majority-fail"
+              // 공감픽은 정답/오답 개념이 없으므로 항상 성공(참여 완료)으로 취급
+              success = true
+              commentType = "majority-success"
               popupType = "majority"
             }
           }
@@ -275,12 +315,15 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               const missionType = missionData.kind === "predict" ? "prediction" : "majority"
               const comment = getRandomComment("user123", params.id, missionType, success)
               setSuccessComment(comment)
-            } else if (missionData.revealPolicy === "onClose") {
-              // 정산 미완료 & 마감 후 공개인 경우: 대기 팝업
-              setIsSuccess(false) // pending 상태에서는 의미 없음
-              setCharacterPopupType(popupType)
-              setShowCharacterPopup(true)
-              setSuccessComment("아직 정답이 공개되지 않았습니다.\n딜러가 정답을 입력할 때까지 기다려주세요!")
+            } else if (missionData.revealPolicy === "onClose" || missionData.kind === "predict") {
+              // 정산 미완료 & (마감 후 공개 또는 예측 미션)인 경우: 대기 팝업
+              // 공감픽은 대기 팝업 제외 (이미 위에서 처리됨)
+              if (missionData.kind !== "majority" && (missionData as any).kind !== "poll") {
+                setIsSuccess(false) // pending 상태에서는 의미 없음
+                setCharacterPopupType(popupType)
+                setShowCharacterPopup(true)
+                setSuccessComment("정답이 아직 안나왔습니다!\n잠시만 기다려주세요!")
+              }
             }
           }
         }
@@ -365,7 +408,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         {showCharacterPopup && userVote && (
           <ResultCharacterPopup
             isSuccess={isSuccess}
-            isPending={isMissionClosed && mission.status !== "settled" && mission.revealPolicy === "onClose"}
+            isPending={isMissionClosed && mission.status !== "settled" && (mission.revealPolicy === "onClose" || mission.kind === "predict") && mission.kind !== "majority" && (mission as any).kind !== "poll"}
             missionType={characterPopupType}
             comment={successComment}
             missionId={params.id}
@@ -442,183 +485,132 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
                 {userVote && successComment && mission.deadline && isDeadlinePassed(mission.deadline) && (
                   <Card
-                    className={`border-2 ${isSuccess
-                      ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
-                      : "border-red-200 bg-gradient-to-r from-red-50 to-rose-50"
+                    className={`border-2 ${mission.status !== "settled"
+                      ? "border-gray-200 bg-gray-50"
+                      : isSuccess
+                        ? "border-green-200 bg-gradient-to-r from-green-50 to-emerald-50"
+                        : "border-red-200 bg-red-50"
                       }`}
                   >
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className={`p-2 rounded-full ${isSuccess ? "bg-green-500" : "bg-red-500"}`}>
-                          <Trophy className="w-4 h-4 text-white" />
+                    <CardContent className="p-6 flex items-start gap-4">
+                      {mission.status !== "settled" ? (
+                        <Clock className="w-8 h-8 text-gray-400 flex-shrink-0 mt-1" />
+                      ) : isSuccess ? (
+                        <CheckCircle2 className="w-8 h-8 text-green-500 flex-shrink-0 mt-1" />
+                      ) : (
+                        <XCircle className="w-8 h-8 text-red-500 flex-shrink-0 mt-1" />
+                      )}
+                      <div className="space-y-1">
+                        <h3
+                          className={`font-bold text-lg ${mission.status !== "settled"
+                            ? "text-gray-700"
+                            : isSuccess
+                              ? "text-green-700"
+                              : "text-red-700"
+                            }`}
+                        >
+                          {mission.status !== "settled"
+                            ? (mission.kind === "majority" || (mission as any).kind === "poll")
+                              ? "공감픽 참여 완료 (+10P)"
+                              : "결과 집계 중"
+                            : mission.kind === "predict"
+                              ? (() => {
+                                const points = calculateEarnedPoints(mission, userVote)
+                                return points > 0 ? `예측 성공! (+${points}P)` : `예측 실패 (${points}P)`
+                              })()
+                              : "공감픽 참여 완료 (+10P)"}
+                        </h3>
+                        <p
+                          className={`${mission.status !== "settled"
+                            ? "text-gray-600"
+                            : isSuccess
+                              ? "text-green-600"
+                              : "text-red-600"
+                            }`}
+                        >
+                          {mission.status !== "settled"
+                            ? (mission.kind === "majority" || (mission as any).kind === "poll")
+                              ? "결과가 확정되면 알려드릴게요!"
+                              : "잠시만 기다려주세요!"
+                            : successComment}
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                <Card>
+                  <CardHeader>
+                    <CardTitle>투표 결과</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <ResultsChart mission={mission} userVote={userVote} />
+                  </CardContent>
+                </Card>
+
+                {/* 주관식 정답 및 내 답변 표시 (정산 완료 시) */}
+                {mission.submissionType === "text" && mission.status === "settled" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>내 답변 결과</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="p-4 bg-slate-50 rounded-lg border">
+                        <div className="text-sm text-muted-foreground mb-1">정답</div>
+                        <div className="font-bold text-green-600 text-lg">
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(mission.result?.correctAnswer || "[]")
+                              return Array.isArray(parsed) ? parsed.join(", ") : mission.result?.correctAnswer
+                            } catch {
+                              return mission.result?.correctAnswer
+                            }
+                          })()}
                         </div>
-                        <div>
-                          <h3
-                            className={`font-semibold text-sm ${isSuccess ? "text-green-700" : "text-red-700"}`}
-                            style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
-                          >
-                            {mission.kind === "predict"
-                              ? isSuccess
-                                ? "예측픽 성공!"
-                                : "예측픽 실패"
-                              : isSuccess
-                                ? "공감픽 성공!"
-                                : "공감픽 실패"}
-                          </h3>
-                          <p
-                            className={`text-sm ${isSuccess ? "text-green-600" : "text-red-600"}`}
-                            style={{ color: isSuccess ? "#22C55E" : "#EF4444" }}
-                          >
-                            {successComment}
-                          </p>
+                      </div>
+                      <div className="p-4 bg-slate-50 rounded-lg border">
+                        <div className="text-sm text-muted-foreground mb-1">내 답변</div>
+                        <div className="font-bold text-slate-900 text-lg">
+                          {(() => {
+                            if (Array.isArray(userVote.choice)) return userVote.choice.join(", ")
+                            try {
+                              const parsed = JSON.parse(userVote.choice)
+                              return Array.isArray(parsed) ? parsed.join(", ") : userVote.choice
+                            } catch {
+                              return userVote.choice
+                            }
+                          })()}
                         </div>
                       </div>
                     </CardContent>
                   </Card>
-                )
-                }
-
-                {
-                  !(mission.form === "match" && mission.status === "settled") && (
-                    <Card>
-                      <CardHeader>
-                        <CardTitle className="text-xl">투표 결과</CardTitle>
-                        <p className="text-sm text-muted-foreground">
-                          {mission.status === "open" ? "실시간 중간 결과" : "최종 결과"}
-                        </p>
-                      </CardHeader>
-                      <CardContent>
-                        <ResultsChart mission={mission} userVote={userVote} />
-                      </CardContent>
-                    </Card>
-                  )
-                }
-
-                {
-                  mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (
-                    <>
-                      <Card className="bg-gradient-to-r from-pink-50 to-rose-50 border-pink-200">
-                        <CardHeader>
-                          <CardTitle className="text-xl flex items-center gap-2">
-                            <Trophy className="w-6 h-6 text-pink-600" />
-                            최종 커플 결과
-                          </CardTitle>
-                          <p className="text-sm text-muted-foreground">모든 회차가 종료되어 최종 커플이 확정되었습니다</p>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                            {mission.finalAnswer.map((couple, index) => (
-                              <div
-                                key={index}
-                                className="flex items-center justify-center gap-2 sm:gap-3 p-3 sm:p-4 bg-white rounded-lg border-2 border-pink-200"
-                              >
-                                <span className="font-semibold text-base sm:text-lg truncate">{couple.left}</span>
-                                <span className="text-pink-600 text-lg sm:text-xl flex-shrink-0">💕</span>
-                                <span className="font-semibold text-base sm:text-lg truncate">{couple.right}</span>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-
-                      <Card>
-                        <CardHeader>
-                          <CardTitle className="text-xl flex items-center gap-2">
-                            <Crown className="w-6 h-6 text-amber-500" />
-                            참여자 랭킹
-                          </CardTitle>
-                          <p className="text-sm text-muted-foreground">회차별 정답 예측에 따른 누적 점수 순위입니다</p>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                            {generateMockUserRanking(mission.finalAnswer, mission.stats?.participants || 0).map((user) => (
-                              <div
-                                key={user.rank}
-                                className={`flex items-center gap-3 p-3 rounded-lg transition-colors ${user.isCurrentUser
-                                  ? "bg-blue-50 border-2 border-blue-200"
-                                  : "bg-gray-50 hover:bg-gray-100"
-                                  }`}
-                              >
-                                <div
-                                  className={`w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center font-bold ${user.rank === 1
-                                    ? "bg-gradient-to-br from-amber-400 to-amber-600 text-white"
-                                    : user.rank === 2
-                                      ? "bg-gradient-to-br from-gray-300 to-gray-500 text-white"
-                                      : user.rank === 3
-                                        ? "bg-gradient-to-br from-amber-600 to-amber-800 text-white"
-                                        : "bg-gray-200 text-gray-700"
-                                    }`}
-                                >
-                                  {user.rank}
-                                </div>
-
-                                <Avatar className="w-10 h-10 sm:w-12 sm:h-12 flex-shrink-0">
-                                  <AvatarImage src={user.tierInfo.characterImage || "/placeholder.svg"} />
-                                  <AvatarFallback>{user.nickname[0]}</AvatarFallback>
-                                </Avatar>
-
-                                <div className="flex-1 min-w-0">
-                                  <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="font-semibold text-sm sm:text-base truncate">{user.nickname}</span>
-                                    {user.isCurrentUser && (
-                                      <Badge className="bg-blue-500 text-white text-xs flex-shrink-0">나</Badge>
-                                    )}
-                                    {user.tierUpgraded && (
-                                      <Badge className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs flex-shrink-0">
-                                        등급 UP!
-                                      </Badge>
-                                    )}
-                                  </div>
-                                  <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
-                                    <span className="text-pink-600 font-medium truncate">{user.tierInfo.name}</span>
-                                  </div>
-                                </div>
-
-                                <div className="text-right flex-shrink-0">
-                                  <div className="font-bold text-base sm:text-lg text-amber-600">{user.totalScore}점</div>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </>
-                  )
-                }
+                )}
 
                 <Card>
                   <CardHeader>
-                    <CardTitle className="text-lg">통계</CardTitle>
+                    <CardTitle>미션 통계</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    {mission.form === "match" && mission.status === "settled" && mission.finalAnswer ? (
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {mission.form === "match" ? (
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                         <div className="text-center p-4 bg-muted/50 rounded-lg">
                           <p className="text-2xl font-bold text-primary">
                             {mission.stats?.participants?.toLocaleString() || 0}
                           </p>
                           <p className="text-sm text-muted-foreground">총 참여자</p>
                         </div>
-                        <div className="text-center p-4 bg-green-50 rounded-lg">
-                          <p className="text-2xl font-bold text-green-600">
-                            {(() => {
-                              const ranking = generateMockUserRanking(
-                                mission.finalAnswer,
-                                mission.stats?.participants || 0,
-                              )
-                              const successfulUsers = ranking.filter((u) => u.correctRounds.length > 0).length
-                              const percentage = Math.round((successfulUsers / ranking.length) * 100)
-                              return `${percentage}%`
-                            })()}
+                        <div className="text-center p-4 bg-muted/50 rounded-lg">
+                          <p className="text-2xl font-bold text-accent">
+                            {mission.episodes || 8}회
                           </p>
-                          <p className="text-sm text-muted-foreground">최종 커플 예측 성공</p>
+                          <p className="text-sm text-muted-foreground">총 에피소드</p>
                         </div>
-                        <div className="text-center p-4 bg-purple-50 rounded-lg">
-                          <p className="text-2xl font-bold text-purple-600">
+                        <div className="text-center p-4 bg-primary/5 rounded-lg">
+                          <p className="text-lg font-bold text-primary">
                             {(() => {
-                              const ranking = generateMockUserRanking(
-                                mission.finalAnswer,
-                                mission.stats?.participants || 0,
+                              // 등급 업그레이드 비율 계산 (예시)
+                              const ranking = Object.values(mission.result?.ranking || {}).sort(
+                                (a: any, b: any) => b.score - a.score,
                               )
                               const upgradedUsers = ranking.filter((u) => u.tierUpgraded).length
                               const percentage = Math.round((upgradedUsers / ranking.length) * 100)
@@ -717,9 +709,14 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
 
   // 마감 후 공개(onClose)인 경우, 정산(settled)되지 않았으면 결과를 숨김
   // (마감 시간이 지났어도 딜러가 정답을 입력하지 않았으면 숨김)
-  const shouldHideResults = mission.revealPolicy === "onClose" && mission.status !== "settled"
+  const shouldHideResults = mission.revealPolicy === "onClose" && !isClosed
 
-  const entries = Object.entries(mission.result.distribution).sort(([, a], [, b]) => b - a)
+  let entries = Object.entries(mission.result.distribution).sort(([, a], [, b]) => b - a)
+
+  // 텍스트 미션은 상위 5개만 표시
+  if (mission.submissionType === "text") {
+    entries = entries.slice(0, 5)
+  }
 
   return (
     <div className="space-y-4">
@@ -727,20 +724,34 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
         const isUserChoice = isAuthenticated() && (
           mission.form === "match"
             ? userVote?.pairs?.some((p: any) => `${p.left}-${p.right}` === option)
-            : userVote?.choice === option
+            : Array.isArray(userVote?.choice)
+              ? userVote?.choice.includes(option)
+              : userVote?.choice === option
         )
 
         // 정답인 항목 확인
-        const isCorrect = mission.kind === "predict" && mission.result?.correct === option
+        let isCorrect = false
+        if (mission.kind === "predict") {
+          if (mission.form === "multi" || mission.submissionType === "text") {
+            try {
+              const correctAnswers = JSON.parse(mission.result?.correctAnswer || "[]")
+              isCorrect = Array.isArray(correctAnswers) ? correctAnswers.includes(option) : correctAnswers === option
+            } catch {
+              isCorrect = mission.result?.correctAnswer === option
+            }
+          } else {
+            isCorrect = mission.result?.correctAnswer === option
+          }
+        }
 
         return (
           <div
             key={option}
             className={`p-4 rounded-lg border-2 transition-all ${isCorrect
-              ? "border-emerald-400 bg-emerald-50 shadow-md ring-2 ring-emerald-200"
-              : isUserChoice
-                ? "border-purple-200 bg-purple-50"
-                : "border-gray-200 bg-gray-50"
+                ? "border-emerald-400 bg-emerald-50 shadow-md ring-2 ring-emerald-200"
+                : isUserChoice
+                  ? "border-purple-200 bg-purple-50"
+                  : "border-gray-200 bg-gray-50"
               }`}
           >
             <div className="flex items-center justify-between mb-3 gap-2">
@@ -753,10 +764,10 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                   {index + 1}
                 </Badge>
                 <span className={`font-medium truncate ${isCorrect
-                  ? "text-emerald-700 font-bold"
-                  : isUserChoice
-                    ? "text-purple-700"
-                    : "text-foreground"
+                    ? "text-emerald-700 font-bold"
+                    : isUserChoice
+                      ? "text-purple-700"
+                      : "text-foreground"
                   }`}>
                   {option}
                 </span>
@@ -768,12 +779,12 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                     <Check className="w-3 h-3" />정답
                   </Badge>
                 )}
-                {isUserChoice && !isCorrect && (
+                {isUserChoice && (
                   <Badge
                     variant="outline"
                     className="text-xs bg-purple-100 text-purple-700 border-purple-200 flex items-center gap-1 flex-shrink-0"
                   >
-                    <Check className="w-3 h-3" />내 선택
+                    <Check className="w-3 h-3" />내 픽
                   </Badge>
                 )}
               </div>
@@ -790,20 +801,22 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                 )}
               </div>
             </div>
-            {!shouldHideResults && (
-              <Progress
-                value={percentage}
-                className={`h-3 ${isCorrect
-                  ? "bg-emerald-100 [&>div]:bg-emerald-500"
-                  : isUserChoice
-                    ? "bg-purple-100 [&>div]:bg-purple-500"
-                    : ""
-                  }`}
-              />
-            )}
+            {
+              !shouldHideResults && (
+                <Progress
+                  value={percentage}
+                  className={`h-3 ${isCorrect
+                      ? "bg-emerald-100 [&>div]:bg-emerald-500"
+                      : isUserChoice
+                        ? "bg-purple-100 [&>div]:bg-purple-500"
+                        : ""
+                    }`}
+                />
+              )
+            }
           </div>
         )
       })}
-    </div>
+    </div >
   )
 }

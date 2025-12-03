@@ -34,8 +34,8 @@ export async function getVote1(userId: string, missionId: string): Promise<TVote
   }
 
   // JSONB에서 option 추출 (JSONB 형식: { option: "선택지" } 또는 단순 문자열)
-  const selectedOption = typeof data.f_selected_option === 'string' 
-    ? data.f_selected_option 
+  const selectedOption = typeof data.f_selected_option === 'string'
+    ? data.f_selected_option
     : data.f_selected_option?.option || data.f_selected_option
 
   return {
@@ -102,7 +102,7 @@ export async function getAllVotes2(userId: string, missionId: string): Promise<T
 
   if (error) {
     if (error.code === "406") {
-       return []
+      return []
     }
     console.error("Error fetching votes2:", error)
     return []
@@ -130,17 +130,17 @@ export async function getAllVotes2(userId: string, missionId: string): Promise<T
 }
 
 // 모든 사용자의 커플 매칭 투표 집계 (실시간 결과용)
-export async function getAggregatedVotes2(missionId: string, episodeNo?: number): Promise<{ 
-  pairCounts: Record<string, number>, 
-  totalParticipants: number 
+export async function getAggregatedVotes2(missionId: string, episodeNo?: number): Promise<{
+  pairCounts: Record<string, number>,
+  totalParticipants: number
 }> {
   const supabase = createClient()
-  
+
   let query = supabase
     .from("t_pickresult2")
     .select("f_connections, f_user_id, f_episode_no")
     .eq("f_mission_id", missionId)
-  
+
   if (episodeNo) {
     query = query.eq("f_episode_no", episodeNo)
   }
@@ -155,11 +155,11 @@ export async function getAggregatedVotes2(missionId: string, episodeNo?: number)
   // 커플별 투표 수 집계
   const pairCounts: Record<string, number> = {}
   const uniqueUsers = new Set<string>()
-  
+
   data?.forEach((vote) => {
     // 유니크 사용자 카운트 (에피소드 상관없이 사용자 ID만으로)
     uniqueUsers.add(vote.f_user_id)
-    
+
     let pairs = vote.f_connections
     if (typeof pairs === 'string') {
       try {
@@ -178,19 +178,19 @@ export async function getAggregatedVotes2(missionId: string, episodeNo?: number)
     }
   })
 
-  return { 
-    pairCounts, 
-    totalParticipants: uniqueUsers.size 
+  return {
+    pairCounts,
+    totalParticipants: uniqueUsers.size
   }
 }
 
 // 여러 에피소드의 집계 결과 (에피소드 배열 지원)
-export async function getAggregatedVotesMultipleEpisodes(missionId: string, episodeNos: number[]): Promise<{ 
-  pairCounts: Record<string, number>, 
-  totalParticipants: number 
+export async function getAggregatedVotesMultipleEpisodes(missionId: string, episodeNos: number[]): Promise<{
+  pairCounts: Record<string, number>,
+  totalParticipants: number
 }> {
   const supabase = createClient()
-  
+
   const { data, error } = await supabase
     .from("t_pickresult2")
     .select("f_connections, f_user_id, f_episode_no")
@@ -205,11 +205,11 @@ export async function getAggregatedVotesMultipleEpisodes(missionId: string, epis
   // 커플별 투표 수 집계 (여러 에피소드 합산)
   const pairCounts: Record<string, number> = {}
   const uniqueUsers = new Set<string>()
-  
+
   data?.forEach((vote) => {
     // 유니크 사용자 카운트 (에피소드 상관없이 사용자 ID만으로)
     uniqueUsers.add(vote.f_user_id)
-    
+
     let pairs = vote.f_connections
     if (typeof pairs === 'string') {
       try {
@@ -228,9 +228,9 @@ export async function getAggregatedVotesMultipleEpisodes(missionId: string, epis
     }
   })
 
-  return { 
-    pairCounts, 
-    totalParticipants: uniqueUsers.size 
+  return {
+    pairCounts,
+    totalParticipants: uniqueUsers.size
   }
 }
 
@@ -239,14 +239,29 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
   try {
     const supabase = createClient()
 
-    // f_selected_option은 JSONB이지만, binary/multi의 경우 단순 문자열로 저장
-    // 스키마: binary는 "옵션1", multi는 ["옵션1", "옵션2"]
-    // 현재는 단일 선택만 지원하므로 문자열로 저장
+    // 미션 정보 조회 (포인트 즉시 지급을 위해)
+    const { data: mission } = await supabase
+      .from("t_missions1")
+      .select("f_kind, f_title")
+      .eq("f_id", submission.missionId)
+      .single()
+
+    let pointsEarned = 0
+    let isCorrect = null
+
+    // 공감픽(poll/majority)인 경우 즉시 포인트 지급
+    if (mission && (mission.f_kind === "poll" || mission.f_kind === "majority")) {
+      pointsEarned = 10
+      isCorrect = true // 참여 완료 의미로 true
+    }
+
     const voteData = {
       f_user_id: submission.userId,
       f_mission_id: submission.missionId,
-      f_selected_option: submission.choice, // 단순 문자열로 저장
+      f_selected_option: submission.choice, // 문자열 또는 문자열 배열(다중 선택)로 저장
       f_submitted_at: submission.submittedAt || new Date().toISOString(),
+      f_points_earned: pointsEarned,
+      f_is_correct: isCorrect
     }
 
     console.log("submitVote1 - 제출 데이터:", voteData)
@@ -266,6 +281,18 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
         voteData
       })
       return false
+    }
+
+    // 포인트 로그 추가 (공감픽인 경우)
+    if (pointsEarned > 0 && mission) {
+      const { addPointLog } = await import("./points")
+      await addPointLog(
+        submission.userId,
+        pointsEarned,
+        `[공감 픽] ${mission.f_title} 참여 보상`,
+        submission.missionId,
+        "mission1"
+      )
     }
 
     console.log("submitVote1 - 제출 성공:", data)
@@ -301,8 +328,8 @@ export async function submitVote2(submission: TVoteSubmission): Promise<boolean>
   }
 
   // pairs 배열 검증
-  const validPairs = submission.pairs.every(pair => 
-    pair && typeof pair === 'object' && 
+  const validPairs = submission.pairs.every(pair =>
+    pair && typeof pair === 'object' &&
     typeof pair.left === 'string' && pair.left.trim() !== '' &&
     typeof pair.right === 'string' && pair.right.trim() !== ''
   )
@@ -346,7 +373,7 @@ export async function submitVote2(submission: TVoteSubmission): Promise<boolean>
 export async function getVote(userId: string, missionId: string): Promise<TVoteSubmission | null> {
   // 먼저 미션 타입 확인 (커플매칭 미션인지 확인)
   const mission2Result = await getMission2(missionId)
-  
+
   if (mission2Result.success && mission2Result.mission) {
     // 커플매칭 미션인 경우 - 첫 번째 에피소드의 투표를 반환 (또는 null)
     // 주의: 커플매칭은 여러 에피소드가 있으므로 getAllVotes2를 사용하는 것이 더 적절할 수 있음

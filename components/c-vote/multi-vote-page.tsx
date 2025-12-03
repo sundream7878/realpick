@@ -4,6 +4,8 @@ import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
 import { Card, CardContent } from "@/components/c-ui/card"
 import { Badge } from "@/components/c-ui/badge"
+import { Label } from "@/components/c-ui/label"
+import { Input } from "@/components/c-ui/input"
 import { Clock, Users } from "lucide-react"
 import { ResultSection } from "./result-section"
 import { SubmissionSheet } from "./submission-sheet"
@@ -26,11 +28,13 @@ interface MultiVotePageProps {
 }
 
 export function MultiVotePage({ mission }: MultiVotePageProps) {
-  const [selectedChoice, setSelectedChoice] = useState<string>("")
+  const [selectedChoice, setSelectedChoice] = useState<string | string[] | null>(null)
+  const [textInputs, setTextInputs] = useState<string[]>(Array(mission.requiredAnswerCount || 1).fill(""))
+  const [textInput, setTextInput] = useState("")
   const [showSubmissionSheet, setShowSubmissionSheet] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [userVote, setUserVote] = useState<string | null>(null)
+  const [userVote, setUserVote] = useState<string | string[] | null>(null)
   const [pendingSubmit, setPendingSubmit] = useState(false)
   const [currentMission, setCurrentMission] = useState<TMission>(mission)
   const [isExpanded, setIsExpanded] = useState(false)
@@ -39,6 +43,39 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
 
   // 사용자 ID 가져오기
   const userId = getUserId() || "user123"
+
+  // Sync userVote to inputs
+  useEffect(() => {
+    if (userVote) {
+      if (Array.isArray(userVote)) {
+        setSelectedChoice(userVote)
+        if (currentMission.submissionType === 'text') {
+          setTextInputs(userVote)
+        }
+      } else {
+        setSelectedChoice(userVote)
+        if (currentMission.submissionType === 'text') {
+          setTextInputs([userVote])
+          setTextInput(userVote)
+        }
+      }
+    }
+  }, [userVote, currentMission.submissionType])
+
+  // Check localStorage
+  useEffect(() => {
+    if (!userVote && !isAuthenticated()) {
+      const existingVote = localStorage.getItem(`rp_picked_${mission.id}`)
+      if (existingVote) {
+        try {
+          const parsed = JSON.parse(existingVote);
+          setUserVote(parsed);
+        } catch {
+          setUserVote(existingVote);
+        }
+      }
+    }
+  }, [userVote, mission.id])
 
   useEffect(() => {
     const checkExistingVote = async () => {
@@ -51,13 +88,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       if (isAuthenticated()) {
         const vote = await getVote1(userId, mission.id)
         if (vote && vote.choice) {
-          setUserVote(Array.isArray(vote.choice) ? vote.choice[0] : vote.choice)
-        }
-      } else {
-        // 비인증 사용자는 localStorage 확인
-        const existingVote = localStorage.getItem(`rp_picked_${mission.id}`)
-        if (existingVote) {
-          setUserVote(existingVote)
+          setUserVote(vote.choice)
         }
       }
     }
@@ -107,7 +138,14 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
 
       // 제출이 실제로 저장되었는지 확인
       const verifyVote = await getVote1(userId, mission.id)
-      if (!verifyVote || verifyVote.choice !== selectedChoice) {
+
+      const isVoteVerified = verifyVote && (
+        Array.isArray(verifyVote.choice) && Array.isArray(selectedChoice)
+          ? JSON.stringify(verifyVote.choice) === JSON.stringify(selectedChoice)
+          : verifyVote.choice === selectedChoice
+      )
+
+      if (!isVoteVerified) {
         console.error("투표 저장 확인 실패:", { verifyVote, expected: selectedChoice })
         throw new Error("투표가 제대로 저장되지 않았습니다. 다시 시도해주세요.")
       }
@@ -167,9 +205,10 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
 
       // 5. 로컬 상태 업데이트 (제출 성공 후 무조건 실행)
       setUserVote(selectedChoice)
-      localStorage.setItem(`rp_picked_${mission.id}`, selectedChoice)
+      localStorage.setItem(`rp_picked_${mission.id}`, JSON.stringify(selectedChoice))
       setShowSubmissionSheet(false)
       setSelectedChoice("")
+      setTextInput("")
 
       // 실시간 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('mission-vote-updated', {
@@ -204,6 +243,41 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       })
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const handleOptionClick = (option: string) => {
+    if (!canVote) return
+
+    const requiredCount = currentMission.requiredAnswerCount || 1
+
+    if (requiredCount > 1) {
+      // 다중 선택 로직
+      let newSelection: string[] = []
+      if (Array.isArray(selectedChoice)) {
+        newSelection = [...selectedChoice]
+      } else if (selectedChoice) {
+        newSelection = [selectedChoice]
+      }
+
+      if (newSelection.includes(option)) {
+        newSelection = newSelection.filter(item => item !== option)
+      } else {
+        if (newSelection.length < requiredCount) {
+          newSelection.push(option)
+        } else {
+          toast({
+            title: "선택 제한",
+            description: `최대 ${requiredCount}개까지만 선택할 수 있습니다.`,
+            variant: "destructive",
+          })
+          return
+        }
+      }
+      setSelectedChoice(newSelection)
+    } else {
+      // 단일 선택 로직
+      setSelectedChoice(option)
     }
   }
 
@@ -299,69 +373,108 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       {/* 투표 전에만 선택지 표시 */}
       {!hasVoted && (
         <>
-          <div className="space-y-4">
-            {options.map((option, index) => {
-              const isSelected = selectedChoice === option
-              const isUserChoice = userVote === option
-              const percentage = showPercentages ? currentMission.result?.distribution[option] : undefined
+          {currentMission.submissionType === "text" ? (
+            <div className="space-y-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+                {Array.from({ length: currentMission.requiredAnswerCount || 1 }).map((_, index) => (
+                  <div key={index} className="relative">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded-full bg-purple-100 text-purple-600 text-xs font-bold">
+                      {index + 1}
+                    </div>
+                    <Input
+                      value={textInputs[index] || ""}
+                      onChange={(e) => {
+                        const newInputs = [...textInputs]
+                        newInputs[index] = e.target.value
+                        setTextInputs(newInputs)
 
-              return (
-                <Card
-                  key={option}
-                  className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${isSelected
+                        const validInputs = newInputs.filter(input => input.trim() !== "")
+                        if (validInputs.length > 0) {
+                          if ((currentMission.requiredAnswerCount || 1) === 1) {
+                            setSelectedChoice(validInputs[0])
+                          } else {
+                            setSelectedChoice(validInputs)
+                          }
+                        } else {
+                          setSelectedChoice(null)
+                        }
+                      }}
+                      placeholder="정답 입력"
+                      className="w-full pl-11 pr-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm"
+                      disabled={!canVote}
+                    />
+                  </div>
+                ))}
+              </div>
+              <p className="text-sm text-gray-500 text-right mt-2">
+                {textInputs.filter(t => t.trim()).length} / {currentMission.requiredAnswerCount || 1} 개 입력됨
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {options.map((option, index) => {
+                const isSelected = Array.isArray(selectedChoice) ? (selectedChoice as string[]).includes(option) : selectedChoice === option
+                const isUserChoice = Array.isArray(userVote) ? (userVote as string[]).includes(option) : userVote === option
+                const percentage = showPercentages ? currentMission.result?.distribution[option] : undefined
+
+                return (
+                  <Card
+                    key={option}
+                    className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${isSelected
                       ? "border-rose-400 bg-gradient-to-r from-rose-100 to-pink-100 shadow-lg ring-2 ring-rose-300"
                       : isUserChoice
                         ? "border-purple-400 bg-gradient-to-r from-purple-100 to-pink-100 shadow-lg ring-2 ring-purple-300"
                         : "hover:border-rose-300 hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50 border-gray-200"
-                    } ${!canVote ? "cursor-not-allowed opacity-75" : ""}`}
-                  onClick={() => canVote && setSelectedChoice(option)}
-                >
-                  <CardContent className="p-6">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <div
-                          className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected || isUserChoice
+                      } ${!canVote ? "cursor-not-allowed opacity-75" : ""}`}
+                    onClick={() => handleOptionClick(option)}
+                  >
+                    <CardContent className="p-6">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all duration-200 ${isSelected || isUserChoice
                               ? "border-rose-500 bg-rose-500 shadow-md"
                               : "border-gray-300 hover:border-rose-400"
-                            }`}
-                        >
-                          {(isSelected || isUserChoice) && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
-                        </div>
-                        <span className="text-lg font-semibold text-gray-900">{option}</span>
-                        {isUserChoice && <Badge className="bg-purple-500 text-white text-xs">내 선택</Badge>}
-                      </div>
-
-                      <div className="text-right">
-                        {showPercentages && percentage !== undefined ? (
-                          <div className="flex items-center gap-3">
-                            <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-500 bg-clip-text text-transparent">
-                              {percentage}%
-                            </span>
-                            <div className="w-20 bg-gray-200 rounded-full h-2">
-                              <div
-                                className="bg-gradient-to-r from-rose-400 to-purple-400 h-2 rounded-full transition-all duration-500"
-                                style={{ width: `${percentage}%` }}
-                              />
-                            </div>
+                              }`}
+                          >
+                            {(isSelected || isUserChoice) && <div className="w-2.5 h-2.5 rounded-full bg-white" />}
                           </div>
-                        ) : hasVoted && currentMission.status === "open" && currentMission.revealPolicy === "onClose" ? (
-                          <span className="text-3xl text-gray-400">?</span>
-                        ) : null}
+                          <span className="text-lg font-semibold text-gray-900">{option}</span>
+                          {isUserChoice && <Badge className="bg-purple-500 text-white text-xs">내 선택</Badge>}
+                        </div>
+
+                        <div className="text-right">
+                          {showPercentages && percentage !== undefined ? (
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl font-bold bg-gradient-to-r from-rose-500 to-purple-500 bg-clip-text text-transparent">
+                                {percentage}%
+                              </span>
+                              <div className="w-20 bg-gray-200 rounded-full h-2">
+                                <div
+                                  className="bg-gradient-to-r from-rose-400 to-purple-400 h-2 rounded-full transition-all duration-500"
+                                  style={{ width: `${percentage}%` }}
+                                />
+                              </div>
+                            </div>
+                          ) : hasVoted && currentMission.status === "open" && currentMission.revealPolicy === "onClose" ? (
+                            <span className="text-3xl text-gray-400">?</span>
+                          ) : null}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )
-            })}
-          </div>
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            </div>
+          )}
 
           {canVote && (
             <div className="flex justify-center py-8">
               <Button
                 size="lg"
                 className={`px-16 py-4 text-lg font-semibold transition-all duration-200 ${selectedChoice
-                    ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg hover:shadow-xl"
-                    : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  ? "bg-rose-500 hover:bg-rose-600 text-white shadow-lg hover:shadow-xl"
+                  : "bg-gray-300 text-gray-500 cursor-not-allowed"
                   }`}
                 onClick={() => {
                   if (!selectedChoice) return

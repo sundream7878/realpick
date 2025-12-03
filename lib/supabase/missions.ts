@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client"
 import { getThumbnailFromUrl } from "@/lib/utils/u-media/youtube.util"
 import { CreateMissionData, TMission, TMatchPairs } from "@/types/t-vote/vote.types"
+import { addPointLog } from "@/lib/supabase/points"
 
 /**
  * 미션 생성
@@ -19,7 +20,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       f_reference_url: missionData.referenceUrl || null,
       // f_description: missionData.description || null, // DB 컬럼 없음
       // f_image_url: missionData.imageUrl || null // DB 컬럼 없음
-      f_thumbnail_url: missionData.imageUrl || null // 이미지 URL을 썸네일 URL로 대체 저장
+      f_thumbnail_url: missionData.imageUrl || null, // 이미지 URL을 썸네일 URL로 대체 저장
+      f_submission_type: missionData.submissionType || "selection",
+      f_required_answer_count: missionData.requiredAnswerCount || 1
     }
 
     if (missionData.format === "couple") {
@@ -52,12 +55,8 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       return { success: true, missionId: data.f_id }
     }
 
-    if (missionData.format === "subjective") {
-      missionPayload.f_options = null
-      if (missionData.placeholder) missionPayload.f_subjective_placeholder = missionData.placeholder
-    } else {
-      missionPayload.f_options = missionData.options || []
-    }
+    missionPayload.f_options = missionData.options || []
+    if (missionData.placeholder) missionPayload.f_subjective_placeholder = missionData.placeholder
 
     if (missionData.seasonType) missionPayload.f_season_type = missionData.seasonType
     if (missionData.seasonNumber) missionPayload.f_season_number = parseInt(missionData.seasonNumber)
@@ -153,37 +152,56 @@ export async function getMission(missionId: string): Promise<{ success: boolean;
 
 /**
  * 투표 수 업데이트 및 미션 정산 (내부 함수)
- * 이 함수는 getMission의 내부 로직으로 사용되거나, 별도의 트리거로 호출될 수 있습니다.
  */
 export async function updateOptionVoteCounts(missionId: string): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createClient()
-    const { data: mission, error: fetchError } = await supabase.from("t_missions1").select("f_options, f_kind, f_status, f_deadline").eq("f_id", missionId).single()
+    const { data: mission, error: fetchError } = await supabase.from("t_missions1").select("f_options, f_kind, f_status, f_deadline, f_submission_type").eq("f_id", missionId).single()
 
     if (fetchError || !mission) return { success: false, error: "미션을 찾을 수 없습니다." }
 
     const allOptions: string[] = mission.f_options || []
+    const isTextMission = mission.f_submission_type === 'text'
+
     const { data: votes, error: votesError } = await supabase.from("t_pickresult1").select("f_selected_option").eq("f_mission_id", missionId)
 
     if (votesError) return { success: false, error: "투표 집계에 실패했습니다." }
 
     const safeVotes = votes || []
     const voteCounts: { [key: string]: number } = {}
-    allOptions.forEach(option => { voteCounts[option] = 0 })
+
+    // 선택형 미션인 경우 미리 옵션 키 초기화
+    if (!isTextMission) {
+      allOptions.forEach(option => { voteCounts[option] = 0 })
+    }
 
     const totalVotes = safeVotes.length
     safeVotes.forEach((vote) => {
-      let selectedOption: string | null = null
-      if (typeof vote.f_selected_option === 'string') selectedOption = vote.f_selected_option
-      else if (vote.f_selected_option && typeof vote.f_selected_option === 'object') selectedOption = vote.f_selected_option.option
+      let selectedOptions: string[] = []
+      const rawOption = vote.f_selected_option
 
-      if (selectedOption && typeof selectedOption === 'string' && allOptions.includes(selectedOption)) {
-        voteCounts[selectedOption] = (voteCounts[selectedOption] || 0) + 1
+      if (Array.isArray(rawOption)) {
+        selectedOptions = rawOption
+      } else if (typeof rawOption === 'string') {
+        selectedOptions = [rawOption]
+      } else if (rawOption && typeof rawOption === 'object' && rawOption.option) {
+        selectedOptions = [rawOption.option]
       }
+
+      selectedOptions.forEach(option => {
+        if (option && typeof option === 'string') {
+          // 텍스트 미션이거나, 선택형 미션의 유효한 옵션인 경우 카운트
+          if (isTextMission || allOptions.includes(option)) {
+            voteCounts[option] = (voteCounts[option] || 0) + 1
+          }
+        }
+      })
     })
 
     const votePercentages: { [key: string]: number } = {}
-    allOptions.forEach((option) => {
+
+    // 텍스트 미션은 상위 5개만 저장하거나 전체 저장 (여기서는 전체 저장하되 UI에서 자름)
+    Object.keys(voteCounts).forEach((option) => {
       votePercentages[option] = totalVotes > 0 ? Math.round((voteCounts[option] / totalVotes) * 100) : 0
     })
 
@@ -459,6 +477,7 @@ export async function updatePredictMissionAnswer(
   }
 }
 
+
 /**
  * 미션 정산 및 결과 확정
  */
@@ -469,7 +488,18 @@ export async function settleMissionWithFinalAnswer(
   try {
     const supabase = createClient()
 
-    // 1. 미션 상태 업데이트 및 정답 저장
+    // 1. 미션 정보 조회
+    const { data: mission, error: fetchError } = await supabase
+      .from("t_missions1")
+      .select("f_kind, f_submission_type, f_title, f_form")
+      .eq("f_id", missionId)
+      .single()
+
+    if (fetchError || !mission) {
+      return { success: false, error: "미션 정보를 찾을 수 없습니다." }
+    }
+
+    // 2. 미션 상태 업데이트 및 정답 저장
     const { error: missionError } = await supabase
       .from("t_missions1")
       .update({
@@ -481,13 +511,233 @@ export async function settleMissionWithFinalAnswer(
 
     if (missionError) throw missionError
 
-    // 2. 참여자들의 정답 여부 업데이트
-    // (실제로는 서버 사이드에서 배치로 처리하거나 트리거로 처리하는 것이 좋음)
-    // 여기서는 간단하게 처리
+    // 3. 참여자 투표 내역 조회
+    const { data: votes, error: votesError } = await supabase
+      .from("t_pickresult1")
+      .select("f_user_id, f_selected_option, f_points_earned")
+      .eq("f_mission_id", missionId)
+
+    if (votesError) {
+      console.error("투표 내역 조회 실패:", votesError)
+      // 미션 상태는 업데이트 되었으므로 성공으로 처리하되 로그 남김
+      return { success: true }
+    }
+
+    // 4. 포인트 정산
+    const pointPromises = votes.map(async (vote) => {
+      // 이미 포인트가 지급된 경우 (f_points_earned > 0) 중복 지급 방지
+      if (vote.f_points_earned && vote.f_points_earned > 0) {
+        return
+      }
+
+      let points = 0
+      let reason = ""
+
+      if (mission.f_kind === "poll" || mission.f_kind === "majority") {
+        // 공감 픽 (참여만 해도 +10)
+        points = 10
+        reason = `[공감 픽] ${mission.f_title} 참여 보상`
+      } else if (mission.f_kind === "predict") {
+        // 예측 픽
+        if (mission.f_form === "multi" || mission.f_submission_type === "text") {
+          // 다중 선택 / 주관식
+          let correctAnswers: string[] = []
+          try {
+            const parsed = JSON.parse(correctAnswer)
+            correctAnswers = Array.isArray(parsed) ? parsed : [correctAnswer]
+          } catch (e) {
+            correctAnswers = [correctAnswer]
+          }
+
+          let userAnswers: string[] = []
+          if (Array.isArray(vote.f_selected_option)) {
+            userAnswers = vote.f_selected_option
+          } else if (typeof vote.f_selected_option === "string") {
+            try {
+              const parsed = JSON.parse(vote.f_selected_option)
+              userAnswers = Array.isArray(parsed) ? parsed : [vote.f_selected_option]
+            } catch (e) {
+              userAnswers = [vote.f_selected_option]
+            }
+          } else if (vote.f_selected_option !== null && vote.f_selected_option !== undefined) {
+            userAnswers = [String(vote.f_selected_option)]
+          }
+
+          let correctCount = 0
+          let incorrectCount = 0
+
+          userAnswers.forEach(ans => {
+            if (correctAnswers.includes(ans)) correctCount++
+            else incorrectCount++
+          })
+
+          points = (correctCount * 100) - (incorrectCount * 50)
+          reason = `[예측 픽] ${mission.f_title} 결과 정산 (정답 ${correctCount} 개, 오답 ${incorrectCount}개)`
+
+        } else {
+          // 단일 선택 (바이너리 등)
+          const isCorrect = vote.f_selected_option === correctAnswer
+          points = isCorrect ? 100 : -50
+          reason = `[예측 픽] ${mission.f_title} ${isCorrect ? "정답 성공" : "정답 실패"} `
+        }
+      }
+
+      if (points !== 0) {
+        await addPointLog(vote.f_user_id, points, reason, missionId, "mission1")
+      }
+
+      // t_pickresult1 업데이트 (정답 여부 및 획득 포인트)
+      // 예측 픽인 경우에만 정답 여부 판단 (공감 픽은 null 또는 true?)
+      // 공감 픽은 정답/오답 개념이 모호하므로 null로 두거나 true로 처리
+      const isCorrect = mission.f_kind === "predict" ? points > 0 : true
+
+      await supabase
+        .from("t_pickresult1")
+        .update({
+          f_is_correct: isCorrect,
+          f_points_earned: points,
+          f_updated_at: new Date().toISOString()
+        })
+        .eq("f_user_id", vote.f_user_id)
+        .eq("f_mission_id", missionId)
+    })
+
+    await Promise.all(pointPromises)
 
     return { success: true }
   } catch (error) {
     console.error("미션 정산 실패:", error)
+    return { success: false, error: "미션 정산에 실패했습니다." }
+  }
+}
+
+/**
+ * 에피소드 상태 업데이트 (커플 매칭)
+ */
+export async function updateEpisodeStatuses(
+  missionId: string,
+  episodeStatuses: Record<number, "open" | "locked" | "settled">
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+    const { error } = await supabase
+      .from("t_missions2")
+      .update({ f_episode_statuses: episodeStatuses })
+      .eq("f_id", missionId)
+
+    if (error) throw error
+
+    return { success: true }
+  } catch (error) {
+    console.error("에피소드 상태 업데이트 실패:", error)
+    return { success: false, error: "상태 업데이트에 실패했습니다." }
+  }
+}
+
+/**
+ * 커플 매칭 미션 정산 및 결과 확정
+ */
+export async function settleMatchMission(
+  missionId: string,
+  finalAnswer: any[] // TFinalMatchResult format
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+    const { calculateMatchVotePoints } = await import("@/lib/utils/u-points/matchPointSystem.util")
+    const { addPointLog } = await import("./points")
+
+    // 1. 미션 정보 조회 (t_missions2)
+    const { data: mission, error: fetchError } = await supabase
+      .from("t_missions2")
+      .select("f_id, f_title, f_status")
+      .eq("f_id", missionId)
+      .single()
+
+    if (fetchError || !mission) {
+      return { success: false, error: "미션 정보를 찾을 수 없습니다." }
+    }
+
+    // 2. 미션 상태 업데이트 및 정답 저장
+    const { error: missionError } = await supabase
+      .from("t_missions2")
+      .update({
+        f_status: "settled",
+        f_final_answer: finalAnswer,
+        f_updated_at: new Date().toISOString()
+      })
+      .eq("f_id", missionId)
+
+    if (missionError) throw missionError
+
+    // 3. 모든 참여자 투표 내역 조회 (t_pickresult2)
+    const { data: votes, error: votesError } = await supabase
+      .from("t_pickresult2")
+      .select("f_user_id, f_episode_no, f_connections")
+      .eq("f_mission_id", missionId)
+
+    if (votesError) {
+      console.error("투표 내역 조회 실패:", votesError)
+      return { success: true } // 미션 상태는 업데이트 되었으므로 성공 처리
+    }
+
+    // 4. 데이터 변환 및 포인트 계산
+
+    // 4-1. Final Answer 변환 (Array -> Map)
+    // finalAnswer: [{ left: 'maleId', right: 'femaleId' }, ...]
+    const finalResultMap: Record<string, string> = {};
+    finalAnswer.forEach((pair: { left: string; right: string }) => {
+      finalResultMap[pair.left] = pair.right;
+    });
+
+    // 4-2. 유저별 투표 데이터 그룹화 및 변환
+    const userVotesMap: Record<string, Record<number, Record<string, string>>> = {}
+
+    votes?.forEach(vote => {
+      if (!userVotesMap[vote.f_user_id]) {
+        userVotesMap[vote.f_user_id] = {}
+      }
+
+      let pairs = vote.f_connections
+      if (typeof pairs === 'string') {
+        try {
+          pairs = JSON.parse(pairs)
+        } catch (e) {
+          pairs = []
+        }
+      }
+
+      // Pairs Array -> Map { maleId: femaleId }
+      const roundPicksMap: Record<string, string> = {};
+      if (Array.isArray(pairs)) {
+        pairs.forEach((pair: { left: string; right: string }) => {
+          roundPicksMap[pair.left] = pair.right;
+        });
+      }
+
+      userVotesMap[vote.f_user_id][vote.f_episode_no] = roundPicksMap
+    })
+
+    // 5. 포인트 계산 및 지급
+    const pointPromises = Object.entries(userVotesMap).map(async ([userId, userPicks]) => {
+      // 포인트 계산
+      const points = calculateMatchVotePoints(finalResultMap, userPicks)
+
+      if (points !== 0) {
+        await addPointLog(
+          userId,
+          points,
+          `[커플 매칭] ${mission.f_title} 결과 정산`,
+          missionId,
+          "mission2" // mission2 type for match missions
+        )
+      }
+    })
+
+    await Promise.all(pointPromises)
+
+    return { success: true }
+  } catch (error) {
+    console.error("커플 매칭 미션 정산 실패:", error)
     return { success: false, error: "미션 정산에 실패했습니다." }
   }
 }
