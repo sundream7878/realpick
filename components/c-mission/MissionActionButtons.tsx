@@ -71,6 +71,37 @@ export function MissionActionButtons({
     )
   }
 
+  // shouldShowResults가 false여도, 미션이 마감되었으면 결과보기 버튼을 보여줘야 함
+  const isClosed = (() => {
+    if (!mission) return false
+    if (mission.form === "match") {
+      if (mission.status === "settled") return true
+      if (mission.episodeStatuses) {
+        const totalEpisodes = mission.episodes || 8
+        for (let i = 1; i <= totalEpisodes; i++) {
+          if (mission.episodeStatuses[i] !== "settled") return false
+        }
+        return true
+      }
+      return false
+    }
+    return mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
+  })()
+
+  if (isClosed) {
+    return (
+      <Link href={`/p-mission/${missionId}/results`} className={className}>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 font-medium shadow-sm"
+        >
+          (마감) 결과보기
+        </Button>
+      </Link>
+    )
+  }
+
   return (
     <Link href={`/p-mission/${missionId}/vote`} className={className}>
       <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">

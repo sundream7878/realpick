@@ -28,28 +28,28 @@ export const POINT_TABLE: TPointTableItem[] = [
 
 export function calculateMatchVotePoints(
     finalResult: TFinalMatchResult,
-    userPicks: TUserPicks
+    userPicks: TUserPicks,
+    maxRounds: number = 8
 ): number {
     let totalPoints = 0;
-    const maxRounds = 8;
 
     // Iterate over each pair in TFinalMatchResult
     Object.entries(finalResult).forEach(([maleId, finalFemaleId]) => {
-        // Check the status of the pick in the last round (Round 8)
+        // Check the status of the pick in the last round (maxRounds)
         const finalRoundPicks = userPicks[maxRounds] || {};
         const finalPickFemaleId = finalRoundPicks[maleId];
 
         // If no pick in final round, we treat it as incorrect or skip? 
-        // The prompt implies we check TUserPicks[8][maleId]. 
+        // The prompt implies we check TUserPicks[maxRounds][maleId]. 
         // If undefined, it's definitely not equal to finalFemaleId, so it falls to Incorrect case.
 
         const isFinalCorrect = finalPickFemaleId === finalFemaleId;
-        let rScore = maxRounds; // Default to 8
+        let rScore = maxRounds; // Default to maxRounds
 
         if (isFinalCorrect) {
             // Case A: Final Correct Pick
             // Rationale: R_score holds the earliest round that was part of the final correct streak.
-            // We iterate backwards from 8 to 1 to find the start of the streak.
+            // We iterate backwards from maxRounds to 1 to find the start of the streak.
 
             for (let r = maxRounds; r >= 1; r--) {
                 const roundPick = userPicks[r]?.[maleId];
@@ -70,7 +70,7 @@ export function calculateMatchVotePoints(
         } else {
             // Case B: Final Incorrect Pick
             // Rationale: Find the earliest round where their pick failed (Incorrect Streak).
-            // We iterate backwards from 8 to 1 to find the start of the incorrect streak.
+            // We iterate backwards from maxRounds to 1 to find the start of the incorrect streak.
 
             for (let r = maxRounds; r >= 1; r--) {
                 const roundPick = userPicks[r]?.[maleId];

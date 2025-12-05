@@ -7,14 +7,14 @@ import { Badge } from "@/components/c-ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/c-ui/avatar"
 import { Progress } from "@/components/c-ui/progress"
 import { useRouter } from "next/navigation"
-import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2 } from "lucide-react"
+import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
 import { getMission, getMission2 } from "@/lib/supabase/missions"
 import { getVote1 } from "@/lib/supabase/votes"
 import { getUserId } from "@/lib/auth-utils"
 import type { TMission } from "@/types/t-vote/vote.types"
-import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import MyPicksModal from "@/components/c-my-picks-modal/my-picks-modal"
 import { ResultCharacterPopup } from "@/components/c-result-character-popup/result-character-popup"
@@ -89,6 +89,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     setSelectedSeason(season)
   }
 
+  const [ranking, setRanking] = useState<any[]>([])
+
   // 유저 데이터 로드
   useEffect(() => {
     const loadUserData = async () => {
@@ -116,6 +118,54 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
     loadUserData()
 
+    // 랭킹 데이터 로드 (커플 매칭 미션인 경우)
+    const loadRanking = async () => {
+      try {
+        const { createClient } = await import("@/lib/supabase/client")
+        const supabase = createClient()
+
+        // t_pickresult2에서 점수순으로 조회 (t_users 조인)
+        const { data, error } = await supabase
+          .from("t_pickresult2")
+          .select(`
+            f_user_id,
+            f_points_earned,
+            t_users (
+              f_nickname,
+              f_tier,
+              f_points
+            )
+          `)
+          .eq("f_mission_id", params.id)
+          .not("f_points_earned", "is", null)
+          .order("f_points_earned", { ascending: false })
+          .limit(20)
+
+        if (error) throw error
+
+        if (data) {
+          const formattedRanking = data.map((item: any) => {
+            // DB 티어와 포인트를 기반으로 정확한 티어 계산
+            const userTotalPoints = item.t_users?.f_points || 0
+            const dbTier = item.t_users?.f_tier
+            const calculatedTier = getTierFromDbOrPoints(dbTier, userTotalPoints)
+
+            return {
+              userId: item.f_user_id,
+              nickname: item.t_users?.f_nickname || "알 수 없음",
+              tier: calculatedTier.name,
+              points: item.f_points_earned
+            }
+          })
+          setRanking(formattedRanking)
+        }
+      } catch (error) {
+        console.error("랭킹 로딩 실패:", error)
+      }
+    }
+
+    loadRanking()
+
     // 인증 상태 변경 감지
     const handleAuthChange = () => {
       loadUserData()
@@ -128,7 +178,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
       window.removeEventListener("auth-change", handleAuthChange)
       window.removeEventListener("storage", handleAuthChange)
     }
-  }, [])
+  }, [params.id])
 
   useEffect(() => {
     const fetchMission = async () => {
@@ -533,14 +583,137 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                   </Card>
                 )}
 
-                <Card>
-                  <CardHeader>
-                    <CardTitle>투표 결과</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <ResultsChart mission={mission} userVote={userVote} />
-                  </CardContent>
-                </Card>
+                {/* 커플 매칭 최종 결과 표시 */}
+                {mission.form === "match" && mission.finalAnswer && (
+                  <Card className="border-2 border-pink-200 bg-pink-50/30">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Heart className="w-5 h-5 text-pink-500 fill-pink-500" />
+                        최종 커플 매칭 결과
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {mission.finalAnswer.map((pair: { left: string; right: string }, index: number) => {
+                          const pairStr = `${pair.left}-${pair.right}`
+                          // 유저가 마지막 회차(8회차)에 이 커플을 선택했는지 확인
+                          const userFinalPick = userVote?.predictions?.[mission.episodes || 8]?.find(
+                            (p: any) => p.left === pair.left && p.right === pair.right
+                          )
+                          const isCorrectlyPicked = !!userFinalPick
+
+                          return (
+                            <div
+                              key={index}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${isCorrectlyPicked
+                                ? "bg-white border-pink-200 shadow-sm"
+                                : "bg-white/50 border-gray-100"
+                                }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Badge className="bg-pink-100 text-pink-700 hover:bg-pink-200 border-pink-200">
+                                  {index + 1}호
+                                </Badge>
+                                <span className="font-bold text-gray-800">
+                                  {pair.left} ❤️ {pair.right}
+                                </span>
+                              </div>
+                              {isCorrectlyPicked && (
+                                <Badge variant="outline" className="text-pink-600 border-pink-200 bg-pink-50">
+                                  정답!
+                                </Badge>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 참여자 랭킹 (커플 매칭 미션인 경우) */}
+                {mission.form === "match" && ranking.length > 0 && (
+                  <Card className="border-2 border-orange-100 mb-6">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-orange-600">
+                        <Crown className="w-5 h-5 fill-orange-600" />
+                        참여자 랭킹
+                      </CardTitle>
+                      <p className="text-sm text-muted-foreground">
+                        회차별 정답 예측에 따른 누적 점수 순위입니다
+                      </p>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 max-h-[400px] overflow-y-auto pr-2 custom-scrollbar">
+                        {ranking.map((user, index) => {
+                          const isCurrentUser = userNickname === user.nickname
+                          const tierInfo = TIERS.find(t => t.name === user.tier) || TIERS[TIERS.length - 1]
+
+                          return (
+                            <div
+                              key={user.userId}
+                              className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${isCurrentUser
+                                ? "bg-blue-50 border-blue-200 shadow-sm"
+                                : "bg-white border-gray-100 hover:bg-gray-50"
+                                }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <div
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-sm ${index === 0
+                                    ? "bg-yellow-400 text-white shadow-md"
+                                    : index === 1
+                                      ? "bg-gray-400 text-white shadow-md"
+                                      : index === 2
+                                        ? "bg-orange-400 text-white shadow-md"
+                                        : "bg-gray-100 text-gray-500"
+                                    }`}
+                                >
+                                  {index + 1}
+                                </div>
+                                <div className="flex items-center gap-3">
+                                  <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
+                                    <img
+                                      src={tierInfo.characterImage}
+                                      alt={user.tier}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                  <div className="flex flex-col">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-bold text-sm ${isCurrentUser ? "text-blue-700" : "text-gray-900"}`}>
+                                        {user.nickname}
+                                      </span>
+                                      {isCurrentUser && (
+                                        <Badge variant="secondary" className="bg-blue-500 text-white hover:bg-blue-600 text-[10px] h-5 px-1.5">
+                                          나
+                                        </Badge>
+                                      )}
+                                    </div>
+                                    <span className="text-xs text-muted-foreground">{user.tier}</span>
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="font-bold text-orange-600">
+                                {user.points}점
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {mission.form !== "match" && (
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>투표 결과</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ResultsChart mission={mission} userVote={userVote} />
+                    </CardContent>
+                  </Card>
+                )}
 
                 {/* 주관식 정답 및 내 답변 표시 (정산 완료 시) */}
                 {mission.submissionType === "text" && mission.status === "settled" && (
@@ -639,6 +812,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                   </CardContent>
                 </Card>
 
+                {/* 참여자 랭킹 (커플 매칭 미션인 경우) */}
+
+
                 <div className="space-y-2">
                   <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700" variant="default">
                     <Share2 className="w-4 h-4 mr-2" />
@@ -673,6 +849,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               onClose={() => setIsMyPicksModalOpen(false)}
               userPredictions={userVote?.predictions || {}}
               finalAnswer={mission.finalAnswer}
+              maxRounds={mission.episodes || 8}
             />
           )
         }
