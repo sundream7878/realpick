@@ -19,7 +19,7 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
 import { useRouter } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
-import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses } from "@/lib/supabase/missions"
+import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
 import { getUser } from "@/lib/supabase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -433,7 +433,7 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
-      const result = await settleMissionWithFinalAnswer(missionId, pairs)
+      const result = await settleMatchMission(missionId, pairs)
       if (!result.success) {
         toast({
           title: "최종 커플 저장 실패",
@@ -623,7 +623,7 @@ export default function MyPage() {
                             size="sm"
                             variant="outline"
                             className="h-6 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-300 w-full"
-                            onClick={() => handleEpisodeStatusChange(mission.id, episodeNo, "locked")}
+                            onClick={() => handleEpisodeStatusChange(mission.id, episodeNo, "settled")}
                             disabled={isProcessing}
                           >
                             마감
