@@ -158,10 +158,11 @@ export interface TMatchPick {
   id: string
   userId: string
   missionId: string
-  episodeNo: number
-  connections: Array<{ left: string; right: string }>
-  submitted: boolean
-  submittedAt?: string
+  votes: Record<string, {
+    connections: Array<{ left: string; right: string }>
+    submittedAt: string
+  }>
+  pointsEarned: number
   createdAt: string
   updatedAt: string
 }

@@ -370,13 +370,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     )
   }
 
-  const mockUserPredictions = {
-    1: [
-      { left: "광수", right: "영순" },
-      { left: "영수", right: "정숙" },
-    ],
-    3: [{ left: "영호", right: "순자" }],
-  }
+
 
   // 렌더링 시점에 마감 여부 재계산 (커플 매칭 고려)
   let isMissionClosed = false
@@ -677,7 +671,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             <MyPicksModal
               isOpen={isMyPicksModalOpen}
               onClose={() => setIsMyPicksModalOpen(false)}
-              userPredictions={mockUserPredictions}
+              userPredictions={userVote?.predictions || {}}
               finalAnswer={mission.finalAnswer}
             />
           )
@@ -748,10 +742,10 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
           <div
             key={option}
             className={`p-4 rounded-lg border-2 transition-all ${isCorrect
-                ? "border-emerald-400 bg-emerald-50 shadow-md ring-2 ring-emerald-200"
-                : isUserChoice
-                  ? "border-purple-200 bg-purple-50"
-                  : "border-gray-200 bg-gray-50"
+              ? "border-emerald-400 bg-emerald-50 shadow-md ring-2 ring-emerald-200"
+              : isUserChoice
+                ? "border-purple-200 bg-purple-50"
+                : "border-gray-200 bg-gray-50"
               }`}
           >
             <div className="flex items-center justify-between mb-3 gap-2">
@@ -764,10 +758,10 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                   {index + 1}
                 </Badge>
                 <span className={`font-medium truncate ${isCorrect
-                    ? "text-emerald-700 font-bold"
-                    : isUserChoice
-                      ? "text-purple-700"
-                      : "text-foreground"
+                  ? "text-emerald-700 font-bold"
+                  : isUserChoice
+                    ? "text-purple-700"
+                    : "text-foreground"
                   }`}>
                   {option}
                 </span>
@@ -806,10 +800,10 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                 <Progress
                   value={percentage}
                   className={`h-3 ${isCorrect
-                      ? "bg-emerald-100 [&>div]:bg-emerald-500"
-                      : isUserChoice
-                        ? "bg-purple-100 [&>div]:bg-purple-500"
-                        : ""
+                    ? "bg-emerald-100 [&>div]:bg-emerald-500"
+                    : isUserChoice
+                      ? "bg-purple-100 [&>div]:bg-purple-500"
+                      : ""
                     }`}
                 />
               )

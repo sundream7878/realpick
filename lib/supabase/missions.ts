@@ -347,7 +347,10 @@ export async function getMissionsByCreator(userId: string): Promise<{ success: b
     }
 
     // 두 목록 합치기 (날짜순 정렬)
-    const allMissions = [...(missions1 || []), ...(missions2 || [])].sort((a, b) =>
+    const formattedMissions1 = (missions1 || []).map(m => ({ ...m, __table: 't_missions1' }))
+    const formattedMissions2 = (missions2 || []).map(m => ({ ...m, __table: 't_missions2' }))
+
+    const allMissions = [...formattedMissions1, ...formattedMissions2].sort((a, b) =>
       new Date(b.f_created_at).getTime() - new Date(a.f_created_at).getTime()
     )
 
@@ -616,13 +619,33 @@ export async function settleMissionWithFinalAnswer(
  */
 export async function updateEpisodeStatuses(
   missionId: string,
-  episodeStatuses: Record<number, "open" | "locked" | "settled">
+  episodeNo: number,
+  status: "open" | "locked" | "settled"
 ): Promise<{ success: boolean; error?: string }> {
   try {
     const supabase = createClient()
+
+    // 1. 기존 상태 조회
+    const { data: mission, error: fetchError } = await supabase
+      .from("t_missions2")
+      .select("f_episode_statuses")
+      .eq("f_id", missionId)
+      .single()
+
+    if (fetchError) throw fetchError
+
+    const currentStatuses = mission.f_episode_statuses || {}
+
+    // 2. 상태 업데이트
+    const nextStatuses = {
+      ...currentStatuses,
+      [episodeNo]: status
+    }
+
+    // 3. 저장
     const { error } = await supabase
       .from("t_missions2")
-      .update({ f_episode_statuses: episodeStatuses })
+      .update({ f_episode_statuses: nextStatuses })
       .eq("f_id", missionId)
 
     if (error) throw error
@@ -631,6 +654,59 @@ export async function updateEpisodeStatuses(
   } catch (error) {
     console.error("에피소드 상태 업데이트 실패:", error)
     return { success: false, error: "상태 업데이트에 실패했습니다." }
+  }
+}
+
+/**
+ * 커플 매칭 미션 정답 제출 (투표하기) - UPSERT 방식
+ */
+export async function submitMatchMissionAnswer(
+  userId: string,
+  missionId: string,
+  episodeNo: number,
+  connections: any[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const supabase = createClient()
+
+    // 1. 기존 투표 내역 조회
+    const { data: existing, error: fetchError } = await supabase
+      .from("t_pickresult2")
+      .select("f_votes")
+      .eq("f_user_id", userId)
+      .eq("f_mission_id", missionId)
+      .maybeSingle()
+
+    if (fetchError) throw fetchError
+
+    // 2. votes JSON 업데이트
+    const currentVotes = existing?.f_votes || {}
+    currentVotes[episodeNo.toString()] = {
+      connections: connections,
+      submittedAt: new Date().toISOString()
+    }
+
+    // 3. UPSERT 실행
+    const { error: upsertError } = await supabase
+      .from("t_pickresult2")
+      .upsert({
+        f_user_id: userId,
+        f_mission_id: missionId,
+        f_votes: currentVotes,
+        f_updated_at: new Date().toISOString()
+      }, { onConflict: 'f_user_id, f_mission_id' })
+
+    if (upsertError) throw upsertError
+
+    // 4. 참여자 수 증가 (처음 투표하는 경우에만)
+    if (!existing) {
+      await incrementMissionParticipants2(missionId)
+    }
+
+    return { success: true }
+  } catch (error) {
+    console.error("커플 매칭 투표 제출 실패:", error)
+    return { success: false, error: "투표 제출에 실패했습니다." }
   }
 }
 
@@ -670,55 +746,46 @@ export async function settleMatchMission(
     if (missionError) throw missionError
 
     // 3. 모든 참여자 투표 내역 조회 (t_pickresult2)
+    // 이제 유저당 1개의 Row만 가져오면 됨
     const { data: votes, error: votesError } = await supabase
       .from("t_pickresult2")
-      .select("f_user_id, f_episode_no, f_connections")
+      .select("f_user_id, f_votes")
       .eq("f_mission_id", missionId)
 
     if (votesError) {
       console.error("투표 내역 조회 실패:", votesError)
-      return { success: true } // 미션 상태는 업데이트 되었으므로 성공 처리
+      return { success: true }
     }
 
     // 4. 데이터 변환 및 포인트 계산
 
     // 4-1. Final Answer 변환 (Array -> Map)
-    // finalAnswer: [{ left: 'maleId', right: 'femaleId' }, ...]
     const finalResultMap: Record<string, string> = {};
     finalAnswer.forEach((pair: { left: string; right: string }) => {
       finalResultMap[pair.left] = pair.right;
     });
 
-    // 4-2. 유저별 투표 데이터 그룹화 및 변환
-    const userVotesMap: Record<string, Record<number, Record<string, string>>> = {}
-
-    votes?.forEach(vote => {
-      if (!userVotesMap[vote.f_user_id]) {
-        userVotesMap[vote.f_user_id] = {}
-      }
-
-      let pairs = vote.f_connections
-      if (typeof pairs === 'string') {
-        try {
-          pairs = JSON.parse(pairs)
-        } catch (e) {
-          pairs = []
-        }
-      }
-
-      // Pairs Array -> Map { maleId: femaleId }
-      const roundPicksMap: Record<string, string> = {};
-      if (Array.isArray(pairs)) {
-        pairs.forEach((pair: { left: string; right: string }) => {
-          roundPicksMap[pair.left] = pair.right;
-        });
-      }
-
-      userVotesMap[vote.f_user_id][vote.f_episode_no] = roundPicksMap
-    })
-
     // 5. 포인트 계산 및 지급
-    const pointPromises = Object.entries(userVotesMap).map(async ([userId, userPicks]) => {
+    const pointPromises = votes?.map(async (vote) => {
+      const userId = vote.f_user_id
+      const userVotes = vote.f_votes || {} // {"1": {connections: ...}, "2": ...}
+
+      // userPicks 구조로 변환: Record<number, Record<string, string>>
+      const userPicks: Record<number, Record<string, string>> = {}
+
+      Object.entries(userVotes).forEach(([epStr, data]: [string, any]) => {
+        const episodeNo = parseInt(epStr)
+        const pairs = data.connections || []
+
+        const roundPicksMap: Record<string, string> = {}
+        if (Array.isArray(pairs)) {
+          pairs.forEach((pair: { left: string; right: string }) => {
+            roundPicksMap[pair.left] = pair.right
+          })
+        }
+        userPicks[episodeNo] = roundPicksMap
+      })
+
       // 포인트 계산
       const points = calculateMatchVotePoints(finalResultMap, userPicks)
 
@@ -728,10 +795,17 @@ export async function settleMatchMission(
           points,
           `[커플 매칭] ${mission.f_title} 결과 정산`,
           missionId,
-          "mission2" // mission2 type for match missions
+          "mission2"
         )
+
+        // t_pickresult2에 획득 포인트 업데이트
+        await supabase
+          .from("t_pickresult2")
+          .update({ f_points_earned: points })
+          .eq("f_user_id", userId)
+          .eq("f_mission_id", missionId)
       }
-    })
+    }) || []
 
     await Promise.all(pointPromises)
 

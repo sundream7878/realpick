@@ -579,13 +579,13 @@ export default function MyPage() {
 
       return (
         <div className="space-y-4">
-          {/* 회차별 상태 관리 (테스트용) */}
+          {/* 회차별 상태 관리 */}
           <div className="rounded-xl border border-purple-200 bg-purple-50/50 p-4 space-y-3">
             <div className="flex items-center gap-2">
               <AlertCircle className="h-4 w-4 text-purple-600" />
-              <p className="text-sm font-semibold text-purple-900">회차별 상태 관리 (테스트용)</p>
+              <p className="text-sm font-semibold text-purple-900">회차별 상태 관리</p>
             </div>
-            <p className="text-xs text-purple-700">방영 날짜 연동 전까지 회차 상태를 수동으로 관리합니다.</p>
+            <p className="text-xs text-purple-700">각 회차의 투표를 열거나 마감할 수 있습니다.</p>
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
               {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((episodeNo) => {
                 const status = episodeStatuses[episodeNo] || "locked"
@@ -610,11 +610,11 @@ export default function MyPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="h-6 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-300"
+                          className="h-6 text-xs bg-green-50 hover:bg-green-100 text-green-700 border-green-300 w-full"
                           onClick={() => handleEpisodeStatusChange(mission.id, episodeNo, "open")}
                           disabled={isProcessing}
                         >
-                          열기
+                          오픈
                         </Button>
                       )}
                       {status === "open" && (
@@ -622,20 +622,11 @@ export default function MyPage() {
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-6 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-300"
-                            onClick={() => handleEpisodeStatusChange(mission.id, episodeNo, "settled")}
-                            disabled={isProcessing}
-                          >
-                            마감
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="h-6 text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border-amber-300"
+                            className="h-6 text-xs bg-gray-50 hover:bg-gray-100 text-gray-700 border-gray-300 w-full"
                             onClick={() => handleEpisodeStatusChange(mission.id, episodeNo, "locked")}
                             disabled={isProcessing}
                           >
-                            잠금
+                            마감
                           </Button>
                         </>
                       )}

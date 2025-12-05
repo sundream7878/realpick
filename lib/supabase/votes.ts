@@ -55,10 +55,9 @@ export async function getVote2(
   const supabase = createClient()
   const { data, error } = await supabase
     .from("t_pickresult2")
-    .select("*")
+    .select("f_votes, f_mission_id, f_user_id, f_created_at, f_updated_at")
     .eq("f_user_id", userId)
     .eq("f_mission_id", missionId)
-    .eq("f_episode_no", episodeNo)
     .single()
 
   if (error) {
@@ -70,23 +69,19 @@ export async function getVote2(
     return null
   }
 
-  // JSONB 필드가 문자열로 반환되는 경우 파싱 처리
-  let pairs = data.f_connections
-  if (typeof pairs === 'string') {
-    try {
-      pairs = JSON.parse(pairs)
-    } catch (e) {
-      console.error("Failed to parse f_connections:", e)
-      pairs = []
-    }
+  const votes = data.f_votes as Record<string, any> || {}
+  const episodeVote = votes[episodeNo.toString()]
+
+  if (!episodeVote) {
+    return null
   }
 
   return {
     missionId: data.f_mission_id,
     userId: data.f_user_id,
-    pairs: pairs,
+    pairs: episodeVote.connections || [],
     episodeNo: episodeNo,
-    submittedAt: data.f_submitted_at || data.f_created_at,
+    submittedAt: episodeVote.submittedAt || data.f_updated_at || data.f_created_at,
   }
 }
 
@@ -95,38 +90,28 @@ export async function getAllVotes2(userId: string, missionId: string): Promise<T
   const supabase = createClient()
   const { data, error } = await supabase
     .from("t_pickresult2")
-    .select("*")
+    .select("f_votes, f_mission_id, f_user_id, f_created_at, f_updated_at")
     .eq("f_user_id", userId)
     .eq("f_mission_id", missionId)
-    .order("f_episode_no", { ascending: true })
+    .single()
 
   if (error) {
-    if (error.code === "406") {
+    if (error.code === "PGRST116" || error.code === "406") {
       return []
     }
     console.error("Error fetching votes2:", error)
     return []
   }
 
-  return (data || []).map((v) => {
-    let pairs = v.f_connections
-    if (typeof pairs === 'string') {
-      try {
-        pairs = JSON.parse(pairs)
-      } catch (e) {
-        console.error("Failed to parse f_connections:", e)
-        pairs = []
-      }
-    }
+  const votes = data.f_votes as Record<string, any> || {}
 
-    return {
-      missionId: v.f_mission_id,
-      userId: v.f_user_id,
-      pairs: pairs,
-      episodeNo: v.f_episode_no,
-      submittedAt: v.f_submitted_at || v.f_created_at,
-    }
-  })
+  return Object.entries(votes).map(([epNo, voteData]: [string, any]) => ({
+    missionId: data.f_mission_id,
+    userId: data.f_user_id,
+    pairs: voteData.connections || [],
+    episodeNo: parseInt(epNo),
+    submittedAt: voteData.submittedAt || data.f_updated_at || data.f_created_at,
+  })).sort((a, b) => a.episodeNo - b.episodeNo)
 }
 
 // 모든 사용자의 커플 매칭 투표 집계 (실시간 결과용)
@@ -136,45 +121,43 @@ export async function getAggregatedVotes2(missionId: string, episodeNo?: number)
 }> {
   const supabase = createClient()
 
-  let query = supabase
+  // 모든 사용자의 투표 데이터를 가져옴 (f_votes JSONB)
+  const { data, error } = await supabase
     .from("t_pickresult2")
-    .select("f_connections, f_user_id, f_episode_no")
+    .select("f_votes, f_user_id")
     .eq("f_mission_id", missionId)
-
-  if (episodeNo) {
-    query = query.eq("f_episode_no", episodeNo)
-  }
-
-  const { data, error } = await query
 
   if (error) {
     console.error("Error fetching aggregated votes2:", error)
     return { pairCounts: {}, totalParticipants: 0 }
   }
 
-  // 커플별 투표 수 집계
   const pairCounts: Record<string, number> = {}
   const uniqueUsers = new Set<string>()
 
-  data?.forEach((vote) => {
-    // 유니크 사용자 카운트 (에피소드 상관없이 사용자 ID만으로)
-    uniqueUsers.add(vote.f_user_id)
+  data?.forEach((row) => {
+    const votes = row.f_votes as Record<string, any> || {}
 
-    let pairs = vote.f_connections
-    if (typeof pairs === 'string') {
-      try {
-        pairs = JSON.parse(pairs)
-      } catch (e) {
-        console.error("Failed to parse f_connections:", e)
-        return
+    // 특정 에피소드만 집계하거나 모든 에피소드 집계
+    const episodesToAggregate = episodeNo
+      ? [episodeNo.toString()]
+      : Object.keys(votes)
+
+    let hasVotedInTargetEpisodes = false
+
+    episodesToAggregate.forEach(epKey => {
+      const voteData = votes[epKey]
+      if (voteData && Array.isArray(voteData.connections)) {
+        hasVotedInTargetEpisodes = true
+        voteData.connections.forEach((pair: { left: string; right: string }) => {
+          const pairKey = `${pair.left}-${pair.right}`
+          pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1
+        })
       }
-    }
+    })
 
-    if (Array.isArray(pairs)) {
-      pairs.forEach((pair: { left: string; right: string }) => {
-        const pairKey = `${pair.left}-${pair.right}`
-        pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1
-      })
+    if (hasVotedInTargetEpisodes) {
+      uniqueUsers.add(row.f_user_id)
     }
   })
 
@@ -193,38 +176,34 @@ export async function getAggregatedVotesMultipleEpisodes(missionId: string, epis
 
   const { data, error } = await supabase
     .from("t_pickresult2")
-    .select("f_connections, f_user_id, f_episode_no")
+    .select("f_votes, f_user_id")
     .eq("f_mission_id", missionId)
-    .in("f_episode_no", episodeNos)
 
   if (error) {
     console.error("Error fetching aggregated votes for multiple episodes:", error)
     return { pairCounts: {}, totalParticipants: 0 }
   }
 
-  // 커플별 투표 수 집계 (여러 에피소드 합산)
   const pairCounts: Record<string, number> = {}
   const uniqueUsers = new Set<string>()
 
-  data?.forEach((vote) => {
-    // 유니크 사용자 카운트 (에피소드 상관없이 사용자 ID만으로)
-    uniqueUsers.add(vote.f_user_id)
+  data?.forEach((row) => {
+    const votes = row.f_votes as Record<string, any> || {}
+    let hasVotedInTargetEpisodes = false
 
-    let pairs = vote.f_connections
-    if (typeof pairs === 'string') {
-      try {
-        pairs = JSON.parse(pairs)
-      } catch (e) {
-        console.error("Failed to parse f_connections:", e)
-        return
+    episodeNos.forEach(epNo => {
+      const voteData = votes[epNo.toString()]
+      if (voteData && Array.isArray(voteData.connections)) {
+        hasVotedInTargetEpisodes = true
+        voteData.connections.forEach((pair: { left: string; right: string }) => {
+          const pairKey = `${pair.left}-${pair.right}`
+          pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1
+        })
       }
-    }
+    })
 
-    if (Array.isArray(pairs)) {
-      pairs.forEach((pair: { left: string; right: string }) => {
-        const pairKey = `${pair.left}-${pair.right}`
-        pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1
-      })
+    if (hasVotedInTargetEpisodes) {
+      uniqueUsers.add(row.f_user_id)
     }
   })
 
@@ -305,8 +284,6 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
 
 // 커플 매칭 투표 제출
 export async function submitVote2(submission: TVoteSubmission): Promise<boolean> {
-  const supabase = createClient()
-
   if (!submission.episodeNo || !submission.pairs) {
     console.error("Missing episodeNo or pairs for vote2", { episodeNo: submission.episodeNo, pairs: submission.pairs })
     return false
@@ -339,33 +316,22 @@ export async function submitVote2(submission: TVoteSubmission): Promise<boolean>
     return false
   }
 
-  const voteData = {
-    f_user_id: submission.userId,
-    f_mission_id: submission.missionId,
-    f_episode_no: submission.episodeNo,
-    f_connections: submission.pairs, // JSONB 형식으로 자동 변환됨
-    f_submitted: true,
-    f_submitted_at: submission.submittedAt || new Date().toISOString(),
-  }
+  // missions.ts의 submitMatchMissionAnswer 함수 사용
+  const { submitMatchMissionAnswer } = await import("./missions")
 
-  console.log("Submitting vote2 data:", JSON.stringify(voteData, null, 2))
+  const result = await submitMatchMissionAnswer(
+    submission.userId,
+    submission.missionId,
+    submission.episodeNo,
+    submission.pairs
+  )
 
-  // UPSERT 사용 (unique constraint: t_pickresult2_f_user_id_f_mission_id_f_episode_no_key)
-  const { data, error } = await supabase
-    .from("t_pickresult2")
-    .upsert(voteData, {
-      onConflict: "f_user_id,f_mission_id,f_episode_no",
-    })
-    .select()
-
-  if (error) {
-    console.error("Error submitting vote2:", error)
-    console.error("Error details:", JSON.stringify(error, null, 2))
-    console.error("Vote data:", JSON.stringify(voteData, null, 2))
+  if (!result.success) {
+    console.error("Error submitting vote2:", result.error)
     return false
   }
 
-  console.log("Vote2 submitted successfully:", data)
+  console.log("Vote2 submitted successfully")
   return true
 }
 
