@@ -33,31 +33,26 @@ export function calculateMatchVotePoints(
 ): number {
     let totalPoints = 0;
 
+    const processedMaleIds = new Set<string>();
+
     // Iterate over each pair in TFinalMatchResult
     Object.entries(finalResult).forEach(([maleId, finalFemaleId]) => {
+        processedMaleIds.add(maleId);
+
         // Check the status of the pick in the last round (maxRounds)
         const finalRoundPicks = userPicks[maxRounds] || {};
         const finalPickFemaleId = finalRoundPicks[maleId];
-
-        // If no pick in final round, we treat it as incorrect or skip? 
-        // The prompt implies we check TUserPicks[maxRounds][maleId]. 
-        // If undefined, it's definitely not equal to finalFemaleId, so it falls to Incorrect case.
 
         const isFinalCorrect = finalPickFemaleId === finalFemaleId;
         let rScore = maxRounds; // Default to maxRounds
 
         if (isFinalCorrect) {
             // Case A: Final Correct Pick
-            // Rationale: R_score holds the earliest round that was part of the final correct streak.
-            // We iterate backwards from maxRounds to 1 to find the start of the streak.
-
             for (let r = maxRounds; r >= 1; r--) {
                 const roundPick = userPicks[r]?.[maleId];
                 if (roundPick !== finalFemaleId) {
-                    // Streak broke at r. So the streak started at r + 1.
                     break;
                 }
-                // If correct, update rScore to current r (potentially the new start)
                 rScore = r;
             }
 
@@ -69,16 +64,37 @@ export function calculateMatchVotePoints(
 
         } else {
             // Case B: Final Incorrect Pick
-            // Rationale: Find the earliest round where their pick failed (Incorrect Streak).
-            // We iterate backwards from maxRounds to 1 to find the start of the incorrect streak.
-
             for (let r = maxRounds; r >= 1; r--) {
                 const roundPick = userPicks[r]?.[maleId];
                 if (roundPick === finalFemaleId) {
-                    // User was correct at r. So the incorrect streak started at r + 1.
                     break;
                 }
-                // If incorrect, update rScore to current r (potentially the new start of failure)
+                rScore = r;
+            }
+
+            // Add Penalty Point
+            const pointItem = POINT_TABLE.find(p => p.round === rScore);
+            if (pointItem) {
+                totalPoints += pointItem.penalty;
+            }
+        }
+    });
+
+    // Handle "Ghost Picks" (User picked a couple, but the male is actually single/not in final result)
+    const finalRoundPicks = userPicks[maxRounds] || {};
+    Object.keys(finalRoundPicks).forEach((maleId) => {
+        if (!processedMaleIds.has(maleId)) {
+            // User picked this male, but he is not in the final result (Single)
+            // This is automatically an Incorrect Pick
+            let rScore = maxRounds;
+
+            for (let r = maxRounds; r >= 1; r--) {
+                const roundPick = userPicks[r]?.[maleId];
+                // If user didn't pick anyone for this male in round r, they were "correct" (or at least not wrong)
+                // So the streak of "wrongly picking someone" stops.
+                if (!roundPick) {
+                    break;
+                }
                 rScore = r;
             }
 

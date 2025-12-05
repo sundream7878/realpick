@@ -725,7 +725,7 @@ export async function settleMatchMission(
     // 1. 미션 정보 조회 (t_missions2)
     const { data: mission, error: fetchError } = await supabase
       .from("t_missions2")
-      .select("f_id, f_title, f_status, f_episodes")
+      .select("f_id, f_title, f_status, f_total_episodes")
       .eq("f_id", missionId)
       .single()
 
@@ -787,7 +787,7 @@ export async function settleMatchMission(
       })
 
       // 포인트 계산 (미션의 총 회차 수 전달)
-      const points = calculateMatchVotePoints(finalResultMap, userPicks, mission.f_episodes || 8)
+      const points = calculateMatchVotePoints(finalResultMap, userPicks, mission.f_total_episodes || 8)
 
       if (points !== 0) {
         await addPointLog(
