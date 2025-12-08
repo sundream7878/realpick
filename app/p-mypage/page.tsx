@@ -46,6 +46,11 @@ export default function MyPage() {
   const [matchPairSelections, setMatchPairSelections] = useState<Record<string, { left?: string; right?: string }>>({})
   const [submittingMissionId, setSubmittingMissionId] = useState<string | null>(null)
   const [editingMissionAnswers, setEditingMissionAnswers] = useState<Record<string, boolean>>({})
+
+  // Created Missions Tab State
+  const [createdTab, setCreatedTab] = useState<"predict" | "majority">("predict")
+  const [createdPage, setCreatedPage] = useState(1)
+  const ITEMS_PER_PAGE = 10
   const userId = getUserId()
   const { toast } = useToast()
 
@@ -908,8 +913,9 @@ export default function MyPage() {
     )
   }
 
-  const predictMissionCards = createdMissions.filter(m => m.kind === "predict")
-  const majorityMissionCards = createdMissions.filter(m => m.kind === "majority")
+  const filteredCreatedMissions = createdMissions.filter(m => m.kind === createdTab)
+  const totalCreatedPages = Math.ceil(filteredCreatedMissions.length / ITEMS_PER_PAGE)
+  const currentCreatedMissions = filteredCreatedMissions.slice((createdPage - 1) * ITEMS_PER_PAGE, createdPage * ITEMS_PER_PAGE)
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
@@ -994,166 +1000,154 @@ export default function MyPage() {
                   </Card>
                 ) : (
                   <div className="space-y-6">
+                    {/* Sub Tabs */}
+                    <div className="flex border-b border-gray-200">
+                      <button
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${createdTab === "predict"
+                          ? "border-purple-600 text-purple-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700"
+                          }`}
+                        onClick={() => {
+                          setCreatedTab("predict")
+                          setCreatedPage(1)
+                        }}
+                      >
+                        예측픽 ({createdMissions.filter(m => m.kind === "predict").length})
+                      </button>
+                      <button
+                        className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${createdTab === "majority"
+                          ? "border-purple-600 text-purple-600"
+                          : "border-transparent text-gray-500 hover:text-gray-700"
+                          }`}
+                        onClick={() => {
+                          setCreatedTab("majority")
+                          setCreatedPage(1)
+                        }}
+                      >
+                        공감픽 ({createdMissions.filter(m => m.kind === "majority").length})
+                      </button>
+                    </div>
+
                     <Card className="border-dashed border-purple-200 bg-purple-50/70">
                       <CardContent className="py-4 text-sm text-purple-800">
-                        예측픽은 마감 이후에만 정답을 확정할 수 있어요. 커플매칭은 모든 회차가 마감되면 최종 커플을 입력해주세요.
+                        {createdTab === "predict"
+                          ? "예측픽은 마감 이후에만 정답을 확정할 수 있어요. 커플매칭은 모든 회차가 마감되면 최종 커플을 입력해주세요."
+                          : "공감픽은 정답이 없으며, 투표 결과에 따라 다수 의견이 결정됩니다."}
                       </CardContent>
                     </Card>
 
-                    {predictMissionCards.length > 0 && (
-                      <section className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-purple-900">예측픽 미션</h3>
-                          <span className="text-sm text-purple-600">{predictMissionCards.length}개</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
-                          {predictMissionCards.map((mission) => {
-                            const participants = mission.stats?.participants?.toLocaleString() ?? "0"
-                            const missionSettledText =
-                              mission.form === "match"
+                    {currentCreatedMissions.length > 0 ? (
+                      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+                        {currentCreatedMissions.map((mission) => {
+                          const participants = mission.stats?.participants?.toLocaleString() ?? "0"
+                          const missionSettledText =
+                            mission.kind === "predict"
+                              ? mission.form === "match"
                                 ? `${mission.finalAnswer?.length ?? 0}쌍 확정`
                                 : mission.result?.correctAnswer
                                   ? `정답: ${mission.result.correctAnswer}`
                                   : "정답 미입력"
+                              : mission.result?.majorityOption
+                                ? `최종 다수: ${mission.result.majorityOption}`
+                                : "결과 미확정"
 
-                            return (
-                              <div key={mission.id} className="flex flex-col rounded-2xl border border-purple-100 bg-white shadow-sm">
-                                <div className="flex flex-col gap-4 p-5 h-full">
-                                  <div className="space-y-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Badge className="border bg-blue-50 text-blue-700 border-blue-200">예측픽</Badge>
-                                      <Badge className="border border-purple-200 bg-purple-50 text-purple-700">
-                                        {getFormLabel(mission)}
-                                      </Badge>
-                                      <span className="text-xs text-gray-500">
-                                        생성 {formatDateTime(mission.createdAt)}
-                                      </span>
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900">{mission.title}</h3>
-                                    <p className="text-sm text-gray-500">
-                                      마감 {mission.form === "match" ? "회차 완료 시" : formatDateTime(mission.deadline)} · 참여자 {participants}명
-                                    </p>
-                                    {mission.status === "settled" && (
-                                      <div className="flex items-center gap-2 text-sm text-emerald-600">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        <span>{missionSettledText}</span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="mt-auto flex flex-col items-start gap-2 w-full">
-                                    <Badge className={`border ${getStatusBadgeClass(mission.status)}`}>
-                                      {getStatusLabel(mission.status)}
+                          return (
+                            <div key={mission.id} className="flex flex-col rounded-2xl border border-purple-100 bg-white shadow-sm">
+                              <div className="flex flex-col gap-4 p-5 h-full">
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Badge className={`border ${mission.kind === "predict" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-green-50 text-green-700 border-green-200"}`}>
+                                      {mission.kind === "predict" ? "예측픽" : "공감픽"}
                                     </Badge>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="gap-2 w-full"
-                                      onClick={() => toggleMissionPanel(mission.id)}
-                                    >
-                                      {expandedMissionId === mission.id ? (
-                                        <>
-                                          접기
-                                          <ChevronUp className="h-4 w-4" />
-                                        </>
-                                      ) : (
-                                        <>
-                                          정답 입력
-                                          <ChevronDown className="h-4 w-4" />
-                                        </>
-                                      )}
-                                    </Button>
+                                    <Badge className="border border-purple-200 bg-purple-50 text-purple-700">
+                                      {getFormLabel(mission)}
+                                    </Badge>
+                                    <span className="text-xs text-gray-500">
+                                      생성 {formatDateTime(mission.createdAt)}
+                                    </span>
                                   </div>
+                                  <h3 className="text-lg font-semibold text-gray-900">{mission.title}</h3>
+                                  <p className="text-sm text-gray-500">
+                                    {mission.form === "match"
+                                      ? "회차 완료 시 마감"
+                                      : `마감 ${formatDateTime(mission.deadline)}`} · 참여자 {participants}명
+                                  </p>
+                                  {mission.status === "settled" && (
+                                    <div className="flex items-center gap-2 text-sm text-emerald-600">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      <span>{missionSettledText}</span>
+                                    </div>
+                                  )}
                                 </div>
 
-                                {expandedMissionId === mission.id && (
-                                  <div className="space-y-4 border-t border-purple-50 bg-gradient-to-br from-pink-50/70 to-purple-50/70 px-5 py-4">
-                                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                                      <span>시즌: {mission.seasonType === "기수별" ? `${mission.seasonNumber ?? "-"}기` : mission.seasonType ?? "-"}</span>
-                                      <span>공개 정책: {mission.revealPolicy === "realtime" ? "실시간" : "마감 후"}</span>
-                                    </div>
-
-                                    {renderDealerPanel(mission)}
-                                  </div>
-                                )}
+                                <div className="mt-auto flex flex-col items-start gap-2 w-full">
+                                  <Badge className={`border ${getStatusBadgeClass(mission.status)}`}>
+                                    {getStatusLabel(mission.status)}
+                                  </Badge>
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 w-full"
+                                    onClick={() => toggleMissionPanel(mission.id)}
+                                  >
+                                    {expandedMissionId === mission.id ? (
+                                      <>
+                                        접기
+                                        <ChevronUp className="h-4 w-4" />
+                                      </>
+                                    ) : (
+                                      <>
+                                        {mission.kind === "predict" ? "정답 입력" : "상세 보기"}
+                                        <ChevronDown className="h-4 w-4" />
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
                               </div>
-                            )
-                          })}
-                        </div>
-                      </section>
+
+                              {expandedMissionId === mission.id && (
+                                <div className="space-y-4 border-t border-purple-50 bg-gradient-to-br from-pink-50/70 to-purple-50/70 px-5 py-4">
+                                  <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
+                                    <span>시즌: {mission.seasonType === "기수별" ? `${mission.seasonNumber ?? "-"}기` : mission.seasonType ?? "-"}</span>
+                                    <span>공개 정책: {mission.revealPolicy === "realtime" ? "실시간" : "마감 후"}</span>
+                                  </div>
+
+                                  {renderDealerPanel(mission)}
+                                </div>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ) : (
+                      <div className="text-center py-12 text-gray-500">
+                        해당 카테고리의 미션이 없습니다.
+                      </div>
                     )}
 
-                    {majorityMissionCards.length > 0 && (
-                      <section className="space-y-3">
-                        <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-semibold text-slate-900">다수픽 미션</h3>
-                          <span className="text-sm text-slate-600">{majorityMissionCards.length}개</span>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
-                          {majorityMissionCards.map((mission) => {
-                            const participants = mission.stats?.participants?.toLocaleString() ?? "0"
-                            const missionSettledText = mission.result?.majorityOption ? `최종 다수: ${mission.result.majorityOption}` : "결과 미확정"
-
-                            return (
-                              <div key={mission.id} className="flex flex-col rounded-2xl border border-slate-100 bg-white shadow-sm">
-                                <div className="flex flex-col gap-4 p-5 h-full">
-                                  <div className="space-y-2">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                      <Badge className="border bg-green-50 text-green-700 border-green-200">공감픽</Badge>
-                                      <Badge className="border border-purple-200 bg-purple-50 text-purple-700">
-                                        {getFormLabel(mission)}
-                                      </Badge>
-                                      <span className="text-xs text-gray-500">생성 {formatDateTime(mission.createdAt)}</span>
-                                    </div>
-                                    <h3 className="text-lg font-semibold text-gray-900">{mission.title}</h3>
-                                    <p className="text-sm text-gray-500">
-                                      시즌 {mission.seasonType === "기수별" ? `${mission.seasonNumber ?? "-"}기` : mission.seasonType ?? "-"} · 참여자 {participants}명
-                                    </p>
-                                    {mission.status === "settled" && (
-                                      <div className="flex items-center gap-2 text-sm text-emerald-600">
-                                        <CheckCircle2 className="h-4 w-4" />
-                                        <span>{missionSettledText}</span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  <div className="mt-auto flex flex-col items-start gap-2 w-full">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      className="gap-2 w-full"
-                                      onClick={() => toggleMissionPanel(mission.id)}
-                                    >
-                                      {expandedMissionId === mission.id ? (
-                                        <>
-                                          접기
-                                          <ChevronUp className="h-4 w-4" />
-                                        </>
-                                      ) : (
-                                        <>
-                                          상세 보기
-                                          <ChevronDown className="h-4 w-4" />
-                                        </>
-                                      )}
-                                    </Button>
-                                  </div>
-                                </div>
-
-                                {expandedMissionId === mission.id && (
-                                  <div className="space-y-4 border-t border-purple-50 bg-gradient-to-br from-slate-50/70 to-purple-50/60 px-5 py-4">
-                                    <div className="flex flex-wrap items-center gap-3 text-sm text-gray-600">
-                                      <span>시즌: {mission.seasonType === "기수별" ? `${mission.seasonNumber ?? "-"}기` : mission.seasonType ?? "-"}</span>
-                                      <span>공개 정책: {mission.revealPolicy === "realtime" ? "실시간" : "마감 후"}</span>
-                                    </div>
-
-                                    {renderDealerPanel(mission)}
-                                  </div>
-                                )}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </section>
+                    {/* Pagination */}
+                    {totalCreatedPages > 1 && (
+                      <div className="flex justify-center items-center gap-2 mt-6">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCreatedPage(p => Math.max(1, p - 1))}
+                          disabled={createdPage === 1}
+                        >
+                          이전
+                        </Button>
+                        <span className="text-sm text-gray-600">
+                          {createdPage} / {totalCreatedPages}
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setCreatedPage(p => Math.min(totalCreatedPages, p + 1))}
+                          disabled={createdPage === totalCreatedPages}
+                        >
+                          다음
+                        </Button>
+                      </div>
                     )}
                   </div>
                 )}

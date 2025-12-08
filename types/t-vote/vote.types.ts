@@ -62,6 +62,7 @@ export interface CreateMissionData {
   category?: string
   submissionType?: "selection" | "text"
   requiredAnswerCount?: number
+  isLive?: boolean
 }
 
 export interface TMission {
@@ -95,6 +96,7 @@ export interface TMission {
   imageUrl?: string // 직접 업로드한 이미지 URL
   submissionType?: "selection" | "text"
   requiredAnswerCount?: number
+  isLive?: boolean // 라이브 미션 여부
   createdAt: string
   updatedAt?: string
 }

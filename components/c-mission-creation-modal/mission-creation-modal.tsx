@@ -51,7 +51,6 @@ interface MissionCommonFieldsProps {
   isUploading: boolean
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   hideSeason?: boolean
-
 }
 
 const MissionCommonFields = ({
@@ -113,6 +112,8 @@ const MissionCommonFields = ({
         className="mt-1"
       />
     </div>
+
+
 
     {/* 추가 정보 입력 섹션 */}
     <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
@@ -189,6 +190,11 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [femaleOptions, setFemaleOptions] = useState<string[]>(["", ""])
   const [subjectivePlaceholder, setSubjectivePlaceholder] = useState("")
   const [totalEpisodes, setTotalEpisodes] = useState("8")
+
+  // Live Mission State
+  const [isLive, setIsLive] = useState(false)
+  const [durationMinutes, setDurationMinutes] = useState("60")
+  const [durationSeconds, setDurationSeconds] = useState("0")
 
   // 추가 필드 (영상, 설명, 이미지)
   const [referenceUrl, setReferenceUrl] = useState("")
@@ -390,7 +396,11 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     setDescription("")
     setImageUrl("")
     setSubmissionType("selection")
+    setSubmissionType("selection")
     setRequiredAnswerCount(1)
+    setIsLive(false)
+    setDurationMinutes("60")
+    setDurationSeconds("0")
   }
 
   // ... (existing handlers)
@@ -415,7 +425,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         totalEpisodes: missionFormat === "couple" ? parseInt(totalEpisodes) || 8 : undefined,
         deadline: missionFormat === "couple"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
-          : deadline ? new Date(deadline).toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          : isLive
+            ? new Date(Date.now() + (parseInt(durationMinutes) * 60 + parseInt(durationSeconds)) * 1000).toISOString()
+            : deadline ? new Date(deadline).toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
         resultVisibility: missionFormat === "couple"
           ? "onClose"
           : resultVisibility === "realtime" ? "realtime" : "onClose",
@@ -504,19 +516,63 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     </div>
   )
 
+  // 라이브 미션 체크박스 컴포넌트
+  const LiveMissionCheckbox = () => (
+    <div className="flex items-center space-x-2 p-3 bg-red-50 rounded-lg border border-red-100">
+      <Checkbox
+        id="live-mode-toggle"
+        checked={isLive}
+        onCheckedChange={(checked) => setIsLive(checked as boolean)}
+        className="data-[state=checked]:bg-red-500 data-[state=checked]:border-red-500"
+      />
+      <div className="grid gap-1.5 leading-none">
+        <label
+          htmlFor="live-mode-toggle"
+          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-red-700 flex items-center gap-1"
+        >
+          <span className="relative flex h-2 w-2 mr-1">
+            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+            <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+          </span>
+          라이브 미션으로 설정
+        </label>
+        <p className="text-xs text-red-600">
+          체크 시 마감 시간을 '분/초 단위'로 설정할 수 있습니다. (방송 중 실시간 투표용)
+        </p>
+      </div>
+    </div>
+  )
+
   const handleAIVerification = async () => {
     setIsVerifying(true)
 
-    // AI 검증 시뮬레이션 (실제 API 연동 필요)
-    setTimeout(() => {
-      setAiResult({
-        status: "pass",
-        suggestions: ["미션 내용이 명확합니다.", "적절한 카테고리입니다."],
-        reasons: ["규정 위반 사항 없음"]
+    try {
+      const response = await fetch("/api/missions/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description,
+          missionType,
+          missionFormat
+        })
       })
-      setIsVerifying(false)
+
+      if (!response.ok) throw new Error("Verification failed")
+
+      const result = await response.json()
+      setAiResult(result)
       setShowAIModal(true)
-    }, 1500)
+    } catch (error) {
+      console.error("Verification error:", error)
+      toast({
+        title: "검증 실패",
+        description: "AI 검증 중 오류가 발생했습니다.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsVerifying(false)
+    }
   }
 
   const handleBack = () => {
@@ -571,8 +627,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   <div className="grid grid-cols-3 gap-3">
                     <Card
                       className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "binary")
-                          ? "hover:bg-pink-50"
-                          : "opacity-50 cursor-not-allowed"
+                        ? "hover:bg-pink-50"
+                        : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "binary") && handleFormatSelection("binary")}
                     >
@@ -589,8 +645,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </Card>
                     <Card
                       className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "multi")
-                          ? "hover:bg-pink-50"
-                          : "opacity-50 cursor-not-allowed"
+                        ? "hover:bg-pink-50"
+                        : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "multi") && handleFormatSelection("multiple")}
                     >
@@ -608,8 +664,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
                     <Card
                       className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "match")
-                          ? "hover:bg-pink-50"
-                          : "opacity-50 cursor-not-allowed"
+                        ? "hover:bg-pink-50"
+                        : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "match") && handleFormatSelection("couple")}
                     >
@@ -641,6 +697,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "binary-choice" && (
             <div className="space-y-6">
+              <LiveMissionCheckbox />
               <ConsensusCheckbox />
               <MissionCommonFields
                 seasonType={seasonType}
@@ -660,10 +717,59 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               />
 
               <div>
-                <Label className="text-sm font-medium">Pick 선택지</Label>
-                <div className="grid grid-cols-2 gap-4 mt-2">
-                  <Input value={options[0]} onChange={(e) => updateOption(0, e.target.value)} placeholder="선택지 A" />
-                  <Input value={options[1]} onChange={(e) => updateOption(1, e.target.value)} placeholder="선택지 B" />
+                <Label className="text-sm font-medium">Pick 선택지 (최대 5쌍)</Label>
+                <div className="space-y-3 mt-2">
+                  {Array.from({ length: Math.ceil(options.length / 2) }).map((_, pairIndex) => {
+                    const indexA = pairIndex * 2
+                    const indexB = pairIndex * 2 + 1
+                    return (
+                      <div key={pairIndex} className="flex items-center gap-2">
+                        <div className="flex-1 flex gap-2 items-center">
+                          <Input
+                            value={options[indexA] || ""}
+                            onChange={(e) => updateOption(indexA, e.target.value)}
+                            placeholder={`선택지 A-${pairIndex + 1}`}
+                            className="text-center"
+                          />
+                          <span className="font-bold text-sm text-gray-400">VS</span>
+                          <Input
+                            value={options[indexB] || ""}
+                            onChange={(e) => updateOption(indexB, e.target.value)}
+                            placeholder={`선택지 B-${pairIndex + 1}`}
+                            className="text-center"
+                          />
+                        </div>
+                        {options.length > 2 && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const newOptions = [...options]
+                              newOptions.splice(indexA, 2)
+                              setOptions(newOptions)
+                            }}
+                            className="px-3"
+                          >
+                            <X className="w-4 h-4" />
+                          </Button>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {options.length < 10 && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        if (options.length >= 10) return
+                        setOptions([...options, "", ""])
+                      }}
+                      className="w-full border-dashed bg-transparent hover:bg-gray-50"
+                    >
+                      <Plus className="w-4 h-4 mr-2" />
+                      선택지 쌍 추가
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -680,14 +786,44 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </SelectContent>
                   </Select>
                   <div>
-                    <Label className="text-sm font-medium">마감 날짜</Label>
-                    <Input
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      placeholder="마감시간 설정"
-                      type="datetime-local"
-                      className="mt-1"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
+                    </div>
+                    {isLive ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationMinutes}
+                            onChange={(e) => setDurationMinutes(e.target.value)}
+                            placeholder="분"
+                            className="mt-1"
+                            min="0"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">분</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationSeconds}
+                            onChange={(e) => setDurationSeconds(e.target.value)}
+                            placeholder="초"
+                            className="mt-1"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">초 후 마감</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        placeholder="마감시간 설정"
+                        type="datetime-local"
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -829,14 +965,44 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </SelectContent>
                   </Select>
                   <div>
-                    <Label className="text-sm font-medium">마감 날짜</Label>
-                    <Input
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      placeholder="마감시간 설정"
-                      type="datetime-local"
-                      className="mt-1"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
+                    </div>
+                    {isLive ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationMinutes}
+                            onChange={(e) => setDurationMinutes(e.target.value)}
+                            placeholder="분"
+                            className="mt-1"
+                            min="0"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">분</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationSeconds}
+                            onChange={(e) => setDurationSeconds(e.target.value)}
+                            placeholder="초"
+                            className="mt-1"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">초 후 마감</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        placeholder="마감시간 설정"
+                        type="datetime-local"
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -952,14 +1118,44 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </SelectContent>
                   </Select>
                   <div>
-                    <Label className="text-sm font-medium">마감 날짜</Label>
-                    <Input
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      placeholder="마감시간 설정"
-                      type="datetime-local"
-                      className="mt-1"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
+                    </div>
+                    {isLive ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationMinutes}
+                            onChange={(e) => setDurationMinutes(e.target.value)}
+                            placeholder="분"
+                            className="mt-1"
+                            min="0"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">분</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationSeconds}
+                            onChange={(e) => setDurationSeconds(e.target.value)}
+                            placeholder="초"
+                            className="mt-1"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">초 후 마감</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        placeholder="마감시간 설정"
+                        type="datetime-local"
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
@@ -978,6 +1174,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "couple-matching" && (
             <div className="space-y-6">
+              <LiveMissionCheckbox />
               {/* 커플매칭은 공감픽 옵션 없음 */}
               <MissionCommonFields
                 seasonType={seasonType}
@@ -1107,6 +1304,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "subjective-choice" && (
             <div className="space-y-6">
+              <LiveMissionCheckbox />
               <ConsensusCheckbox />
               <MissionCommonFields
                 seasonType={seasonType}
@@ -1148,14 +1346,44 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </SelectContent>
                   </Select>
                   <div>
-                    <Label className="text-sm font-medium">마감 날짜</Label>
-                    <Input
-                      value={deadline}
-                      onChange={(e) => setDeadline(e.target.value)}
-                      placeholder="마감시간 설정"
-                      type="datetime-local"
-                      className="mt-1"
-                    />
+                    <div className="flex items-center justify-between mb-2">
+                      <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
+                    </div>
+                    {isLive ? (
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationMinutes}
+                            onChange={(e) => setDurationMinutes(e.target.value)}
+                            placeholder="분"
+                            className="mt-1"
+                            min="0"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">분</span>
+                        </div>
+                        <div className="flex-1 flex items-center gap-2">
+                          <Input
+                            type="number"
+                            value={durationSeconds}
+                            onChange={(e) => setDurationSeconds(e.target.value)}
+                            placeholder="초"
+                            className="mt-1"
+                            min="0"
+                            max="59"
+                          />
+                          <span className="text-sm text-gray-500 whitespace-nowrap">초 후 마감</span>
+                        </div>
+                      </div>
+                    ) : (
+                      <Input
+                        value={deadline}
+                        onChange={(e) => setDeadline(e.target.value)}
+                        placeholder="마감시간 설정"
+                        type="datetime-local"
+                        className="mt-1"
+                      />
+                    )}
                   </div>
                 </div>
               </div>
