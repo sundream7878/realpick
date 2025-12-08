@@ -43,17 +43,38 @@ export function SidebarNavigation({
   const router = useRouter()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingAction, setPendingAction] = useState<"mission" | "mypage" | null>(null)
-
   const [userRole, setUserRole] = useState<string | null>(null)
 
   useEffect(() => {
     const fetchUserRole = async () => {
       const { createClient } = await import("@/lib/supabase/client")
       const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        const { data } = await supabase.from("t_users").select("f_role").eq("f_id", user.id).single()
-        if (data) setUserRole(data.f_role)
+
+      const getUserRole = async () => {
+        const { data: { user } } = await supabase.auth.getUser()
+        console.log("[Sidebar] Current User:", user?.id)
+
+        if (user) {
+          const { data, error } = await supabase.from("t_users").select("f_role").eq("f_id", user.id).single()
+          console.log("[Sidebar] Role Fetch Result:", data, error)
+          if (data) {
+            console.log("[Sidebar] Setting Role:", data.f_role)
+            setUserRole(data.f_role)
+          }
+        } else {
+          setUserRole(null)
+        }
+      }
+
+      getUserRole()
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+        console.log("[Sidebar] Auth State Changed:", _event, session?.user?.id)
+        getUserRole()
+      })
+
+      return () => {
+        subscription.unsubscribe()
       }
     }
     fetchUserRole()
@@ -105,19 +126,7 @@ export function SidebarNavigation({
             </Button>
           </Link>
 
-          {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
-            <Link href="/dealer/lounge">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 hover:bg-purple-50 text-purple-700 font-medium"
-              >
-                <div className="p-1 bg-purple-100 rounded-md">
-                  <User className="w-3 h-3 text-purple-600" />
-                </div>
-                딜러 라운지
-              </Button>
-            </Link>
-          )}
+
 
           <Link href="/p-casting">
             <Button
@@ -133,50 +142,68 @@ export function SidebarNavigation({
             </Button>
           </Link>
 
-          <Button
-            variant="ghost"
-            className="w-full justify-start gap-3 hover:bg-gray-50"
-            onClick={handleMissionClick}
-          >
-            <Plus className="w-5 h-5" />
-            미션 게시하기
-          </Button>
-
-          <div className="space-y-1">
+          {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
-                }`}
-              onClick={onMissionStatusToggle}
+              className="w-full justify-start gap-3 hover:bg-gray-50"
+              onClick={handleMissionClick}
             >
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5" />
-                <div className="text-left leading-tight">
-                  <div>{selectedShow}</div>
-                  <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
-                </div>
-              </div>
-              {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              <Plus className="w-5 h-5" />
+              미션 게시하기
             </Button>
+          )}
 
-            {isMissionStatusOpen && (
-              <div className="ml-8 space-y-1">
-                {seasonOptions.map((option) => (
-                  <Link key={option.value} href={option.href}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                        }`}
-                      onClick={() => onSeasonSelect(option.value)}
-                    >
-                      {option.label}
-                    </Button>
-                  </Link>
-                ))}
-              </div>
-            )}
-          </div>
+          {userRole === 'PICKER' && (
+            <Link href="/p-mypage">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 hover:bg-pink-50 text-pink-600"
+              >
+                <div className="p-1 bg-pink-100 rounded-md">
+                  <User className="w-3 h-3 text-pink-600" />
+                </div>
+                내가 참여한 미션
+              </Button>
+            </Link>
+          )}
+
+          {userRole !== 'PICKER' && (
+            <div className="space-y-1">
+              <Button
+                variant="ghost"
+                className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                  }`}
+                onClick={onMissionStatusToggle}
+              >
+                <div className="flex items-center gap-3">
+                  <AlertCircle className="w-5 h-5" />
+                  <div className="text-left leading-tight">
+                    <div>{selectedShow}</div>
+                    <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
+                  </div>
+                </div>
+                {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+              </Button>
+
+              {isMissionStatusOpen && (
+                <div className="ml-8 space-y-1">
+                  {seasonOptions.map((option) => (
+                    <Link key={option.value} href={option.href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
+                          }`}
+                        onClick={() => onSeasonSelect(option.value)}
+                      >
+                        {option.label}
+                      </Button>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           <Link href="/p-mypage" onClick={handleMyPageClick}>
             <Button
@@ -188,6 +215,18 @@ export function SidebarNavigation({
               마이페이지
             </Button>
           </Link>
+
+          {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
+            <Link href="/dealer/lounge">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 hover:bg-purple-50 text-purple-700 font-medium"
+              >
+                <User className="w-5 h-5 text-purple-600" />
+                딜러 라운지
+              </Button>
+            </Link>
+          )}
 
         </nav>
       </div>

@@ -11,15 +11,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/c-ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getAllOpenMissions, setMainMissionId, getMainMissionId } from "@/lib/supabase/admin"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/supabase/users"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
+import { createClient } from "@/lib/supabase/client"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search } from "lucide-react"
+import { Search, Lock, KeyRound } from "lucide-react"
+import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 
 export default function AdminPage() {
     const router = useRouter()
@@ -27,7 +30,8 @@ export default function AdminPage() {
     const [missions, setMissions] = useState<any[]>([])
     const [currentMainMissionId, setCurrentMainMissionId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
-    const [isAdmin, setIsAdmin] = useState(false)
+    const [isAdminRole, setIsAdminRole] = useState(false) // Check if user has ADMIN role in DB
+    const [isUnlocked, setIsUnlocked] = useState(false) // Check if password unlocked
 
     // User management state
     const [users, setUsers] = useState<TUser[]>([])
@@ -37,11 +41,45 @@ export default function AdminPage() {
     const [isSearching, setIsSearching] = useState(false)
     const usersPerPage = 20
 
-    useEffect(() => {
-        const checkAuthAndLoad = async () => {
-            const userId = getUserId()
-            setIsAdmin(true)
+    // Password Change State
+    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false)
+    const [newPassword, setNewPassword] = useState("")
+    const [confirmNewPassword, setConfirmNewPassword] = useState("")
 
+    useEffect(() => {
+        const checkPermissionAndLoad = async () => {
+            const supabase = createClient()
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (!user) {
+                router.push("/")
+                return
+            }
+
+            // Check role first
+            const { data: userData } = await supabase
+                .from("t_users")
+                .select("f_role")
+                .eq("f_id", user.id)
+                .single()
+
+            if (userData?.f_role !== 'ADMIN') {
+                router.push("/")
+                toast({
+                    title: "접근 거부",
+                    description: "관리자 권한이 없습니다.",
+                    variant: "destructive"
+                })
+                return
+            }
+
+            setIsAdminRole(true)
+
+            // Check session storage for unlock state
+            const unlocked = sessionStorage.getItem("admin_unlocked") === "true"
+            setIsUnlocked(unlocked)
+
+            // Load Admin Data
             try {
                 const [missionsResult, mainMissionResult] = await Promise.all([
                     getAllOpenMissions(),
@@ -67,8 +105,39 @@ export default function AdminPage() {
             }
         }
 
-        checkAuthAndLoad()
-    }, [])
+        checkPermissionAndLoad()
+    }, [router, toast])
+
+    const handleUnlock = () => {
+        setIsUnlocked(true)
+        sessionStorage.setItem("admin_unlocked", "true")
+    }
+
+    const handleChangePassword = async () => {
+        if (!newPassword || newPassword !== confirmNewPassword) {
+            toast({ title: "오류", description: "비밀번호가 일치하지 않습니다.", variant: "destructive" })
+            return
+        }
+
+        try {
+            const res = await fetch("/api/admin/auth/update", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ newPassword }),
+            })
+
+            if (res.ok) {
+                toast({ title: "성공", description: "비밀번호가 변경되었습니다." })
+                setIsChangePasswordOpen(false)
+                setNewPassword("")
+                setConfirmNewPassword("")
+            } else {
+                throw new Error("Failed to update password")
+            }
+        } catch (error) {
+            toast({ title: "오류", description: "비밀번호 변경 중 오류가 발생했습니다.", variant: "destructive" })
+        }
+    }
 
     // Load users
     const loadUsers = async (page: number = 0) => {
@@ -101,37 +170,38 @@ export default function AdminPage() {
             setUsers(searchResults)
             setTotalUsers(searchResults.length)
         } catch (error) {
-            console.error("Failed to search users", error)
+            console.error("Search failed", error)
             toast({
                 title: "검색 실패",
                 description: "유저 검색 중 오류가 발생했습니다.",
                 variant: "destructive"
             })
+        } finally {
+            setIsSearching(false)
         }
     }
 
-    // Handle role change
-    const handleRoleChange = async (userId: string, newRole: TUserRole) => {
+    const handleRoleUpdate = async (userId: string, newRole: TUserRole) => {
         try {
             const success = await updateUserRole(userId, newRole)
             if (success) {
                 toast({
-                    title: "역할 변경 완료",
-                    description: `유저의 역할이 ${getRoleDisplayName(newRole)}(으)로 변경되었습니다.`
+                    title: "권한 수정 성공",
+                    description: "유저 권한이 수정되었습니다."
                 })
-                // Reload users
-                if (isSearching) {
+                // Refresh list
+                if (searchQuery.trim()) {
                     handleSearch()
                 } else {
                     loadUsers(currentPage)
                 }
             } else {
-                throw new Error("Failed to update role")
+                throw new Error("Update failed")
             }
         } catch (error) {
             toast({
-                title: "역할 변경 실패",
-                description: "역할 변경 중 오류가 발생했습니다.",
+                title: "권한 수정 실패",
+                description: "권한 수정 중 오류가 발생했습니다.",
                 variant: "destructive"
             })
         }
@@ -139,12 +209,12 @@ export default function AdminPage() {
 
     const handleSetMainMission = async (missionId: string) => {
         try {
-            const result = await setMainMissionId(missionId)
-            if (result.success) {
+            const success = await setMainMissionId(missionId)
+            if (success) {
                 setCurrentMainMissionId(missionId)
                 toast({
                     title: "메인 미션 설정 완료",
-                    description: "메인 배너가 업데이트되었습니다."
+                    description: "메인 배너 미션이 변경되었습니다."
                 })
             } else {
                 throw new Error("Failed to set main mission")
@@ -160,8 +230,8 @@ export default function AdminPage() {
 
     const handleClearMainMission = async () => {
         try {
-            const result = await setMainMissionId(null)
-            if (result.success) {
+            const success = await setMainMissionId(null)
+            if (success) {
                 setCurrentMainMissionId(null)
                 toast({
                     title: "메인 미션 해제 완료",
@@ -183,6 +253,14 @@ export default function AdminPage() {
 
     if (isLoading) return <div className="p-8 text-center">로딩 중...</div>
 
+    // If not admin role, we already redirected, but just in case
+    if (!isAdminRole) return null
+
+    // If admin role but locked, show lock screen
+    if (!isUnlocked) {
+        return <AdminLockScreen onUnlock={handleUnlock} />
+    }
+
     return (
         <div className="min-h-screen bg-gray-50 pb-20">
             <AppHeader
@@ -198,20 +276,51 @@ export default function AdminPage() {
                     icon: "👑"
                 }}
             />
+            <main className="max-w-7xl mx-auto px-4 py-8">
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-3xl font-bold text-gray-900">관리자 페이지</h1>
 
-            <main className="container max-w-6xl mx-auto px-4 py-8">
-                <h1 className="text-2xl font-bold text-gray-900 mb-6">관리자 대시보드</h1>
+                    <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" className="gap-2">
+                                <KeyRound className="w-4 h-4" />
+                                비밀번호 변경
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>관리자 비밀번호 변경</DialogTitle>
+                            </DialogHeader>
+                            <div className="space-y-4 py-4">
+                                <div className="space-y-2">
+                                    <Input
+                                        type="password"
+                                        placeholder="새 비밀번호"
+                                        value={newPassword}
+                                        onChange={(e) => setNewPassword(e.target.value)}
+                                    />
+                                    <Input
+                                        type="password"
+                                        placeholder="비밀번호 확인"
+                                        value={confirmNewPassword}
+                                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                                    />
+                                </div>
+                                <Button className="w-full bg-purple-600" onClick={handleChangePassword}>
+                                    변경하기
+                                </Button>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                </div>
 
-                <Tabs defaultValue="missions" className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 mb-6">
-                        <TabsTrigger value="missions">메인 미션 관리</TabsTrigger>
-                        <TabsTrigger value="users" onClick={() => !users.length && loadUsers(0)}>
-                            유저 관리
-                        </TabsTrigger>
+                <Tabs defaultValue="missions" className="space-y-6">
+                    <TabsList>
+                        <TabsTrigger value="missions">미션 관리</TabsTrigger>
+                        <TabsTrigger value="users" onClick={() => loadUsers(0)}>유저 관리</TabsTrigger>
                     </TabsList>
 
-                    {/* Main Mission Management Tab */}
-                    <TabsContent value="missions">
+                    <TabsContent value="missions" className="space-y-6">
                         <div className="flex justify-between items-center mb-6">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-500">현재 메인 미션 ID:</span>
@@ -285,38 +394,24 @@ export default function AdminPage() {
                         </div>
                     </TabsContent>
 
-                    {/* User Management Tab */}
-                    <TabsContent value="users">
+                    <TabsContent value="users" className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <div className="flex items-center justify-between">
-                                    <CardTitle>유저 관리</CardTitle>
-                                    <Badge variant="secondary">총 {totalUsers}명</Badge>
-                                </div>
-                                <div className="flex items-center gap-2 mt-4">
+                                <CardTitle>유저 관리</CardTitle>
+                                <div className="flex gap-2 mt-4">
                                     <div className="relative flex-1">
-                                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                                         <Input
-                                            placeholder="닉네임 또는 이메일로 검색..."
+                                            placeholder="닉네임 검색..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
                                             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-                                            className="pl-10"
+                                            className="pl-8"
                                         />
                                     </div>
-                                    <Button onClick={handleSearch}>검색</Button>
-                                    {isSearching && (
-                                        <Button
-                                            variant="outline"
-                                            onClick={() => {
-                                                setSearchQuery("")
-                                                setIsSearching(false)
-                                                loadUsers(0)
-                                            }}
-                                        >
-                                            초기화
-                                        </Button>
-                                    )}
+                                    <Button onClick={handleSearch} disabled={isSearching}>
+                                        {isSearching ? "검색 중..." : "검색"}
+                                    </Button>
                                 </div>
                             </CardHeader>
                             <CardContent>
@@ -325,87 +420,70 @@ export default function AdminPage() {
                                         <TableRow>
                                             <TableHead>닉네임</TableHead>
                                             <TableHead>이메일</TableHead>
-                                            <TableHead className="text-center">역할</TableHead>
-                                            <TableHead className="text-center">티어</TableHead>
-                                            <TableHead className="text-right">포인트</TableHead>
-                                            <TableHead className="text-center">역할 변경</TableHead>
+                                            <TableHead>포인트</TableHead>
+                                            <TableHead>티어</TableHead>
+                                            <TableHead>권한</TableHead>
+                                            <TableHead>가입일</TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {users.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={6} className="text-center text-gray-500 py-8">
-                                                    유저가 없습니다
+                                        {users.map((user) => (
+                                            <TableRow key={user.id}>
+                                                <TableCell className="font-medium">{user.nickname}</TableCell>
+                                                <TableCell>{user.email}</TableCell>
+                                                <TableCell>{user.points.toLocaleString()} P</TableCell>
+                                                <TableCell>{user.tier}</TableCell>
+                                                <TableCell>
+                                                    <Select
+                                                        defaultValue={user.role}
+                                                        onValueChange={(value) => handleRoleUpdate(user.id, value as TUserRole)}
+                                                    >
+                                                        <SelectTrigger className="w-[140px]">
+                                                            <SelectValue>
+                                                                <Badge className={getRoleBadgeColor(user.role)}>
+                                                                    {getRoleDisplayName(user.role)}
+                                                                </Badge>
+                                                            </SelectValue>
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="PICKER">피커 (일반)</SelectItem>
+                                                            <SelectItem value="DEALER">딜러</SelectItem>
+                                                            <SelectItem value="MAIN_DEALER">메인 딜러</SelectItem>
+                                                            <SelectItem value="ADMIN">관리자</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
                                                 </TableCell>
+                                                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                                             </TableRow>
-                                        ) : (
-                                            users.map((user) => (
-                                                <TableRow key={user.id}>
-                                                    <TableCell className="font-medium">{user.nickname}</TableCell>
-                                                    <TableCell className="text-sm text-gray-600">{user.email}</TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge className={getRoleBadgeColor(user.role)}>
-                                                            {getRoleDisplayName(user.role)}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-center">
-                                                        <Badge variant="outline">{user.tier}</Badge>
-                                                    </TableCell>
-                                                    <TableCell className="text-right font-mono">
-                                                        {user.points.toLocaleString()}P
-                                                    </TableCell>
-                                                    <TableCell>
-                                                        <Select
-                                                            value={user.role}
-                                                            onValueChange={(value) => handleRoleChange(user.id, value as TUserRole)}
-                                                        >
-                                                            <SelectTrigger className="w-[140px] mx-auto">
-                                                                <SelectValue />
-                                                            </SelectTrigger>
-                                                            <SelectContent>
-                                                                <SelectItem value="PICKER">일반 유저</SelectItem>
-                                                                <SelectItem value="DEALER">딜러</SelectItem>
-                                                                <SelectItem value="MAIN_DEALER">메인 딜러</SelectItem>
-                                                                <SelectItem value="ADMIN">관리자</SelectItem>
-                                                            </SelectContent>
-                                                        </Select>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))
-                                        )}
+                                        ))}
                                     </TableBody>
                                 </Table>
 
-                                {/* Pagination */}
-                                {!isSearching && totalPages > 1 && (
-                                    <div className="flex items-center justify-center gap-2 mt-6">
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => loadUsers(currentPage - 1)}
-                                            disabled={currentPage === 0}
-                                        >
-                                            이전
-                                        </Button>
-                                        <span className="text-sm text-gray-600">
-                                            {currentPage + 1} / {totalPages}
-                                        </span>
-                                        <Button
-                                            variant="outline"
-                                            size="sm"
-                                            onClick={() => loadUsers(currentPage + 1)}
-                                            disabled={currentPage >= totalPages - 1}
-                                        >
-                                            다음
-                                        </Button>
-                                    </div>
-                                )}
+                                {/* Pagination Controls could go here */}
+                                <div className="flex justify-center gap-2 mt-4">
+                                    <Button
+                                        variant="outline"
+                                        disabled={currentPage === 0 || isSearching}
+                                        onClick={() => loadUsers(currentPage - 1)}
+                                    >
+                                        이전
+                                    </Button>
+                                    <span className="flex items-center text-sm text-gray-500">
+                                        Page {currentPage + 1}
+                                    </span>
+                                    <Button
+                                        variant="outline"
+                                        disabled={users.length < usersPerPage || isSearching}
+                                        onClick={() => loadUsers(currentPage + 1)}
+                                    >
+                                        다음
+                                    </Button>
+                                </div>
                             </CardContent>
                         </Card>
                     </TabsContent>
                 </Tabs>
             </main>
-
             <BottomNavigation />
         </div>
     )

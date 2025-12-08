@@ -214,7 +214,7 @@ function ResultCard({ result }: { result: any }) {
           <p className="text-sm font-medium text-gray-600 mb-1">
             {result.isFinalCorrect
               ? `🎉 ${result.streakStartRound}회차부터 계속 정답을 맞췄어요!`
-              : `😢 ${result.streakStartRound}회차부터 정답을 놓쳤어요...`}
+              : `😢 ${result.streakStartRound}회차부터 오답을 선택했어요...`}
           </p>
         </div>
 

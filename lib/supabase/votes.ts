@@ -22,7 +22,7 @@ export async function getVote1(userId: string, missionId: string): Promise<TVote
     .select("*")
     .eq("f_user_id", userId)
     .eq("f_mission_id", missionId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     if (error.code === "PGRST116" || error.code === "406") {
@@ -30,6 +30,10 @@ export async function getVote1(userId: string, missionId: string): Promise<TVote
       return null
     }
     console.error("Error fetching vote1:", error)
+    return null
+  }
+
+  if (!data) {
     return null
   }
 
@@ -58,7 +62,7 @@ export async function getVote2(
     .select("f_votes, f_mission_id, f_user_id, f_created_at, f_updated_at")
     .eq("f_user_id", userId)
     .eq("f_mission_id", missionId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     if (error.code === "PGRST116" || error.code === "406") {
@@ -66,6 +70,10 @@ export async function getVote2(
       return null
     }
     console.error("Error fetching vote2:", error)
+    return null
+  }
+
+  if (!data) {
     return null
   }
 
@@ -93,13 +101,17 @@ export async function getAllVotes2(userId: string, missionId: string): Promise<T
     .select("f_votes, f_mission_id, f_user_id, f_created_at, f_updated_at")
     .eq("f_user_id", userId)
     .eq("f_mission_id", missionId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     if (error.code === "PGRST116" || error.code === "406") {
       return []
     }
     console.error("Error fetching votes2:", error)
+    return []
+  }
+
+  if (!data) {
     return []
   }
 
@@ -354,7 +366,8 @@ export async function getVote(userId: string, missionId: string): Promise<TVoteS
 export async function hasUserVoted(userId: string, missionId: string): Promise<boolean> {
   const vote = await getVote(userId, missionId)
   return vote !== null
-} 
+}
+ 
  
 // 특정 미션의 상위 투표자 조회 (포인트 기준)
 export async function getTopVotersByMission(missionId: string, limit: number = 3): Promise<Array<{
@@ -363,19 +376,19 @@ export async function getTopVotersByMission(missionId: string, limit: number = 3
   tier: string
 }>> {
   const supabase = createClient()
-  
+
   // t_pickresult1에서 해당 미션에 투표한 유저 ID 목록 가져오기
   const { data: votes, error: votesError } = await supabase
     .from("t_pickresult1")
     .select("f_user_id")
     .eq("f_mission_id", missionId)
-  
+
   if (votesError || !votes || votes.length === 0) {
     return []
   }
-  
+
   const userIds = votes.map(v => v.f_user_id)
-  
+
   // 해당 유저들의 정보를 포인트 순으로 조회
   const { data: users, error: usersError } = await supabase
     .from("t_users")
@@ -383,11 +396,11 @@ export async function getTopVotersByMission(missionId: string, limit: number = 3
     .in("f_id", userIds)
     .order("f_points", { ascending: false })
     .limit(limit)
-  
+
   if (usersError || !users) {
     return []
   }
-  
+
   return users.map(u => ({
     nickname: u.f_nickname,
     points: u.f_points,

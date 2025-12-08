@@ -426,7 +426,7 @@ export async function submitPredictMissionAnswer(
       .select("f_id")
       .eq("f_user_id", userId)
       .eq("f_mission_id", missionId)
-      .single()
+      .maybeSingle()
 
     if (existing) {
       return { success: false, error: "이미 참여한 미션입니다." }

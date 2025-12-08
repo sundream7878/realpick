@@ -4,8 +4,11 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell } from 'recharts'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
 import { Loader2, Trophy, Users, Layout, Crown } from "lucide-react"
+import { AppLayout } from "@/components/c-layout/AppLayout"
+import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 interface DealerStat {
     id: string
@@ -23,6 +26,12 @@ export default function DealerLoungePage() {
     const [error, setError] = useState<string | null>(null)
     const [currentUser, setCurrentUser] = useState<any>(null)
 
+    // AppLayout states
+    const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+    const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+    const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
+    const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
+
     useEffect(() => {
         const checkPermissionAndLoadData = async () => {
             const supabase = createClient()
@@ -36,7 +45,7 @@ export default function DealerLoungePage() {
             // Check role
             const { data: userData } = await supabase
                 .from("t_users")
-                .select("f_role, f_nickname")
+                .select("f_role, f_nickname, f_points, f_tier")
                 .eq("f_id", user.id)
                 .single()
 
@@ -92,10 +101,24 @@ export default function DealerLoungePage() {
 
     const myStat = stats.find(s => s.id === currentUser?.id)
     const rank = stats.findIndex(s => s.id === currentUser?.id) + 1
+    const userTierInfo = getTierFromPoints(currentUser?.f_points || 0)
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <AppLayout
+            selectedShow={selectedShow}
+            onShowChange={setSelectedShow}
+            selectedSeason={selectedSeason}
+            isMissionStatusOpen={isMissionStatusOpen}
+            onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+            onSeasonSelect={setSelectedSeason}
+            onMissionModalOpen={() => setIsMissionModalOpen(true)}
+            userNickname={currentUser?.f_nickname || ""}
+            userPoints={currentUser?.f_points || 0}
+            userTier={userTierInfo}
+            onAvatarClick={() => router.push("/p-mypage")}
+            activeNavItem="home" // Or add a specific nav item for dealer lounge if needed
+        >
+            <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -153,18 +176,19 @@ export default function DealerLoungePage() {
                         <h3 className="text-lg font-bold text-gray-900 mb-6">딜러별 총 참여자 수</h3>
                         <div className="h-[400px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                    <XAxis type="number" />
-                                    <YAxis dataKey="nickname" type="category" width={80} />
+                                <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="nickname" tick={{ fontSize: 12 }} interval={0} />
+                                    <YAxis />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                         cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                                     />
-                                    <Bar dataKey="totalParticipants" name="참여자 수" radius={[0, 4, 4, 0]} barSize={20}>
+                                    <Bar dataKey="totalParticipants" name="참여자 수" radius={[10, 10, 0, 0]} barSize={40}>
                                         {stats.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#8b5cf6' : '#cbd5e1'} />
+                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#3b82f6' : '#cbd5e1'} />
                                         ))}
+                                        <LabelList dataKey="totalParticipants" position="top" fill="#64748b" fontSize={12} formatter={(value: number) => value.toLocaleString()} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -176,18 +200,19 @@ export default function DealerLoungePage() {
                         <h3 className="text-lg font-bold text-gray-900 mb-6">딜러별 생성 미션 수</h3>
                         <div className="h-[400px]">
                             <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                                    <XAxis type="number" />
-                                    <YAxis dataKey="nickname" type="category" width={80} />
+                                <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                    <XAxis dataKey="nickname" tick={{ fontSize: 12 }} interval={0} />
+                                    <YAxis />
                                     <Tooltip
                                         contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
                                         cursor={{ fill: 'rgba(0,0,0,0.05)' }}
                                     />
-                                    <Bar dataKey="missionCount" name="미션 수" radius={[0, 4, 4, 0]} barSize={20}>
+                                    <Bar dataKey="missionCount" name="미션 수" radius={[10, 10, 0, 0]} barSize={40}>
                                         {stats.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#3b82f6' : '#cbd5e1'} />
+                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#8b5cf6' : '#cbd5e1'} />
                                         ))}
+                                        <LabelList dataKey="missionCount" position="top" fill="#64748b" fontSize={12} />
                                     </Bar>
                                 </BarChart>
                             </ResponsiveContainer>
@@ -195,6 +220,6 @@ export default function DealerLoungePage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </AppLayout>
     )
 }
