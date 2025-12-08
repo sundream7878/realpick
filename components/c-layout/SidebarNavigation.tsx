@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
 import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone } from "lucide-react"
 import Link from "next/link"
@@ -43,6 +43,21 @@ export function SidebarNavigation({
   const router = useRouter()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingAction, setPendingAction] = useState<"mission" | "mypage" | null>(null)
+
+  const [userRole, setUserRole] = useState<string | null>(null)
+
+  useEffect(() => {
+    const fetchUserRole = async () => {
+      const { createClient } = await import("@/lib/supabase/client")
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        const { data } = await supabase.from("t_users").select("f_role").eq("f_id", user.id).single()
+        if (data) setUserRole(data.f_role)
+      }
+    }
+    fetchUserRole()
+  }, [])
 
   const getSeasonDisplayText = () => {
     return selectedSeason !== "전체" ? `(${selectedSeason})` : ""
@@ -89,6 +104,20 @@ export function SidebarNavigation({
               홈
             </Button>
           </Link>
+
+          {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
+            <Link href="/dealer/lounge">
+              <Button
+                variant="ghost"
+                className="w-full justify-start gap-3 hover:bg-purple-50 text-purple-700 font-medium"
+              >
+                <div className="p-1 bg-purple-100 rounded-md">
+                  <User className="w-3 h-3 text-purple-600" />
+                </div>
+                딜러 라운지
+              </Button>
+            </Link>
+          )}
 
           <Link href="/p-casting">
             <Button

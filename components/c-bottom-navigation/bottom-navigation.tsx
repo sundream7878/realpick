@@ -3,10 +3,13 @@
 import { Home, AlertCircle, User, Plus } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import LoginModal from "@/components/c-login-modal/login-modal"
-import { isAuthenticated } from "@/lib/auth-utils"
+import { isAuthenticated, getUserId } from "@/lib/auth-utils"
+import { getUser } from "@/lib/supabase/users"
+import { hasMinimumRole } from "@/lib/utils/permissions"
+import type { TUserRole } from "@/lib/utils/permissions"
 
 interface BottomNavigationProps {
   onMissionClick?: () => void
@@ -18,6 +21,40 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingMissionCreation, setPendingMissionCreation] = useState(false)
+  const [userRole, setUserRole] = useState<TUserRole>("PICKER")
+  const [canCreateMissions, setCanCreateMissions] = useState(false)
+
+  // Load user role
+  useEffect(() => {
+    const loadUserRole = async () => {
+      if (!isAuthenticated()) {
+        setCanCreateMissions(false)
+        return
+      }
+
+      const userId = getUserId()
+      if (!userId) return
+
+      try {
+        const user = await getUser(userId)
+        if (user) {
+          setUserRole(user.role)
+          setCanCreateMissions(hasMinimumRole(user.role, "DEALER"))
+        }
+      } catch (error) {
+        console.error("Failed to load user role:", error)
+      }
+    }
+
+    loadUserRole()
+
+    // Listen for auth changes
+    const handleAuthChange = () => {
+      loadUserRole()
+    }
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
+  }, [])
 
   const handleMissionCreationClick = () => {
     // 로그인 체크
@@ -40,12 +77,12 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
       href: "/",
       active: pathname === "/",
     },
-    {
+    ...(canCreateMissions ? [{
       icon: Plus,
       label: "미션게시",
       onClick: handleMissionCreationClick,
       active: false,
-    },
+    }] : []),
     {
       icon: AlertCircle,
       label: "미션현황",

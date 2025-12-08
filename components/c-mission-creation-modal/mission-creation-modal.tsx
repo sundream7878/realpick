@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
 import { Card, CardContent } from "@/components/c-ui/card"
 import { Input } from "@/components/c-ui/input"
@@ -8,12 +8,16 @@ import { Label } from "@/components/c-ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/c-ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import { Checkbox } from "@/components/c-ui/checkbox"
-import { Plus, X, ArrowLeft, Check, Circle, Trophy } from "lucide-react"
+import { Plus, X, ArrowLeft, Check, Circle, Trophy, Lock } from "lucide-react"
 import { createMission } from "@/lib/supabase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { uploadMissionImage } from "@/lib/supabase/storage"
 import { createClient } from "@/lib/supabase/client"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
+import { getUser } from "@/lib/supabase/users"
+import { canCreateMission, hasMinimumRole, getRoleDisplayName } from "@/lib/utils/permissions"
+import type { TUserRole } from "@/lib/utils/permissions"
+import { getUserId } from "@/lib/auth-utils"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -197,6 +201,36 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [isPublishing, setIsPublishing] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
 
+  // User role state
+  const [userRole, setUserRole] = useState<TUserRole>("PICKER")
+  const [isLoadingRole, setIsLoadingRole] = useState(true)
+
+  // Load user role
+  useEffect(() => {
+    const loadUserRole = async () => {
+      const userId = getUserId()
+      if (!userId) {
+        setIsLoadingRole(false)
+        return
+      }
+
+      try {
+        const user = await getUser(userId)
+        if (user) {
+          setUserRole(user.role)
+        }
+      } catch (error) {
+        console.error("Failed to load user role:", error)
+      } finally {
+        setIsLoadingRole(false)
+      }
+    }
+
+    if (isOpen) {
+      loadUserRole()
+    }
+  }, [isOpen])
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -226,6 +260,24 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   }
 
   const handleFormatSelection = (format: MissionFormat) => {
+    // Check permission
+    const formatMap: Record<MissionFormat, "binary" | "multi" | "match" | "tournament"> = {
+      binary: "binary",
+      multiple: "multi",
+      couple: "match",
+      subjective: "multi",
+      tournament: "tournament"
+    }
+
+    if (!canCreateMission(userRole, formatMap[format])) {
+      toast({
+        title: "권한 없음",
+        description: `${getRoleDisplayName(userRole)} 역할로는 이 미션 형식을 생성할 수 없습니다.`,
+        variant: "destructive"
+      })
+      return
+    }
+
     setMissionFormat(format)
     setMissionType("prediction")
     setSubmissionType("selection")
@@ -508,48 +560,82 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "format-selection" && (
             <div className="space-y-6">
-              <div>
-                <h3 className="text-base sm:text-lg font-medium mb-4">Mission 형식을 선택하세요</h3>
-                <div className="grid grid-cols-3 gap-3">
-                  <Card
-                    className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
-                    onClick={() => handleFormatSelection("binary")}
-                  >
-                    <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px]">
-                      <div className="text-xl sm:text-2xl font-bold mb-2">A or B</div>
-                      <p className="text-sm font-medium text-gray-900">양자선택</p>
-                      <p className="text-xs text-pink-600 mt-1">두 가지 중 하나 선택</p>
-                    </CardContent>
-                  </Card>
-                  <Card
-                    className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
-                    onClick={() => handleFormatSelection("multiple")}
-                  >
-                    <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px]">
-                      <div className="text-xl sm:text-2xl mb-2">📝</div>
-                      <p className="text-sm font-medium text-gray-900">다자선택</p>
-                      <p className="text-xs text-pink-600 mt-1">여러 보기 중 선택</p>
-                    </CardContent>
-                  </Card>
-
-                  <Card
-                    className="cursor-pointer hover:bg-pink-50 transition-colors border-pink-200"
-                    onClick={() => handleFormatSelection("couple")}
-                  >
-                    <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px]">
-                      <div className="text-xl sm:text-2xl mb-2">👫❤️</div>
-                      <p className="text-sm font-medium text-gray-900">커플매칭</p>
-                      <p className="text-xs text-pink-600 mt-1">최종 커플 예측</p>
-                    </CardContent>
-                  </Card>
-
+              {isLoadingRole ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-500">권한 확인 중...</p>
                 </div>
-                <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
-                  <p className="text-xs sm:text-sm text-yellow-800">
-                    💡 보기가 11개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
-                  </p>
+              ) : (
+                <div>
+                  <h3 className="text-base sm:text-lg font-medium mb-2">Mission 형식을 선택하세요</h3>
+                  <p className="text-xs text-gray-500 mb-4">현재 역할: {getRoleDisplayName(userRole)}</p>
+                  <div className="grid grid-cols-3 gap-3">
+                    <Card
+                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "binary")
+                          ? "hover:bg-pink-50"
+                          : "opacity-50 cursor-not-allowed"
+                        }`}
+                      onClick={() => canCreateMission(userRole, "binary") && handleFormatSelection("binary")}
+                    >
+                      <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px] relative">
+                        {!canCreateMission(userRole, "binary") && (
+                          <div className="absolute top-2 right-2">
+                            <Lock className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="text-xl sm:text-2xl font-bold mb-2">A or B</div>
+                        <p className="text-sm font-medium text-gray-900">양자선택</p>
+                        <p className="text-xs text-pink-600 mt-1">두 가지 중 하나 선택</p>
+                      </CardContent>
+                    </Card>
+                    <Card
+                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "multi")
+                          ? "hover:bg-pink-50"
+                          : "opacity-50 cursor-not-allowed"
+                        }`}
+                      onClick={() => canCreateMission(userRole, "multi") && handleFormatSelection("multiple")}
+                    >
+                      <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px] relative">
+                        {!canCreateMission(userRole, "multi") && (
+                          <div className="absolute top-2 right-2">
+                            <Lock className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="text-xl sm:text-2xl mb-2">📝</div>
+                        <p className="text-sm font-medium text-gray-900">다자선택</p>
+                        <p className="text-xs text-pink-600 mt-1">여러 보기 중 선택</p>
+                      </CardContent>
+                    </Card>
+
+                    <Card
+                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "match")
+                          ? "hover:bg-pink-50"
+                          : "opacity-50 cursor-not-allowed"
+                        }`}
+                      onClick={() => canCreateMission(userRole, "match") && handleFormatSelection("couple")}
+                    >
+                      <CardContent className="p-3 sm:p-4 text-center flex flex-col items-center justify-center h-full min-h-[100px] relative">
+                        {!canCreateMission(userRole, "match") && (
+                          <div className="absolute top-2 right-2">
+                            <Lock className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                        <div className="text-xl sm:text-2xl mb-2">👫❤️</div>
+                        <p className="text-sm font-medium text-gray-900">커플매칭</p>
+                        <p className="text-xs text-pink-600 mt-1">최종 커플 예측</p>
+                        {!canCreateMission(userRole, "match") && (
+                          <p className="text-xs text-gray-500 mt-1">메인딜러 전용</p>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                  </div>
+                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <p className="text-xs sm:text-sm text-yellow-800">
+                      💡 보기가 11개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
+                    </p>
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 

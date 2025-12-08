@@ -12,6 +12,7 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { getMissions, getMissions2 } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted, getVote1, getAllVotes2 } from "@/lib/supabase/votes"
+import { getTopVotersByMission } from "@/lib/supabase/top-voters"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -36,6 +37,7 @@ export default function HomePage() {
   const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
   const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
+  const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
   const userId = getUserId() || "user123"
 
   // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합
@@ -233,10 +235,11 @@ export default function HomePage() {
 
   // 메인 미션 선정 로직
   // 0. 관리자 설정이 있으면 최우선
-  // 1. 로맨스(LOVE) 카테고리 -> 커플 매칭(match) 우선
-  // 2. 서바이벌/오디션(SURVIVAL) 카테고리 -> 토너먼트(tournament) 우선
-  // 3. 그 외 참여자 수 순
-  const mainMission = missions
+  // 1. 커플 매칭(match) 최우선
+  // 2. 로맨스(LOVE) 카테고리 우선
+  // 3. 서바이벌/오디션(SURVIVAL) 카테고리 -> 토너먼트(tournament) 우선
+  // 4. 그 외 참여자 수 순
+  const openMainMissions = missions
     .filter(m => m.status === 'open' && !isDeadlinePassed(m.deadline))
     .sort((a, b) => {
       // 0. 관리자 설정 체크
@@ -246,15 +249,17 @@ export default function HomePage() {
       }
 
       const getPriority = (m: TMission) => {
+        // 커플 매칭은 카테고리 무관하게 최우선
+        if (m.form === 'match') return 5
+
         // 카테고리 체크 (대소문자 무시 및 부분 일치 허용)
         const cat = (m.category || "").toUpperCase()
         const isRomance = cat.includes("LOVE") || cat.includes("ROMANCE")
         const isSurvival = cat.includes("SURVIVAL") || cat.includes("AUDITION")
 
-        if (isRomance && m.form === 'match') return 3
+        if (isRomance) return 3
         if (isSurvival && m.form === 'tournament') return 3
-        // 매칭이나 토너먼트면 일단 가산점 (카테고리 정보가 없을 수도 있으므로)
-        if (m.form === 'match' || m.form === 'tournament') return 2
+        if (m.form === 'tournament') return 2
         return 1
       }
 
@@ -264,7 +269,47 @@ export default function HomePage() {
       if (priorityA !== priorityB) return priorityB - priorityA
       // 우선순위가 같으면 참여자 수 내림차순
       return (b.stats?.participants || 0) - (a.stats?.participants || 0)
-    })[0]
+    })
+
+  // 진행 중인 미션이 없으면 마감된 커플매칭 미션 우선 표시
+  const openMainMission = openMainMissions[0]
+  const closedMainMission = !openMainMission
+    ? missions
+      .filter(m => m.status !== 'open' || isDeadlinePassed(m.deadline))
+      .sort((a, b) => {
+        // 커플 매칭 최우선
+        if (a.form === 'match' && b.form !== 'match') return -1
+        if (a.form !== 'match' && b.form === 'match') return 1
+        // 최신 마감 미션
+        const aTime = new Date(a.deadline || a.createdAt).getTime()
+        const bTime = new Date(b.deadline || b.createdAt).getTime()
+        return bTime - aTime
+      })[0]
+    : null
+
+  const mainMission = openMainMission || closedMainMission
+  const isMainMissionClosed = mainMission && (mainMission.status !== 'open' || isDeadlinePassed(mainMission.deadline))
+
+  // 마감된 메인 미션의 TOP 3 투표자 불러오기
+  useEffect(() => {
+    const loadTopVoters = async () => {
+      console.log('[DEBUG] Checking main mission for top voters:', {
+        id: mainMission?.id,
+        title: mainMission?.title,
+        isClosed: isMainMissionClosed
+      })
+
+      if (mainMission && isMainMissionClosed) {
+        console.log('[DEBUG] Fetching top voters for mission:', mainMission.id)
+        const voters = await getTopVotersByMission(mainMission.id, 3)
+        console.log('[DEBUG] Fetched voters:', voters)
+        setTopVoters(voters)
+      } else {
+        setTopVoters([])
+      }
+    }
+    loadTopVoters()
+  }, [mainMission?.id, isMainMissionClosed])
 
   // 메인 미션을 제외한 나머지 리스트
   const displayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
@@ -286,7 +331,10 @@ export default function HomePage() {
         <main className="flex-1 p-4 space-y-4 md:pl-72">
           {/* 메인 미션 배너 */}
           {mainMission && (
-            <div className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 md:p-6 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer" onClick={() => router.push(`/p-mission/${mainMission.id}/vote`)}>
+            <div
+              className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 md:p-6 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer"
+              onClick={() => router.push(isMainMissionClosed ? `/p-mission/${mainMission.id}/results` : `/p-mission/${mainMission.id}/vote`)}
+            >
               {/* 배경 애니메이션 효과 */}
               <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl -mr-16 -mt-16 animate-pulse" />
               <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -ml-16 -mb-16 animate-pulse delay-700" />
@@ -310,36 +358,94 @@ export default function HomePage() {
                 {/* 오른쪽: 상세 설명 */}
                 <div className="w-full md:w-1/2 text-center md:text-left space-y-3">
                   <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-purple-300 mb-1 animate-fade-in-up">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
-                    </span>
-                    {mainMission.form === 'match' ? '💖 MAIN MATCH' : mainMission.form === 'tournament' ? '🏆 MAIN TOURNAMENT' : '🔥 HOT ISSUE'}
+                    {!isMainMissionClosed ? (
+                      <>
+                        <span className="relative flex h-2 w-2">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                        </span>
+                        {mainMission.form === 'match' ? '💖 MAIN MATCH' : mainMission.form === 'tournament' ? '🏆 MAIN TOURNAMENT' : '🔥 HOT ISSUE'}
+                      </>
+                    ) : (
+                      <>
+                        <span className="relative flex h-2 w-2">
+                          <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                        </span>
+                        {mainMission.form === 'match' ? '💖 CLOSED MATCH' : mainMission.form === 'tournament' ? '🏆 CLOSED TOURNAMENT' : '✅ CLOSED'}
+                      </>
+                    )}
                   </div>
 
                   <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
                     {mainMission.title}
                   </h1>
 
-                  <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep line-clamp-2 animate-fade-in-up delay-200">
-                    {mainMission.description || "여러분의 촉으로 결과를 예측해보세요! 가장 많은 사람들이 선택한 결과는 무엇일까요?"}
-                  </p>
+                  {!isMainMissionClosed ? (
+                    <>
+                      <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep line-clamp-2 animate-fade-in-up delay-200">
+                        {mainMission.description || "여러분의 촉으로 결과를 예측해보세요! 가장 많은 사람들이 선택한 결과는 무엇일까요?"}
+                      </p>
 
-                  <div className="flex flex-col md:flex-row items-center gap-3 pt-2 justify-center md:justify-start animate-fade-in-up delay-300">
-                    <Button
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/p-mission/${mainMission.id}/vote`)
-                      }}
-                      className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-sm px-6 py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
-                      size="default"
-                    >
-                      지금 투표 참여하기
-                    </Button>
-                    <p className="text-xs text-gray-400">
-                      현재 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span> 참여 중
-                    </p>
-                  </div>
+                      <div className="flex flex-col md:flex-row items-center gap-3 pt-2 justify-center md:justify-start animate-fade-in-up delay-300">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/p-mission/${mainMission.id}/vote`)
+                          }}
+                          className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-sm px-6 py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
+                          size="default"
+                        >
+                          지금 투표 참여하기
+                        </Button>
+                        <p className="text-xs text-gray-400">
+                          현재 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span> 참여 중
+                        </p>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep animate-fade-in-up delay-200">
+                        🏆 미션이 마감되었습니다! 총 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span>이 참여했습니다.
+                      </p>
+
+                      <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 animate-fade-in-up delay-300">
+                        <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                          TOP 3 랭킹
+                        </h3>
+                        <div className="space-y-2">
+                          {topVoters.length > 0 ? (
+                            topVoters.map((voter, index) => (
+                              <div key={index} className="flex items-center justify-between text-xs">
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${index === 0 ? 'bg-yellow-500/20 text-yellow-300' : index === 1 ? 'bg-gray-500/20 text-gray-300' : 'bg-orange-500/20 text-orange-300'}`}>
+                                    {index + 1}위
+                                  </span>
+                                  <span className="text-white font-medium">{voter.nickname}</span>
+                                  <span className="text-gray-400 text-[10px]">{voter.tier}</span>
+                                </div>
+                                <span className="text-purple-300 font-bold">{voter.points.toLocaleString()}P</span>
+                              </div>
+                            ))
+                          ) : (
+                            <p className="text-gray-400 text-xs text-center py-2">아직 참여자가 없습니다</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="flex justify-center md:justify-start animate-fade-in-up delay-400">
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            router.push(`/p-mission/${mainMission.id}/results`)
+                          }}
+                          variant="outline"
+                          className="border-white/50 text-white hover:bg-white/20 hover:border-white font-bold text-sm px-6 py-2 bg-white/10"
+                        >
+                          전체 결과 보기
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div >
             </div >

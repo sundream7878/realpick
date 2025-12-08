@@ -1,5 +1,6 @@
 import { createClient } from "./client"
 import type { TUser, TTier } from "@/types/t-vote/vote.types"
+import type { TUserRole } from "@/lib/utils/permissions"
 import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 
 /**
@@ -160,6 +161,104 @@ export async function getUserRanking(limit: number = 100): Promise<TUser[]> {
 
   if (error) {
     console.error("Error fetching user ranking:", error)
+    return []
+  }
+
+  return (data || []).map((d) => ({
+    id: d.f_id,
+    email: d.f_email,
+    nickname: d.f_nickname,
+    points: d.f_points,
+    tier: d.f_tier,
+    ageRange: d.f_age_range || undefined,
+    gender: d.f_gender || undefined,
+    createdAt: d.f_created_at,
+    updatedAt: d.f_updated_at,
+    role: d.f_role || "PICKER",
+  })) as TUser[]
+}
+
+// ============================================
+// Admin Functions
+// ============================================
+
+// 사용자 역할 업데이트 (관리자 전용)
+// 사용자 역할 업데이트 (관리자 전용)
+export async function updateUserRole(userId: string, role: TUserRole): Promise<boolean> {
+  try {
+    const response = await fetch('/api/admin/users/role', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId, role }),
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json()
+      console.error("Error updating user role:", errorData.error)
+      return false
+    }
+
+    return true
+  } catch (error) {
+    console.error("Error updating user role:", error)
+    return false
+  }
+}
+
+// 모든 사용자 조회 (관리자 전용)
+export async function getAllUsers(
+  limit: number = 50,
+  offset: number = 0
+): Promise<{ users: TUser[]; total: number }> {
+  const supabase = createClient()
+
+  // 전체 카운트 조회
+  const { count } = await supabase
+    .from("t_users")
+    .select("*", { count: "exact", head: true })
+
+  // 페이지네이션된 데이터 조회
+  const { data, error } = await supabase
+    .from("t_users")
+    .select("*")
+    .order("f_created_at", { ascending: false })
+    .range(offset, offset + limit - 1)
+
+  if (error) {
+    console.error("Error fetching all users:", error)
+    return { users: [], total: 0 }
+  }
+
+  const users = (data || []).map((d) => ({
+    id: d.f_id,
+    email: d.f_email,
+    nickname: d.f_nickname,
+    points: d.f_points,
+    tier: d.f_tier,
+    ageRange: d.f_age_range || undefined,
+    gender: d.f_gender || undefined,
+    createdAt: d.f_created_at,
+    updatedAt: d.f_updated_at,
+    role: d.f_role || "PICKER",
+  })) as TUser[]
+
+  return { users, total: count || 0 }
+}
+
+// 사용자 검색 (관리자 전용)
+export async function searchUsers(query: string): Promise<TUser[]> {
+  const supabase = createClient()
+
+  const { data, error } = await supabase
+    .from("t_users")
+    .select("*")
+    .or(`f_nickname.ilike.%${query}%,f_email.ilike.%${query}%`)
+    .limit(20)
+
+  if (error) {
+    console.error("Error searching users:", error)
     return []
   }
 

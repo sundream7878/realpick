@@ -14,7 +14,7 @@ export interface TUser {
   gender?: string // 성별 (남성, 여성)
   createdAt: string
   updatedAt: string
-  role: "PICKER" | "DEALER" | "ADMIN"
+  role: "PICKER" | "DEALER" | "MAIN_DEALER" | "ADMIN"
 }
 
 export interface TDealer {
