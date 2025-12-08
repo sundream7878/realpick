@@ -43,7 +43,7 @@ export async function GET(request: Request) {
         const { data: dealers, error: dealersError } = await supabaseAdmin
             .from("t_users")
             .select("f_id, f_nickname, f_tier, f_role")
-            .in("f_role", ["DEALER", "MAIN_DEALER"])
+            .in("f_role", ["DEALER", "MAIN_DEALER", "ADMIN"])
 
         if (dealersError) {
             console.error("Error fetching dealers:", dealersError)

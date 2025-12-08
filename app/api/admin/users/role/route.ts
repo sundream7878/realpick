@@ -24,7 +24,9 @@ export async function POST(request: Request) {
             .single()
 
         if (userError || !userData || (userData.f_role !== 'ADMIN' && userData.f_role !== 'MAIN_DEALER')) {
-            console.error("[API] Forbidden:", userError, userData)
+            console.error("[API] Forbidden - User:", user.id)
+            console.error("[API] Forbidden - DB Role Data:", userData)
+            console.error("[API] Forbidden - Error:", userError)
             return NextResponse.json({ error: "Forbidden: Insufficient permissions" }, { status: 403 })
         }
 

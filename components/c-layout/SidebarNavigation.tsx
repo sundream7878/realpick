@@ -153,57 +153,41 @@ export function SidebarNavigation({
             </Button>
           )}
 
-          {userRole === 'PICKER' && (
-            <Link href="/p-mypage">
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-3 hover:bg-pink-50 text-pink-600"
-              >
-                <div className="p-1 bg-pink-100 rounded-md">
-                  <User className="w-3 h-3 text-pink-600" />
+          <div className="space-y-1">
+            <Button
+              variant="ghost"
+              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+                }`}
+              onClick={onMissionStatusToggle}
+            >
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5" />
+                <div className="text-left leading-tight">
+                  <div>{selectedShow}</div>
+                  <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
                 </div>
-                내가 참여한 미션
-              </Button>
-            </Link>
-          )}
+              </div>
+              {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+            </Button>
 
-          {userRole !== 'PICKER' && (
-            <div className="space-y-1">
-              <Button
-                variant="ghost"
-                className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
-                  }`}
-                onClick={onMissionStatusToggle}
-              >
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="w-5 h-5" />
-                  <div className="text-left leading-tight">
-                    <div>{selectedShow}</div>
-                    <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
-                  </div>
-                </div>
-                {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-              </Button>
-
-              {isMissionStatusOpen && (
-                <div className="ml-8 space-y-1">
-                  {seasonOptions.map((option) => (
-                    <Link key={option.value} href={option.href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
-                          }`}
-                        onClick={() => onSeasonSelect(option.value)}
-                      >
-                        {option.label}
-                      </Button>
-                    </Link>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+            {isMissionStatusOpen && (
+              <div className="ml-8 space-y-1">
+                {seasonOptions.map((option) => (
+                  <Link key={option.value} href={option.href}>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
+                        }`}
+                      onClick={() => onSeasonSelect(option.value)}
+                    >
+                      {option.label}
+                    </Button>
+                  </Link>
+                ))}
+              </div>
+            )}
+          </div>
 
           <Link href="/p-mypage" onClick={handleMyPageClick}>
             <Button
