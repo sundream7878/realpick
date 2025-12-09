@@ -23,7 +23,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       f_thumbnail_url: missionData.imageUrl || null, // 이미지 URL을 썸네일 URL로 대체 저장
       f_submission_type: missionData.submissionType || "selection",
       f_required_answer_count: missionData.requiredAnswerCount || 1,
-      f_is_live: missionData.isLive || false
+      f_is_live: missionData.isLive || false,
+      f_show_id: missionData.showId || null,
+      f_category: missionData.category || null
     }
 
     if (missionData.format === "couple") {
@@ -42,7 +44,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         // f_description: missionData.description || null, // DB 컬럼 없음
         // f_image_url: missionData.imageUrl || null // DB 컬럼 없음
         f_thumbnail_url: missionData.imageUrl || null, // 이미지 URL을 썸네일 URL로 대체 저장
-        f_is_live: missionData.isLive || false
+        f_is_live: missionData.isLive || false,
+        f_show_id: missionData.showId || null,
+        f_category: missionData.category || null
       }
 
       if (missionData.seasonType) mission2Payload.f_season_type = missionData.seasonType

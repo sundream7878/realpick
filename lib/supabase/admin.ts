@@ -89,3 +89,55 @@ export async function getAllOpenMissions() {
         return { success: false, error }
     }
 }
+
+export async function getShowStatuses() {
+    try {
+        const { data, error } = await supabase
+            .from("t_admin_settings")
+            .select("value")
+            .eq("key", "SHOW_STATUSES")
+            .single()
+
+        if (error) {
+            if (error.code === "PGRST116") return { success: true, statuses: {} }
+            console.error("Error getting show statuses:", error)
+            return { success: false, error }
+        }
+
+        let statuses = data?.value
+        if (typeof statuses === 'string') {
+            try {
+                statuses = JSON.parse(statuses)
+            } catch (e) {
+                // If parse fails, use as is or empty object
+            }
+        }
+
+        return { success: true, statuses: statuses || {} }
+    } catch (error) {
+        console.error("Error in getShowStatuses:", error)
+        return { success: false, error }
+    }
+}
+
+export async function updateShowStatuses(statuses: Record<string, string>) {
+    try {
+        const { error } = await supabase
+            .from("t_admin_settings")
+            .upsert({
+                key: "SHOW_STATUSES",
+                value: JSON.stringify(statuses),
+                updated_at: new Date().toISOString()
+            })
+
+        if (error) {
+            console.error("Error updating show statuses:", error)
+            return { success: false, error }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error("Error in updateShowStatuses:", error)
+        return { success: false, error }
+    }
+}

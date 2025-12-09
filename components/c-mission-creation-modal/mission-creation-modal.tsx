@@ -5,7 +5,7 @@ import { Button } from "@/components/c-ui/button"
 import { Card, CardContent } from "@/components/c-ui/card"
 import { Input } from "@/components/c-ui/input"
 import { Label } from "@/components/c-ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/c-ui/select"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from "@/components/c-ui/select"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import { Checkbox } from "@/components/c-ui/checkbox"
 import { Plus, X, ArrowLeft, Check, Circle, Trophy, Lock } from "lucide-react"
@@ -23,6 +23,7 @@ interface MissionCreationModalProps {
   isOpen: boolean
   onClose: () => void
   onMissionCreated?: () => void // 미션 생성 성공 후 콜백
+  initialShowId?: string | null
 }
 
 type MissionStep = "format-selection" | "binary-choice" | "multiple-choice" | "couple-matching" | "subjective-choice" | "tournament-choice"
@@ -51,6 +52,8 @@ interface MissionCommonFieldsProps {
   isUploading: boolean
   handleImageUpload: (e: React.ChangeEvent<HTMLInputElement>) => void
   hideSeason?: boolean
+  showId: string | undefined
+  setShowId: (value: string) => void
 }
 
 const MissionCommonFields = ({
@@ -69,8 +72,29 @@ const MissionCommonFields = ({
   isUploading,
   handleImageUpload,
   hideSeason = false,
+  showId,
+  setShowId,
 }: MissionCommonFieldsProps) => (
   <>
+    <div>
+      <Label className="text-sm font-medium">관련 프로그램 (필수)</Label>
+      <Select value={showId} onValueChange={setShowId}>
+        <SelectTrigger className="mt-1">
+          <SelectValue placeholder="프로그램을 선택해주세요" />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(SHOWS).map(([category, shows]) => (
+            <SelectGroup key={category}>
+              <SelectLabel>{CATEGORIES[category as TShowCategory].label}</SelectLabel>
+              {shows.map(show => (
+                <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
+              ))}
+            </SelectGroup>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+
     {!hideSeason && (
       <div>
         <Label className="text-sm font-medium">기수 분류</Label>
@@ -172,7 +196,7 @@ const MissionCommonFields = ({
   </>
 )
 
-export default function MissionCreationModal({ isOpen, onClose, onMissionCreated }: MissionCreationModalProps) {
+export default function MissionCreationModal({ isOpen, onClose, onMissionCreated, initialShowId }: MissionCreationModalProps) {
   const { toast } = useToast()
   const [currentStep, setCurrentStep] = useState<MissionStep>("format-selection")
   const [missionType, setMissionType] = useState<MissionType>("prediction")
@@ -190,6 +214,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [femaleOptions, setFemaleOptions] = useState<string[]>(["", ""])
   const [subjectivePlaceholder, setSubjectivePlaceholder] = useState("")
   const [totalEpisodes, setTotalEpisodes] = useState("8")
+  const [showId, setShowId] = useState<string | undefined>(initialShowId || undefined)
 
   // Live Mission State
   const [isLive, setIsLive] = useState(false)
@@ -236,6 +261,13 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       loadUserRole()
     }
   }, [isOpen])
+
+  // 초기 showId 설정
+  useEffect(() => {
+    if (isOpen && initialShowId) {
+      setShowId(initialShowId)
+    }
+  }, [isOpen, initialShowId])
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -401,6 +433,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     setIsLive(false)
     setDurationMinutes("60")
     setDurationSeconds("0")
+    setShowId(initialShowId || undefined)
   }
 
   // ... (existing handlers)
@@ -411,8 +444,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     try {
       // Supabase 미션 생성 API 호출
       const missionData = {
-        showId: undefined,
-        category: undefined,
+        showId: showId,
+        category: showId ? Object.values(SHOWS).flat().find(s => s.id === showId)?.category : undefined,
         title,
         type: missionType === "prediction" ? "prediction" : "majority",
         format: missionFormat === "binary" ? "binary" : missionFormat === "multiple" ? "multi" : missionFormat === "couple" ? "couple" : "tournament",
@@ -436,6 +469,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         imageUrl: imageUrl.trim() || undefined,
         submissionType: missionFormat === "multiple" ? submissionType : undefined,
         requiredAnswerCount: missionFormat === "multiple" ? requiredAnswerCount : undefined,
+        isLive,
       }
 
       const supabase = createClient()
@@ -554,7 +588,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           title,
           description,
           missionType,
-          missionFormat
+          missionFormat,
+          showId
         })
       })
 
@@ -714,6 +749,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
+                showId={showId}
+                setShowId={setShowId}
               />
 
               <div>
@@ -842,6 +879,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "multiple-choice" && (
             <div className="space-y-6">
+              <LiveMissionCheckbox />
               <ConsensusCheckbox />
               <MissionCommonFields
                 seasonType={seasonType}
@@ -1021,6 +1059,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
           {currentStep === "tournament-choice" && (
             <div className="space-y-6">
+              <LiveMissionCheckbox />
               {/* 토너먼트는 공감픽 옵션 없음 (기본 예측픽) */}
               <MissionCommonFields
                 seasonType={seasonType}
@@ -1038,6 +1077,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
                 hideSeason={true}
+                showId={showId}
+                setShowId={setShowId}
               />
 
               <div>

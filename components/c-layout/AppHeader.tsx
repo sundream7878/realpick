@@ -19,6 +19,10 @@ interface TAppHeaderProps {
   onAvatarClick?: () => void
   logoClassName?: string
   className?: string
+  selectedShowId?: string | null
+  onShowSelect?: (showId: string) => void
+  activeShowIds?: Set<string>
+  showStatuses?: Record<string, string>
 }
 
 export function AppHeader({
@@ -30,6 +34,10 @@ export function AppHeader({
   onAvatarClick,
   logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-10 md:h-14",
   className = "",
+  selectedShowId,
+  onShowSelect,
+  activeShowIds,
+  showStatuses,
 }: TAppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -65,9 +73,9 @@ export function AppHeader({
 
           {/* 3대 메인 메뉴 */}
           <div className="flex items-center gap-2 sm:gap-3 md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
-            <ShowMenu category="LOVE" />
-            <ShowMenu category="VICTORY" />
-            <ShowMenu category="STAR" />
+            <ShowMenu category="LOVE" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
+            <ShowMenu category="VICTORY" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
+            <ShowMenu category="STAR" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
           </div>
 
           {/* 우측 영역 - 로그인 상태에 따라 다르게 표시 */}

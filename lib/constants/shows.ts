@@ -19,7 +19,7 @@ export const SHOWS: Record<TShowCategory, TShow[]> = {
         { id: "solojihuk4", name: "솔로지옥4", displayName: "솔로지옥 시즌4", category: "LOVE", officialUrl: "https://www.netflix.com/kr/title/81436209", defaultThumbnail: "/images/shows/solojihuk4.jpg" },
         { id: "kkeut-sarang", name: "끝사랑", displayName: "끝사랑", category: "LOVE", officialUrl: "https://tv.jtbc.co.kr/lastlove", defaultThumbnail: "/images/shows/kkeut-sarang.jpg" },
         { id: "hwanseung", name: "환승연애", displayName: "환승연애", category: "LOVE", officialUrl: "https://www.tving.com/contents/P001724962", defaultThumbnail: "/images/shows/hwanseung.jpg" },
-        { id: "2jeny", name: "투제니", displayName: "투제니 (2Jeny)", category: "LOVE", officialUrl: "https://www.youtube.com/results?search_query=투제니", defaultThumbnail: "/images/shows/2jeny.jpg" },
+
         { id: "yeonae-nammae", name: "연애남매", displayName: "연애남매", category: "LOVE", officialUrl: "https://tv.jtbc.co.kr/love_siblings", defaultThumbnail: "/images/shows/yeonae-nammae.jpg" },
     ],
     VICTORY: [

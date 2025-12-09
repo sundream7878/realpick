@@ -7,14 +7,22 @@ import { useRouter } from "next/navigation"
 
 interface TShowMenuProps {
     category: TShowCategory
+    selectedShowId?: string | null
+    onShowSelect?: (showId: string) => void
+    activeShowIds?: Set<string>
+    showStatuses?: Record<string, string>
 }
 
-export function ShowMenu({ category }: TShowMenuProps) {
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses }: TShowMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const categoryInfo = CATEGORIES[category]
     const shows = SHOWS[category]
+
+    // 현재 카테고리에 선택된 쇼가 있는지 확인
+    const selectedShow = shows.find(s => s.id === selectedShowId)
+    const isCategoryActive = !!selectedShow
 
     // 외부 클릭 감지
     useEffect(() => {
@@ -35,13 +43,37 @@ export function ShowMenu({ category }: TShowMenuProps) {
 
     const handleShowClick = (showId: string) => {
         setIsOpen(false)
-
-        // 나는 SOLO만 메인 페이지로 이동
-        if (showId === "nasolo") {
-            router.push("/")
+        if (onShowSelect) {
+            onShowSelect(showId)
         }
-        // 나머지는 아무 동작 없음 (허수)
     }
+
+    const getThemeColors = (cat: TShowCategory) => {
+        switch (cat) {
+            case "LOVE":
+                return {
+                    buttonOpen: "bg-gradient-to-r from-rose-500 to-pink-500",
+                    itemHover: "hover:from-rose-50 hover:to-pink-50 hover:text-rose-600"
+                }
+            case "VICTORY":
+                return {
+                    buttonOpen: "bg-gradient-to-r from-blue-600 to-cyan-500",
+                    itemHover: "hover:from-blue-50 hover:to-cyan-50 hover:text-blue-600"
+                }
+            case "STAR":
+                return {
+                    buttonOpen: "bg-gradient-to-r from-yellow-400 to-orange-400",
+                    itemHover: "hover:from-yellow-50 hover:to-orange-50 hover:text-orange-600"
+                }
+            default:
+                return {
+                    buttonOpen: "bg-gradient-to-r from-rose-500 to-pink-500",
+                    itemHover: "hover:from-rose-50 hover:to-pink-50 hover:text-rose-600"
+                }
+        }
+    }
+
+    const theme = getThemeColors(category)
 
     return (
         <div className="relative" ref={menuRef}>
@@ -51,8 +83,8 @@ export function ShowMenu({ category }: TShowMenuProps) {
                 className={`
           flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm
           transition-all duration-200
-          ${isOpen
-                        ? "bg-gradient-to-r from-rose-500 to-pink-500 text-white shadow-lg"
+          ${isOpen || isCategoryActive
+                        ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white/70 text-gray-700 hover:bg-white hover:shadow-md"
                     }
         `}
@@ -63,8 +95,8 @@ export function ShowMenu({ category }: TShowMenuProps) {
                     alt={categoryInfo.label}
                     className="hidden sm:block w-7 h-7 object-contain"
                 />
-                <span className="text-sm sm:text-base">
-                    {isOpen ? categoryInfo.label : categoryInfo.description}
+                <span className="text-sm sm:text-base whitespace-nowrap">
+                    {selectedShow ? selectedShow.displayName : (isOpen ? categoryInfo.label : categoryInfo.description)}
                 </span>
                 <ChevronDown
                     className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
@@ -83,22 +115,67 @@ export function ShowMenu({ category }: TShowMenuProps) {
           "
                 >
                     {/* 프로그램 목록 (헤더 제거) */}
+                    {/* 프로그램 목록 (헤더 제거) */}
                     <div className="py-2 max-h-96 overflow-y-auto">
-                        {shows.map((show) => (
-                            <button
-                                key={show.id}
-                                onClick={() => handleShowClick(show.id)}
-                                className="
-                  w-full px-4 py-2.5 text-left text-sm
-                  hover:bg-gradient-to-r hover:from-rose-50 hover:to-pink-50
-                  transition-all duration-150
-                  text-gray-700 hover:text-rose-600
-                  font-medium
-                "
-                            >
-                                {show.displayName}
-                            </button>
-                        ))}
+                        {shows.slice().sort((a, b) => {
+                            // Status Priority: ACTIVE (0) > UNDECIDED (1) > UPCOMING (2)
+                            const getStatus = (id: string) => showStatuses?.[id] || 'ACTIVE'
+                            const getPriority = (status: string) => {
+                                if (status === 'ACTIVE') return 0
+                                if (status === 'UNDECIDED') return 1
+                                if (status === 'UPCOMING') return 2
+                                return 0
+                            }
+
+                            const priorityA = getPriority(getStatus(a.id))
+                            const priorityB = getPriority(getStatus(b.id))
+
+                            if (priorityA !== priorityB) return priorityA - priorityB
+
+                            // Fallback to legacy logic if priorities are equal (e.g. both ACTIVE)
+                            // Keep original order or use activeShowIds if needed
+                            return 0
+                        }).map((show) => {
+                            const status = showStatuses?.[show.id] || 'ACTIVE'
+                            const isUpcoming = status === 'UPCOMING'
+                            const isUndecided = status === 'UNDECIDED'
+                            const isActive = status === 'ACTIVE'
+
+                            // Legacy fallback: if specific shows were hardcoded as inactive, we can keep that logic OR rely entirely on admin.
+                            // User asked to "set in admin", so we rely on admin.
+                            // Default is ACTIVE.
+
+                            const shouldDisable = !isActive
+                            const isSelected = show.id === selectedShowId
+
+                            return (
+                                <button
+                                    key={show.id}
+                                    onClick={() => !shouldDisable && handleShowClick(show.id)}
+                                    disabled={shouldDisable}
+                                    className={`
+                      w-full px-4 py-2.5 text-left text-sm
+                      transition-all duration-150
+                      flex items-center justify-between
+                      ${isSelected
+                                            ? 'bg-gray-50 font-bold text-gray-900'
+                                            : shouldDisable
+                                                ? 'text-gray-400 cursor-not-allowed opacity-60'
+                                                : `text-gray-700 hover:bg-gradient-to-r ${theme.itemHover}`
+                                        }
+                    `}
+                                >
+                                    <span>
+                                        {show.displayName}
+                                        {isUpcoming && <span className="ml-1 text-xs text-gray-400 font-normal">(예정)</span>}
+                                        {isUndecided && <span className="ml-1 text-xs text-gray-400 font-normal">(미정)</span>}
+                                    </span>
+                                    {isSelected && (
+                                        <div className={`w-1.5 h-1.5 rounded-full ${theme.buttonOpen.split(" ")[1].replace("from-", "bg-")}`} />
+                                    )}
+                                </button>
+                            )
+                        })}
                     </div>
                 </div>
             )}

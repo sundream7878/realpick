@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId } from "@/lib/supabase/admin"
+import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses } from "@/lib/supabase/admin"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/supabase/users"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
@@ -45,6 +45,9 @@ export default function AdminPage() {
     const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false)
     const [newPassword, setNewPassword] = useState("")
     const [confirmNewPassword, setConfirmNewPassword] = useState("")
+
+    // Show Status State
+    const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
 
     useEffect(() => {
         const checkPermissionAndLoad = async () => {
@@ -81,9 +84,10 @@ export default function AdminPage() {
 
             // Load Admin Data
             try {
-                const [missionsResult, mainMissionResult] = await Promise.all([
+                const [missionsResult, mainMissionResult, showStatusesResult] = await Promise.all([
                     getAllOpenMissions(),
-                    getMainMissionId()
+                    getMainMissionId(),
+                    getShowStatuses()
                 ])
 
                 if (missionsResult.success) {
@@ -92,6 +96,10 @@ export default function AdminPage() {
 
                 if (mainMissionResult.success) {
                     setCurrentMainMissionId(mainMissionResult.missionId)
+                }
+
+                if (showStatusesResult.success) {
+                    setShowStatuses(showStatusesResult.statuses || {})
                 }
             } catch (error) {
                 console.error("Failed to load admin data", error)
@@ -243,6 +251,30 @@ export default function AdminPage() {
         }
     }
 
+    const handleShowStatusUpdate = async (showId: string, status: string) => {
+        const newStatuses = { ...showStatuses, [showId]: status }
+        setShowStatuses(newStatuses) // Optimistic update
+
+        try {
+            const result = await updateShowStatuses(newStatuses)
+            if (result.success) {
+                toast({
+                    title: "상태 업데이트 성공",
+                    description: "프로그램 상태가 변경되었습니다."
+                })
+            } else {
+                throw new Error("Failed to update")
+            }
+        } catch (error) {
+            setShowStatuses(showStatuses) // Revert
+            toast({
+                title: "업데이트 실패",
+                description: "상태 변경 중 오류가 발생했습니다.",
+                variant: "destructive"
+            })
+        }
+    }
+
     const groupedShows = {
         LOVE: SHOWS.LOVE,
         VICTORY: SHOWS.VICTORY,
@@ -271,9 +303,6 @@ export default function AdminPage() {
                 userTier={{
                     name: "관리자",
                     minPoints: 0,
-                    maxPoints: 0,
-                    color: "bg-gray-500",
-                    icon: "👑"
                 }}
             />
             <main className="max-w-7xl mx-auto px-4 py-8">
@@ -317,6 +346,7 @@ export default function AdminPage() {
                 <Tabs defaultValue="missions" className="space-y-6">
                     <TabsList>
                         <TabsTrigger value="missions">미션 관리</TabsTrigger>
+                        <TabsTrigger value="programs">프로그램 관리</TabsTrigger>
                         <TabsTrigger value="users" onClick={() => loadUsers(0)}>유저 관리</TabsTrigger>
                     </TabsList>
 
@@ -388,6 +418,50 @@ export default function AdminPage() {
                                                 </Card>
                                             )
                                         })}
+                                    </div>
+                                </section>
+                            ))}
+                        </div>
+                    </TabsContent>
+
+                    <TabsContent value="programs" className="space-y-6">
+                        <div className="space-y-8">
+                            {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
+                                <section key={category} className="space-y-4">
+                                    <div className="flex items-center gap-2 mb-4">
+                                        <span className="text-2xl">{CATEGORIES[category].emoji}</span>
+                                        <h2 className="text-xl font-bold text-gray-800">{CATEGORIES[category].label}</h2>
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        {groupedShows[category].map((show) => (
+                                            <Card key={show.id} className="border-gray-200 shadow-sm">
+                                                <CardHeader className="py-3 px-4 bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between">
+                                                    <CardTitle className="text-base font-medium text-gray-900">
+                                                        {show.displayName}
+                                                    </CardTitle>
+                                                    <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
+                                                        {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
+                                                            showStatuses[show.id] === 'UPCOMING' ? '방영예정' : '방영미정'}
+                                                    </Badge>
+                                                </CardHeader>
+                                                <CardContent className="p-4">
+                                                    <Select
+                                                        value={showStatuses[show.id] || 'ACTIVE'}
+                                                        onValueChange={(value) => handleShowStatusUpdate(show.id, value)}
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            <SelectItem value="ACTIVE">방영중 (Active)</SelectItem>
+                                                            <SelectItem value="UPCOMING">방영예정 (Upcoming)</SelectItem>
+                                                            <SelectItem value="UNDECIDED">방영미정 (Undecided)</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                </CardContent>
+                                            </Card>
+                                        ))}
                                     </div>
                                 </section>
                             ))}

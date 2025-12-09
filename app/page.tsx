@@ -29,6 +29,7 @@ export default function HomePage() {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState("전체")
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [selectedUserVote, setSelectedUserVote] = useState<TVoteSubmission | null>(null)
@@ -85,7 +86,8 @@ export default function HomePage() {
             creatorTier: mission.creator?.f_tier,
             createdAt: mission.f_created_at,
             thumbnailUrl: mission.f_thumbnail_url,
-            referenceUrl: mission.f_reference_url
+            referenceUrl: mission.f_reference_url,
+            isLive: mission.f_is_live
           }))
         }
 
@@ -121,7 +123,8 @@ export default function HomePage() {
             },
             creatorNickname: mission.creator?.f_nickname,
             creatorTier: mission.creator?.f_tier,
-            createdAt: mission.f_created_at
+            createdAt: mission.f_created_at,
+            isLive: mission.f_is_live
           }))
         }
 
@@ -203,6 +206,10 @@ export default function HomePage() {
 
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
+    // 1. Show ID 필터링
+    if (selectedShowId && mission.showId !== selectedShowId) return false
+
+    // 2. 상태 필터링
     if (selectedFilter === "전체") return true
     if (selectedFilter === "진행중") return mission.status === "open" && !isDeadlinePassed(mission.deadline)
     if (selectedFilter === "마감") return mission.status !== "open" || isDeadlinePassed(mission.deadline)
@@ -240,7 +247,15 @@ export default function HomePage() {
   // 3. 서바이벌/오디션(SURVIVAL) 카테고리 -> 토너먼트(tournament) 우선
   // 4. 그 외 참여자 수 순
   const openMainMissions = missions
-    .filter(m => m.status === 'open' && !isDeadlinePassed(m.deadline))
+    .filter(m => {
+      // 1. 기본 필터: 진행중이고 마감 안 된 것
+      if (m.status !== 'open' || isDeadlinePassed(m.deadline)) return false
+
+      // 2. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상
+      if (selectedShowId && m.showId !== selectedShowId) return false
+
+      return true
+    })
     .sort((a, b) => {
       // 0. 관리자 설정 체크
       if (adminMainMissionId) {
@@ -275,7 +290,15 @@ export default function HomePage() {
   const openMainMission = openMainMissions[0]
   const closedMainMission = !openMainMission
     ? missions
-      .filter(m => m.status !== 'open' || isDeadlinePassed(m.deadline))
+      .filter(m => {
+        // 1. 기본 필터: 마감된 것
+        if (m.status === 'open' && !isDeadlinePassed(m.deadline)) return false
+
+        // 2. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상
+        if (selectedShowId && m.showId !== selectedShowId) return false
+
+        return true
+      })
       .sort((a, b) => {
         // 커플 매칭 최우선
         if (a.form === 'match' && b.form !== 'match') return -1
@@ -314,18 +337,39 @@ export default function HomePage() {
   // 메인 미션을 제외한 나머지 리스트
   const displayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
 
+  // 활성화된 프로그램 ID 목록 (미션이 있는 프로그램)
+  const activeShowIds = new Set(missions.map(m => m.showId).filter(Boolean) as string[])
+
+  // Show Statuses Fetching
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
+  }, [])
+
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         {/* 상단 헤더 */}
+        {/* 상단 헤더 */}
         <AppHeader
-          selectedShow="나는솔로" // Default or remove prop if optional
-          onShowChange={() => { }} // No-op
+          selectedShow="나는솔로" // Legacy prop, can be ignored or removed later
+          onShowChange={() => { }} // Legacy prop
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
+          selectedShowId={selectedShowId}
+          onShowSelect={(showId) => {
+            setSelectedShowId(showId === selectedShowId ? null : showId) // Toggle
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          activeShowIds={activeShowIds}
+          showStatuses={showStatuses}
         />
+
 
         {/* 메인 콘텐츠 */}
         <main className="flex-1 p-4 space-y-4 md:pl-72">
@@ -548,6 +592,7 @@ export default function HomePage() {
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
+          initialShowId={selectedShowId}
         />
 
         {/* 내 픽 보기 모달 */}

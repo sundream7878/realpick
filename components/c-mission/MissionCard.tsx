@@ -11,6 +11,7 @@ import { getShowByName, getShowById } from "@/lib/constants/shows"
 import { TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
 import { LiveTimer } from "./LiveTimer"
+import { DeadlineTimer } from "./DeadlineTimer"
 
 interface TMissionCardProps {
   mission: TMission
@@ -98,15 +99,15 @@ export function MissionCard({
   const cardClassName =
     variant === "hot"
       ? "border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100 shadow-sm hover:shadow-lg hover:border-pink-300 transition-all duration-200"
-      : isLiveActive
-        ? "border-red-400 bg-gradient-to-br from-red-50 to-pink-50 shadow-red-100 hover:shadow-red-200 hover:border-red-500 transition-all duration-200"
-        : "hover:shadow-lg hover:border-pink-300 transition-all duration-200 bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200"
+      : "hover:shadow-lg hover:border-pink-300 transition-all duration-200 bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200"
 
   // 마감된 미션은 투명도 적용
   const closedOpacity = isClosed ? "opacity-80" : ""
 
   return (
-    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col py-0 gap-0`}>
+    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col py-0 gap-0 overflow-hidden relative`}>
+
+
       <CardHeader className="p-3 pb-1">
         <div className="flex justify-between items-start gap-3">
           {/* 좌측: 배지 + 제목 */}
@@ -117,10 +118,15 @@ export function MissionCard({
                 <Badge className="bg-pink-500 hover:bg-pink-600 text-white h-5 px-1.5 text-[10px]">HOT</Badge>
               )}
 
-              {mission.isLive && (
-                <Badge className="bg-red-500 text-white h-5 px-1.5 text-[10px] animate-pulse border-red-400 shadow-sm">
-                  LIVE
-                </Badge>
+
+              {isLiveActive && (
+                <div className="bg-red-600 text-white rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-sm flex items-center gap-1.5 animate-pulse">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
+                  </span>
+                  LIVE ON AIR
+                </div>
               )}
 
               {isLiveActive && mission.deadline && (
@@ -128,6 +134,13 @@ export function MissionCard({
                   <LiveTimer deadline={mission.deadline} />
                 </div>
               )}
+
+              {!isLiveActive && !isClosed && mission.deadline && (
+                <div className="bg-purple-50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-200 shadow-sm">
+                  <DeadlineTimer deadline={mission.deadline} />
+                </div>
+              )}
+
 
               {/* 포인트 배지 */}
               <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 h-5 px-1.5 text-[10px] font-bold border">
