@@ -6,6 +6,8 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
     try {
         const supabase = createServiceClient()
+        console.log("[API] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + "...")
+
         const { data, error } = await supabase
             .from("t_admin_settings")
             .select("value")

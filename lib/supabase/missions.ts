@@ -58,6 +58,18 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         console.error("커플매칭 미션 생성 실패:", error)
         return { success: false, error: `커플매칭 미션 생성에 실패했습니다: ${error.message}` }
       }
+
+      // [New] Generate and save embedding
+      fetch('/api/missions/embed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: data.f_id,
+          title: missionData.title,
+          table: 't_missions2'
+        })
+      }).catch(err => console.error("Embedding generation failed:", err))
+
       return { success: true, missionId: data.f_id }
     }
 
@@ -81,6 +93,17 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         await supabase.from("t_missions1").update({ f_thumbnail_url: thumbnailUrl }).eq("f_id", data.f_id)
       }
     }
+
+    // [New] Generate and save embedding
+    fetch('/api/missions/embed', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: data.f_id,
+        title: missionData.title,
+        table: 't_missions1'
+      })
+    }).catch(err => console.error("Embedding generation failed:", err))
 
     return { success: true, missionId: data.f_id }
 

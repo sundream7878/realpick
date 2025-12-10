@@ -266,6 +266,7 @@ export default function AdminPage() {
                 throw new Error("Failed to update")
             }
         } catch (error) {
+            console.error("[Admin] Update failed:", error)
             setShowStatuses(showStatuses) // Revert
             toast({
                 title: "업데이트 실패",
