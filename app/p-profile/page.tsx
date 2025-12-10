@@ -16,13 +16,15 @@ import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-t
 import { getUser, updateUserProfile } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 export default function ProfilePage() {
   const router = useRouter()
   const { toast } = useToast()
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
 
   const [userNickname, setUserNickname] = useState("")
   const [userEmail, setUserEmail] = useState("")
@@ -90,6 +92,13 @@ export default function ProfilePage() {
       window.removeEventListener("auth-change", handleAuthChange)
       window.removeEventListener("storage", handleAuthChange)
     }
+  }, [])
+
+  useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
   }, [])
 
   const handleSeasonSelect = (season: string) => {
@@ -206,12 +215,15 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          onShowChange={() => { }}
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
+          selectedShowId={selectedShowId}
+          onShowSelect={(showId) => setSelectedShowId(showId)}
+          showStatuses={showStatuses}
         />
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
@@ -420,13 +432,14 @@ export default function ProfilePage() {
         <BottomNavigation />
 
         <SidebarNavigation
-          selectedShow={selectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => { }}
           activeNavItem="mypage"
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
       </div>
     </div>

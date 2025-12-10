@@ -19,6 +19,7 @@ import type { TMission } from "@/types/t-vote/vote.types"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 export default function MissionsPage() {
   const router = useRouter()
@@ -27,11 +28,12 @@ export default function MissionsPage() {
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(true)
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
   const [missions, setMissions] = useState<TMission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const searchParams = useSearchParams()
   const season = searchParams.get("season") || "all"
   const userId = getUserId() || "user123"
@@ -211,6 +213,16 @@ export default function MissionsPage() {
     }
   }, [])
 
+  useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
+  }, [])
+
+  // 활성화된 프로그램 ID 목록 (미션이 있는 프로그램)
+  const activeShowIds = new Set(missions.map(m => m.showId).filter(Boolean) as string[])
+
   const hasUserVoted = (missionId: string): boolean => {
     return votedMissions.has(missionId)
   }
@@ -250,15 +262,16 @@ export default function MissionsPage() {
   const getSeasonTitle = (season: string): string => {
     switch (season) {
       case "all":
-        return `${selectedShow} 전체 미션`
+      case "all":
+        return `${selectedShowId ? getShowById(selectedShowId)?.name : "전체"} 전체 미션`
       case "27":
-        return `${selectedShow} 27기 미션`
+        return `${selectedShowId ? getShowById(selectedShowId)?.name : "전체"} 27기 미션`
       case "28":
-        return `${selectedShow} 28기 미션`
+        return `${selectedShowId ? getShowById(selectedShowId)?.name : "전체"} 28기 미션`
       case "29":
-        return `${selectedShow} 29기 미션`
+        return `${selectedShowId ? getShowById(selectedShowId)?.name : "전체"} 29기 미션`
       default:
-        return `${selectedShow} 전체 미션`
+        return `${selectedShowId ? getShowById(selectedShowId)?.name : "전체"} 전체 미션`
     }
   }
 
@@ -300,23 +313,25 @@ export default function MissionsPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          onShowChange={() => { }}
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
+          selectedShowId={selectedShowId}
+          onShowSelect={(showId) => setSelectedShowId(showId)}
+          activeShowIds={activeShowIds}
+          showStatuses={showStatuses}
         />
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
-                <Link href="/">
-                  <Button variant="ghost" size="sm" className="p-2">
-                    <ArrowLeft className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button variant="ghost" size="sm" className="p-2" onClick={() => router.back()}>
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
                 <h2 className="text-2xl font-semibold text-gray-900">{getSeasonTitle(season)}</h2>
               </div>
               {!isLoading && (
@@ -353,19 +368,21 @@ export default function MissionsPage() {
         <BottomNavigation />
 
         <SidebarNavigation
-          selectedShow={selectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           activeNavItem="missions"
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
 
         <MissionCreationModal
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
       </div>
     </div>

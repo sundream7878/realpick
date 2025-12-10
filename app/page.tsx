@@ -20,6 +20,7 @@ import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { getMainMissionId } from "@/lib/supabase/admin"
+import { getShowById } from "@/lib/constants/shows"
 
 export default function HomePage() {
   const router = useRouter()
@@ -579,12 +580,13 @@ export default function HomePage() {
 
         {/* 사이드바 (햄버거 메뉴) */}
         <SidebarNavigation
-          selectedShow="나는솔로" // Default
-          selectedSeason={selectedFilter} // Map filter to season prop for now
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          selectedSeason={selectedFilter}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-          onSeasonSelect={setSelectedFilter} // Map filter select
+          onSeasonSelect={setSelectedFilter}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
 
         {/* 미션 생성 모달 */}
@@ -593,6 +595,7 @@ export default function HomePage() {
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
           initialShowId={selectedShowId}
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
 
         {/* 내 픽 보기 모달 */}

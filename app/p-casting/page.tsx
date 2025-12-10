@@ -10,7 +10,7 @@ import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
 import { Card, CardContent } from "@/components/c-ui/card"
 import { RECRUITS, TRecruit, TRecruitType } from "@/lib/constants/recruits"
-import { SHOWS, getShowById, TShowCategory } from "@/lib/constants/shows"
+import { SHOWS, getShowById, getShowByName, TShowCategory } from "@/lib/constants/shows"
 import { getDDay, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { Calendar, User, Users, ExternalLink, Mic2, Ticket } from "lucide-react"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
@@ -26,8 +26,9 @@ export default function CastingPage() {
     // 사이드바/모달 상태 관리
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-    const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+    const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+    const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
 
     // 유저 정보
     const [userNickname, setUserNickname] = useState("")
@@ -65,6 +66,13 @@ export default function CastingPage() {
         }
         window.addEventListener('auth-change', handleAuthChange)
         return () => window.removeEventListener('auth-change', handleAuthChange)
+    }, [])
+
+    useEffect(() => {
+        fetch('/api/public/shows')
+            .then(res => res.json())
+            .then(data => setShowStatuses(data.statuses || {}))
+            .catch(err => console.error("Failed to fetch show statuses", err))
     }, [])
 
     // 필터링 및 정렬 로직
@@ -120,12 +128,15 @@ export default function CastingPage() {
             <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
                 {/* 헤더 */}
                 <AppHeader
-                    selectedShow={selectedShow}
-                    onShowChange={(show) => setSelectedShow(show)}
+                    selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+                    onShowChange={() => { }}
                     userNickname={userNickname}
                     userPoints={userPoints}
                     userTier={userTier}
                     onAvatarClick={() => router.push("/p-profile")}
+                    selectedShowId={selectedShowId}
+                    onShowSelect={(showId) => setSelectedShowId(showId)}
+                    showStatuses={showStatuses}
                 />
 
                 <main className="flex-1 p-4 md:pl-72">
@@ -286,18 +297,20 @@ export default function CastingPage() {
                 />
 
                 <SidebarNavigation
-                    selectedShow={selectedShow}
+                    selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
                     selectedSeason={selectedSeason}
                     isMissionStatusOpen={isMissionStatusOpen}
                     onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
                     onSeasonSelect={setSelectedSeason}
                     onMissionModalOpen={() => setIsMissionModalOpen(true)}
+                    category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
                 />
 
                 <MissionCreationModal
                     isOpen={isMissionModalOpen}
                     onClose={() => setIsMissionModalOpen(false)}
                     onMissionCreated={() => { }}
+                    category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
                 />
             </div>
         </div>

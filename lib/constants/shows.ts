@@ -84,8 +84,8 @@ export function getShowByName(showName: string): TShow | undefined {
     const target = normalize(showName)
 
     for (const category of Object.values(SHOWS)) {
-        // 1. 정확 일치 우선 검색
-        let show = category.find(s => normalize(s.name) === target || normalize(s.displayName) === target)
+        // 1. 정확 일치 우선 검색 (이름, 표시 이름, ID)
+        let show = category.find(s => normalize(s.name) === target || normalize(s.displayName) === target || s.id === target)
         if (show) return show
 
         // 2. 포함 관계 검색 (target이 name에 포함되거나, name이 target에 포함되거나)

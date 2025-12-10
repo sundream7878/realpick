@@ -5,6 +5,7 @@ import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-naviga
 import { SidebarNavigation } from "./SidebarNavigation"
 import { AppHeader } from "./AppHeader"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { getShowByName } from "@/lib/constants/shows"
 
 interface TSeasonOption {
   value: string
@@ -53,6 +54,12 @@ export function AppLayout({
   showBottomNav = true,
   mainClassName = "",
 }: TAppLayoutProps) {
+  // 선택된 프로그램의 카테고리 확인
+  const showInfo = getShowByName(selectedShow)
+  const category = showInfo?.category
+
+  console.log("[AppLayout] selectedShow:", selectedShow, "Resolved Category:", category)
+
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {showSidebar && (
@@ -65,6 +72,7 @@ export function AppLayout({
           onMissionModalOpen={onMissionModalOpen}
           activeNavItem={activeNavItem}
           seasonOptions={seasonOptions}
+          category={category}
         />
       )}
 
@@ -91,4 +99,3 @@ export function AppLayout({
     </div>
   )
 }
-

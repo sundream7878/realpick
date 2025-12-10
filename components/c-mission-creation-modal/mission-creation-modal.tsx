@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { uploadMissionImage } from "@/lib/supabase/storage"
 import { createClient } from "@/lib/supabase/client"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
+import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
 import { getUser } from "@/lib/supabase/users"
 import { canCreateMission, hasMinimumRole, getRoleDisplayName } from "@/lib/utils/permissions"
 import type { TUserRole } from "@/lib/utils/permissions"
@@ -24,6 +25,7 @@ interface MissionCreationModalProps {
   onClose: () => void
   onMissionCreated?: () => void // 미션 생성 성공 후 콜백
   initialShowId?: string | null
+  category?: TShowCategory
 }
 
 type MissionStep = "format-selection" | "binary-choice" | "multiple-choice" | "couple-matching" | "subjective-choice" | "tournament-choice"
@@ -196,8 +198,9 @@ const MissionCommonFields = ({
   </>
 )
 
-export default function MissionCreationModal({ isOpen, onClose, onMissionCreated, initialShowId }: MissionCreationModalProps) {
+export default function MissionCreationModal({ isOpen, onClose, onMissionCreated, initialShowId, category }: MissionCreationModalProps) {
   const { toast } = useToast()
+  const theme = getThemeColors(category)
   const [currentStep, setCurrentStep] = useState<MissionStep>("format-selection")
   const [missionType, setMissionType] = useState<MissionType>("prediction")
   const [submissionType, setSubmissionType] = useState<"selection" | "text">("selection")
@@ -528,27 +531,35 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
 
   // 공감픽 체크박스 컴포넌트
-  const ConsensusCheckbox = () => (
-    <div className="flex items-center space-x-2 p-3 bg-pink-50 rounded-lg border border-pink-100">
-      <Checkbox
-        id="consensus-mode"
-        checked={missionType === "majority"}
-        onCheckedChange={(checked) => setMissionType(checked ? "majority" : "prediction")}
-        className="data-[state=checked]:bg-pink-500 data-[state=checked]:border-pink-500"
-      />
-      <div className="grid gap-1.5 leading-none">
-        <label
-          htmlFor="consensus-mode"
-          className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 text-pink-700"
-        >
-          공감픽으로 설정
-        </label>
-        <p className="text-xs text-pink-600">
-          체크 시 정답이 없는 '공감픽' 미션이 됩니다.
-        </p>
+  const ConsensusCheckbox = () => {
+    const checkboxClass = {
+      LOVE: "data-[state=checked]:bg-pink-500 data-[state=checked]:border-pink-500",
+      VICTORY: "data-[state=checked]:bg-indigo-500 data-[state=checked]:border-indigo-500",
+      STAR: "data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500",
+    }[category || "LOVE"]
+
+    return (
+      <div className={`flex items-center space-x-2 p-3 rounded-lg border ${theme.subBadge} ${theme.subBadgeBorder}`}>
+        <Checkbox
+          id="consensus-mode"
+          checked={missionType === "majority"}
+          onCheckedChange={(checked) => setMissionType(checked ? "majority" : "prediction")}
+          className={checkboxClass}
+        />
+        <div className="grid gap-1.5 leading-none">
+          <label
+            htmlFor="consensus-mode"
+            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${theme.text}`}
+          >
+            공감픽으로 설정
+          </label>
+          <p className={`text-xs ${theme.subBadgeText}`}>
+            체크 시 정답이 없는 '공감픽' 미션이 됩니다.
+          </p>
+        </div>
       </div>
-    </div>
-  )
+    )
+  }
 
   // 라이브 미션 체크박스 컴포넌트
   const LiveMissionCheckbox = () => (
@@ -661,8 +672,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   <p className="text-xs text-gray-500 mb-4">현재 역할: {getRoleDisplayName(userRole)}</p>
                   <div className="grid grid-cols-3 gap-3">
                     <Card
-                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "binary")
-                        ? "hover:bg-pink-50"
+                      className={`cursor-pointer transition-colors ${theme.border} ${theme.subBadge} ${canCreateMission(userRole, "binary")
+                        ? `hover:opacity-80`
                         : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "binary") && handleFormatSelection("binary")}
@@ -675,12 +686,12 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                         )}
                         <div className="text-xl sm:text-2xl font-bold mb-2">A or B</div>
                         <p className="text-sm font-medium text-gray-900">양자선택</p>
-                        <p className="text-xs text-pink-600 mt-1">두 가지 중 하나 선택</p>
+                        <p className={`text-xs ${theme.iconText} mt-1`}>두 가지 중 하나 선택</p>
                       </CardContent>
                     </Card>
                     <Card
-                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "multi")
-                        ? "hover:bg-pink-50"
+                      className={`cursor-pointer transition-colors ${theme.border} ${theme.subBadge} ${canCreateMission(userRole, "multi")
+                        ? `hover:opacity-80`
                         : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "multi") && handleFormatSelection("multiple")}
@@ -693,13 +704,13 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                         )}
                         <div className="text-xl sm:text-2xl mb-2">📝</div>
                         <p className="text-sm font-medium text-gray-900">다자선택</p>
-                        <p className="text-xs text-pink-600 mt-1">여러 보기 중 선택</p>
+                        <p className={`text-xs ${theme.iconText} mt-1`}>여러 보기 중 선택</p>
                       </CardContent>
                     </Card>
 
                     <Card
-                      className={`cursor-pointer transition-colors border-pink-200 ${canCreateMission(userRole, "match")
-                        ? "hover:bg-pink-50"
+                      className={`cursor-pointer transition-colors ${theme.border} ${theme.subBadge} ${canCreateMission(userRole, "match")
+                        ? `hover:opacity-80`
                         : "opacity-50 cursor-not-allowed"
                         }`}
                       onClick={() => canCreateMission(userRole, "match") && handleFormatSelection("couple")}
@@ -712,7 +723,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                         )}
                         <div className="text-xl sm:text-2xl mb-2">👫❤️</div>
                         <p className="text-sm font-medium text-gray-900">커플매칭</p>
-                        <p className="text-xs text-pink-600 mt-1">최종 커플 예측</p>
+                        <p className={`text-xs ${theme.iconText} mt-1`}>최종 커플 예측</p>
                         {!canCreateMission(userRole, "match") && (
                           <p className="text-xs text-gray-500 mt-1">메인딜러 전용</p>
                         )}

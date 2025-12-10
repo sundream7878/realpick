@@ -22,6 +22,8 @@ interface TMissionCardProps {
   className?: string
 }
 
+import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
+
 export function MissionCard({
   mission,
   shouldShowResults,
@@ -45,13 +47,15 @@ export function MissionCard({
     console.error("getShowById error:", e)
   }
 
+  // 카테고리 기반 테마 색상 가져오기
+  const category = showInfo?.category
+  const theme = getThemeColors(category)
+
   // 클릭 시 이동할 URL 결정 (유튜브 링크가 없으면 공식 홈페이지로)
   const targetUrl = mission.referenceUrl || showInfo?.officialUrl
 
   // 표시할 썸네일 결정 (입력된 썸네일이 없으면 기본 포스터 사용)
   const displayThumbnailUrl = mission.thumbnailUrl || showInfo?.defaultThumbnail
-
-  console.log(`Mission: ${mission.title}, showId: ${mission.showId}, showInfo:`, showInfo, "thumb:", displayThumbnailUrl)
 
   // 실제 마감 여부 확인
   const isClosed = (() => {
@@ -98,8 +102,8 @@ export function MissionCard({
 
   const cardClassName =
     variant === "hot"
-      ? "border-pink-200 bg-gradient-to-br from-pink-50 to-pink-100 shadow-sm hover:shadow-lg hover:border-pink-300 transition-all duration-200"
-      : "hover:shadow-lg hover:border-pink-300 transition-all duration-200 bg-gradient-to-br from-pink-50 to-pink-100 border-pink-200"
+      ? `${theme.border} bg-gradient-to-br ${theme.bgGradient} shadow-sm hover:shadow-lg transition-all duration-200`
+      : `hover:shadow-lg transition-all duration-200 bg-gradient-to-br ${theme.bgGradient} ${theme.border}`
 
   // 마감된 미션은 투명도 적용
   const closedOpacity = isClosed ? "opacity-80" : ""
@@ -115,7 +119,7 @@ export function MissionCard({
             {/* 배지 그룹 */}
             <div className="flex items-center gap-1.5 flex-wrap">
               {variant === "hot" && (
-                <Badge className="bg-pink-500 hover:bg-pink-600 text-white h-5 px-1.5 text-[10px]">HOT</Badge>
+                <Badge className={`${theme.badge} hover:opacity-90 ${theme.badgeText} h-5 px-1.5 text-[10px]`}>HOT</Badge>
               )}
 
 
@@ -136,7 +140,7 @@ export function MissionCard({
               )}
 
               {!isLiveActive && !isClosed && mission.deadline && (
-                <div className="bg-purple-50 px-1.5 py-0.5 rounded text-[10px] font-bold border border-purple-200 shadow-sm">
+                <div className={`${theme.subBadge} px-1.5 py-0.5 rounded text-[10px] font-bold ${theme.subBadgeBorder} shadow-sm ${theme.subBadgeText}`}>
                   <DeadlineTimer deadline={mission.deadline} />
                 </div>
               )}
@@ -193,14 +197,14 @@ export function MissionCard({
               {/* 캐릭터 + 닉네임 */}
               {mission.creatorNickname && (
                 <div className="flex items-center gap-1">
-                  <div className="w-8 h-8 rounded-full bg-purple-100 border border-purple-200 flex items-center justify-center overflow-hidden">
+                  <div className={`w-8 h-8 rounded-full ${theme.iconBg} ${theme.iconBorder} flex items-center justify-center overflow-hidden`}>
                     <img
                       src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"}
                       alt="딜러 캐릭터"
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  <span className="text-[10px] font-bold text-purple-600">{mission.creatorNickname}</span>
+                  <span className={`text-[10px] font-bold ${theme.iconText}`}>{mission.creatorNickname}</span>
                 </div>
               )}
 
@@ -247,10 +251,7 @@ export function MissionCard({
                     .slice(0, 5)
                     .map(([option, percentage], index) => {
                       const height = Math.max(30, percentage as number)
-                      const colorClass = `bg-gradient-to-t ${index === 0 ? "from-purple-400 to-purple-500" :
-                        index === 1 ? "from-pink-400 to-pink-500" :
-                          "from-purple-300 to-pink-300"
-                        }${!isClosed ? " animate-pulse" : ""}`
+                      const colorClass = `bg-gradient-to-t ${theme.progressBar[index % 3]} ${!isClosed ? " animate-pulse" : ""}`
 
                       return (
                         <div
@@ -268,7 +269,7 @@ export function MissionCard({
                   (mission.options && Array.isArray(mission.options) ? mission.options.slice(0, 5) : Array.from({ length: 5 })).map((_, index) => (
                     <div
                       key={index}
-                      className="w-5 rounded-t-md bg-gradient-to-t from-purple-300 to-pink-300 opacity-60"
+                      className={`w-5 rounded-t-md bg-gradient-to-t ${theme.progressBar[2]} opacity-60`}
                       style={{ height: `${30 + index * 15}%` }}
                     />
                   ))
@@ -278,19 +279,19 @@ export function MissionCard({
 
             {/* 마감 후 공개: 미스터리 박스 표시 (일반 미션만) */}
             {mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && !isClosed && (
-              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
+              <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border border-dashed ${theme.mysteryBox.border} relative overflow-hidden`}>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
 
                 <div className="relative flex items-center gap-1.5">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md animate-bounce">
+                  <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md animate-bounce`}>
                     <span className="text-white text-sm font-bold">?</span>
                   </div>
 
                   <div className="flex flex-col">
-                    <div className="text-purple-700 font-bold text-xs leading-tight">
+                    <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
                       {getDDay(mission.deadline)}
                     </div>
-                    <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                    <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
                       마감 후 공개
                     </div>
                   </div>
@@ -300,19 +301,19 @@ export function MissionCard({
 
             {/* 커플 매칭 미션 진행중: 회차별 진행 상태 표시 */}
             {mission.form === "match" && !isClosed && (
-              <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-dashed border-purple-300 relative overflow-hidden">
+              <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border border-dashed ${theme.mysteryBox.border} relative overflow-hidden`}>
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
 
                 <div className="relative flex items-center gap-1.5">
-                  <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
+                  <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md`}>
                     <span className="text-white text-xs font-bold">💕</span>
                   </div>
 
                   <div className="flex flex-col">
-                    <div className="text-purple-700 font-bold text-xs leading-tight">
+                    <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
                       회차별 진행
                     </div>
-                    <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                    <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
                       모든 회차 완료시 마감
                     </div>
                   </div>
@@ -323,17 +324,17 @@ export function MissionCard({
             {/* 마감된 경우: 체크 아이콘 박스 (보라/핑크 색상) */}
             {((mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && isClosed) ||
               (mission.form === "match" && isClosed)) && (
-                <div className="bg-gradient-to-br from-purple-100 to-pink-100 rounded-md px-2 py-1 border border-purple-300">
+                <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border ${theme.mysteryBox.border}`}>
                   <div className="flex items-center gap-1.5">
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br from-purple-400 to-pink-400 shadow-md">
+                    <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md`}>
                       <span className="text-white text-sm font-bold">✓</span>
                     </div>
 
                     <div className="flex flex-col">
-                      <div className="text-purple-700 font-bold text-xs leading-tight">
+                      <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
                         마감됨
                       </div>
-                      <div className="text-[9px] text-purple-600 font-medium whitespace-nowrap leading-tight">
+                      <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
                         결과 공개
                       </div>
                     </div>
@@ -357,6 +358,7 @@ export function MissionCard({
             shouldShowResults={shouldShowResults}
             onViewPick={onViewPick}
             mission={mission}
+            category={category}
           />
         </div>
       </CardContent>

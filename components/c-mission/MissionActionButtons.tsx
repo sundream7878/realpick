@@ -4,6 +4,8 @@ import { Button } from "@/components/c-ui/button"
 import Link from "next/link"
 import { TMission } from "@/types/t-vote/vote.types"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
+import { TShowCategory } from "@/lib/constants/shows"
 
 interface TMissionActionButtonsProps {
   missionId: string
@@ -11,6 +13,7 @@ interface TMissionActionButtonsProps {
   onViewPick?: () => void
   className?: string
   mission?: TMission
+  category?: TShowCategory
 }
 
 export function MissionActionButtons({
@@ -19,7 +22,10 @@ export function MissionActionButtons({
   onViewPick,
   className = "",
   mission,
+  category,
 }: TMissionActionButtonsProps) {
+  const theme = getThemeColors(category)
+
   if (shouldShowResults) {
     // 마감 여부 확인
     const isClosed = (() => {
@@ -53,8 +59,8 @@ export function MissionActionButtons({
 
     // 마감 여부에 따른 버튼 스타일
     const buttonStyle = isClosed
-      ? "w-full border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 font-medium shadow-sm"
-      : "w-full border-purple-300 text-purple-700 bg-purple-100 hover:bg-purple-200 font-medium shadow-sm"
+      ? `w-full ${theme.subBadgeBorder} ${theme.subBadgeText} ${theme.subBadge} hover:opacity-90 font-medium shadow-sm`
+      : `w-full ${theme.iconBorder} ${theme.iconText} ${theme.iconBg} hover:opacity-90 font-medium shadow-sm`
 
     const buttonText = isClosed ? "(마감) 결과보기" : "(진행중) 결과보기"
 
@@ -94,7 +100,7 @@ export function MissionActionButtons({
         <Button
           size="sm"
           variant="outline"
-          className="w-full border-purple-200 text-purple-700 bg-purple-50 hover:bg-purple-100 font-medium shadow-sm"
+          className={`w-full ${theme.subBadgeBorder} ${theme.subBadgeText} ${theme.subBadge} hover:opacity-90 font-medium shadow-sm`}
         >
           (마감) 결과보기
         </Button>
@@ -104,7 +110,7 @@ export function MissionActionButtons({
 
   return (
     <Link href={`/p-mission/${missionId}/vote`} className={className}>
-      <Button size="sm" className="w-full bg-purple-600 hover:bg-purple-700 text-white font-medium">
+      <Button size="sm" className={`w-full ${theme.button} ${theme.buttonHover} text-white font-medium`}>
         (진행중) PICK하기
       </Button>
     </Link>

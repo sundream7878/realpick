@@ -16,6 +16,7 @@ import { AppHeader } from "@/components/c-layout/AppHeader"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 export default function VotePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -24,7 +25,8 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [selectedShowId, setSelectedShowId] = useState<string>("nasolo")
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [userVote, setUserVote] = useState<TVoteSubmission | null>(null)
   const userId = getUserId()
 
@@ -97,13 +99,19 @@ export default function VotePage({ params }: { params: { id: string } }) {
           creatorNickname: missionData.creator?.f_nickname,
           creatorTier: missionData.creator?.f_tier,
           createdAt: missionData.f_created_at,
+
           thumbnailUrl: missionData.f_thumbnail_url,
           referenceUrl: missionData.f_reference_url,
           imageUrl: missionData.f_image_url,
-          subjectivePlaceholder: missionData.f_subjective_placeholder
+          subjectivePlaceholder: missionData.f_subjective_placeholder,
+          showId: missionData.f_show_id,
+          category: missionData.f_category
         }
 
         setMission(mappedMission)
+        if (mappedMission.showId) {
+          setSelectedShowId(mappedMission.showId)
+        }
 
         // 마감된 미션이면 결과 페이지로 이동
         const isClosed = mappedMission.deadline ? isDeadlinePassed(mappedMission.deadline) : mappedMission.status === "settled"
@@ -137,6 +145,13 @@ export default function VotePage({ params }: { params: { id: string } }) {
     loadData()
   }, [params.id, userId])
 
+  useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
+  }, [])
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -157,12 +172,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
+          selectedShow={getShowById(selectedShowId)?.name as any || "나는솔로"}
+          selectedShowId={selectedShowId}
+          onShowChange={(show) => {
+            const showObj = getShowByName(show)
+            if (showObj) setSelectedShowId(showObj.id)
+          }}
+          onShowSelect={setSelectedShowId}
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
+          showStatuses={showStatuses}
         />
 
         <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">

@@ -25,6 +25,7 @@ import { getUser } from "@/lib/supabase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 export default function MyPage() {
   const router = useRouter()
@@ -33,8 +34,9 @@ export default function MyPage() {
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
@@ -86,6 +88,13 @@ export default function MyPage() {
       window.removeEventListener("storage", handleAuthChange)
     }
   }, [userId])
+
+  useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
+  }, [])
 
   const loadMissions = useCallback(async () => {
     if (!isAuthenticated() || !userId) {
@@ -921,12 +930,16 @@ export default function MyPage() {
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
-          selectedShow={selectedShow}
-          onShowChange={setSelectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          onShowChange={() => { }}
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
+          selectedShowId={selectedShowId}
+          onShowSelect={(showId) => setSelectedShowId(showId)}
+          activeShowIds={new Set([...createdMissions, ...participatedMissions].map(m => m.showId).filter(Boolean) as string[])}
+          showStatuses={showStatuses}
         />
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
@@ -1159,21 +1172,20 @@ export default function MyPage() {
         <BottomNavigation />
 
         <SidebarNavigation
-          selectedShow={selectedShow}
+          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           activeNavItem="mypage"
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
 
-        <MissionCreationModal isOpen={isMissionModalOpen} onClose={() => setIsMissionModalOpen(false)} />
-        <MyPickViewModal
-          isOpen={isPickViewModalOpen}
-          onClose={() => setIsPickViewModalOpen(false)}
-          mission={selectedMissionForView!}
-          userVote={null} // TODO: 실제 유저 투표 데이터 가져오기
+        <MissionCreationModal
+          isOpen={isMissionModalOpen}
+          onClose={() => setIsMissionModalOpen(false)}
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
       </div>
     </div>

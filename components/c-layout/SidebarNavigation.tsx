@@ -14,6 +14,9 @@ interface TSeasonOption {
   href: string
 }
 
+import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
+import { TShowCategory } from "@/lib/constants/shows"
+
 interface TSidebarNavigationProps {
   selectedShow: "나는솔로" | "돌싱글즈"
   selectedSeason: string
@@ -23,6 +26,7 @@ interface TSidebarNavigationProps {
   onMissionModalOpen: () => void
   activeNavItem?: "home" | "missions" | "mypage" | "casting"
   seasonOptions?: TSeasonOption[]
+  category?: TShowCategory
 }
 
 export function SidebarNavigation({
@@ -39,11 +43,14 @@ export function SidebarNavigation({
     { value: "28기", label: "28기", href: "/p-missions?season=28" },
     { value: "27기", label: "27기", href: "/p-missions?season=27" },
   ],
+  category,
 }: TSidebarNavigationProps) {
   const router = useRouter()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingAction, setPendingAction] = useState<"mission" | "mypage" | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
+
+  const theme = getThemeColors(category)
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -118,7 +125,7 @@ export function SidebarNavigation({
           <Link href="/">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
                 }`}
             >
               <Home className="w-5 h-5" />
@@ -131,7 +138,7 @@ export function SidebarNavigation({
           <Link href="/p-casting">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 relative ${activeNavItem === "casting" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+              className={`w-full justify-start gap-3 relative ${activeNavItem === "casting" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
                 }`}
             >
               <Megaphone className="w-5 h-5" />
@@ -145,7 +152,7 @@ export function SidebarNavigation({
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className="w-full justify-start gap-3 hover:bg-gray-50"
+              className={`w-full justify-start gap-3 ${theme.text} hover:${theme.subBadge}`}
               onClick={handleMissionClick}
             >
               <Plus className="w-5 h-5" />
@@ -156,7 +163,7 @@ export function SidebarNavigation({
           <div className="space-y-1">
             <Button
               variant="ghost"
-              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
                 }`}
               onClick={onMissionStatusToggle}
             >
@@ -177,7 +184,7 @@ export function SidebarNavigation({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? "bg-pink-50 text-pink-600" : "hover:bg-gray-50"
+                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : "hover:bg-gray-50"
                         }`}
                       onClick={() => onSeasonSelect(option.value)}
                     >
@@ -192,7 +199,7 @@ export function SidebarNavigation({
           <Link href="/p-mypage" onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? "bg-pink-50 text-pink-600 hover:bg-pink-100" : "hover:bg-gray-50"
+              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
                 }`}
             >
               <User className="w-5 h-5" />

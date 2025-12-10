@@ -17,6 +17,7 @@ import type { TMission } from "@/types/t-vote/vote.types"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import MyPicksModal from "@/components/c-my-picks-modal/my-picks-modal"
+import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import { ResultCharacterPopup } from "@/components/c-result-character-popup/result-character-popup"
 import { getRandomComment } from "@/lib/utils/u-comment-generator/commentGenerator.util"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
@@ -27,6 +28,7 @@ import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
+import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 function calculateEarnedPoints(mission: TMission, userVote: any): number {
   if (mission.kind === 'majority' || (mission as any).kind === 'poll') return 10;
@@ -76,13 +78,14 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [characterPopupType, setCharacterPopupType] = useState<"predict" | "majority" | "match">("predict")
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+  const [selectedShowId, setSelectedShowId] = useState<string>("nasolo")
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMyPicksModalOpen, setIsMyPicksModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const router = useRouter()
 
   const handleSeasonSelect = (season: string) => {
@@ -181,6 +184,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   }, [params.id])
 
   useEffect(() => {
+    fetch('/api/public/shows')
+      .then(res => res.json())
+      .then(data => setShowStatuses(data.statuses || {}))
+      .catch(err => console.error("Failed to fetch show statuses", err))
+  }, [])
+
+  useEffect(() => {
     const fetchMission = async () => {
       try {
         setLoading(true)
@@ -213,7 +223,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               finalAnswer: coupleResult.mission.f_final_answer || undefined,
               totalVotes: coupleResult.mission.f_stats_total_votes || 0
             },
-            createdAt: coupleResult.mission.f_created_at
+            createdAt: coupleResult.mission.f_created_at,
+            showId: coupleResult.mission.f_show_id,
+            category: coupleResult.mission.f_category
           }
         } else {
           // t_missions2에 없으면 t_missions1에서 미션 데이터 가져오기
@@ -244,7 +256,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                 majorityOption: result.mission.f_majority_option || undefined,
                 totalVotes: result.mission.f_stats_total_votes || 0
               },
-              createdAt: result.mission.f_created_at
+              createdAt: result.mission.f_created_at,
+              showId: result.mission.f_show_id,
+              category: result.mission.f_category
             }
           } else {
             // Supabase에 없으면 Mock 데이터에서 시도
@@ -294,6 +308,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
         if (missionData) {
           setMission(missionData)
+          if (missionData.showId) {
+            setSelectedShowId(missionData.showId)
+          }
           setUserVote(userVoteData)
 
           let success = false
@@ -391,21 +408,33 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
         <SidebarNavigation
-          selectedShow={selectedShow}
+          selectedShow={selectedShowId}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          category={getShowById(selectedShowId)?.category}
+        />
+        <MissionCreationModal
+          isOpen={isMissionModalOpen}
+          onClose={() => setIsMissionModalOpen(false)}
+          category={getShowById(selectedShowId)?.category}
         />
         <div className="flex-1 flex flex-col">
           <AppHeader
-            selectedShow={selectedShow}
-            onShowChange={setSelectedShow}
+            selectedShow={getShowById(selectedShowId)?.name as any || "나는솔로"}
+            selectedShowId={selectedShowId}
+            onShowChange={(show) => {
+              const showObj = getShowByName(show)
+              if (showObj) setSelectedShowId(showObj.id)
+            }}
+            onShowSelect={setSelectedShowId}
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
             onAvatarClick={() => router.push("/p-profile")}
+            showStatuses={showStatuses}
           />
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
             <div className="max-w-7xl mx-auto flex items-center justify-center min-h-[60vh]">
@@ -448,6 +477,11 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      <MissionCreationModal
+        isOpen={isMissionModalOpen}
+        onClose={() => setIsMissionModalOpen(false)}
+        category={getShowById(selectedShowId)?.category}
+      />
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         {showCharacterPopup && userVote && (
           <ResultCharacterPopup
@@ -461,12 +495,18 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
         <div className="flex-1 flex flex-col">
           <AppHeader
-            selectedShow={selectedShow}
-            onShowChange={setSelectedShow}
+            selectedShow={getShowById(selectedShowId)?.name as any || "나는솔로"}
+            selectedShowId={selectedShowId}
+            onShowChange={(show) => {
+              const showObj = getShowByName(show)
+              if (showObj) setSelectedShowId(showObj.id)
+            }}
+            onShowSelect={setSelectedShowId}
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
             onAvatarClick={() => router.push("/p-profile")}
+            showStatuses={showStatuses}
           />
 
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
@@ -834,12 +874,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         <BottomNavigation />
 
         <SidebarNavigation
-          selectedShow={selectedShow}
+          selectedShow={selectedShowId}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          category={getShowById(selectedShowId)?.category}
         />
 
         {
