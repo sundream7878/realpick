@@ -1,5 +1,5 @@
 // 프로그램 데이터 타입 정의
-export type TShowCategory = "LOVE" | "VICTORY" | "STAR"
+export type TShowCategory = "LOVE" | "VICTORY" | "STAR" | "UNIFIED"
 
 export interface TShow {
     id: string
@@ -41,6 +41,7 @@ export const SHOWS: Record<TShowCategory, TShow[]> = {
         { id: "sing-again", name: "싱어게인", displayName: "싱어게인", category: "STAR", officialUrl: "https://tv.jtbc.co.kr/singagain3", defaultThumbnail: "/images/shows/sing-again.jpg" },
         { id: "rap-public", name: "랩퍼블릭", displayName: "랩:퍼블릭", category: "STAR", officialUrl: "https://www.tving.com/contents/P001763784", defaultThumbnail: "/images/shows/rap-public.jpg" },
     ],
+    UNIFIED: [],
 }
 
 // 카테고리 정보
@@ -65,6 +66,13 @@ export const CATEGORIES = {
         iconPath: "/images/icons/audition.png",
         label: "Audition",
         description: "오디션",
+    },
+    UNIFIED: {
+        id: "UNIFIED" as TShowCategory,
+        emoji: "✨",
+        iconPath: "/images/icons/romance.png", // Fallback icon
+        label: "Common",
+        description: "공통",
     },
 }
 

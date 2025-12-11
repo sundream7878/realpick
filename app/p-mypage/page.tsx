@@ -496,7 +496,7 @@ export default function MyPage() {
 
     setMatchAnswerDrafts(prev => ({
       ...prev,
-      [missionId]: [...currentPairs, { left: selection.left, right: selection.right }],
+      [missionId]: [...currentPairs, { left: selection.left as string, right: selection.right as string }],
     }))
 
     setMatchPairSelections(prev => ({
@@ -1172,14 +1172,14 @@ export default function MyPage() {
         <BottomNavigation />
 
         <SidebarNavigation
-          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}
           selectedSeason={selectedSeason}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
-          activeNavItem="mypage"
-          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          // activeNavItem="mypage" // Removed to prevent "My Page" from being highlighted as requested
+          category="PROFILE"
         />
 
         <MissionCreationModal

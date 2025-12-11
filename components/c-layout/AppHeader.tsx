@@ -9,6 +9,9 @@ import { UserInfo } from "@/components/c-common/UserInfo"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { isAuthenticated } from "@/lib/auth-utils"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
+import { getShowById } from "@/lib/constants/shows"
+import type { TMission } from "@/types/t-vote/vote.types"
 
 interface TAppHeaderProps {
   selectedShow: "나는솔로" | "돌싱글즈"
@@ -23,7 +26,9 @@ interface TAppHeaderProps {
   onShowSelect?: (showId: string) => void
   activeShowIds?: Set<string>
   showStatuses?: Record<string, string>
+  missions?: TMission[]
 }
+
 
 export function AppHeader({
   selectedShow,
@@ -38,9 +43,16 @@ export function AppHeader({
   onShowSelect,
   activeShowIds,
   showStatuses,
+  missions = [],
 }: TAppHeaderProps) {
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const { unreadMissionIds } = useNewMissionNotifications()
+
+  //  각 카테고리별 읽지 않은 미션 개수 계산
+  const hasUnreadLove = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "LOVE")
+  const hasUnreadVictory = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "VICTORY")
+  const hasUnreadStar = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "STAR")
 
   useEffect(() => {
     setIsLoggedIn(isAuthenticated())
@@ -73,9 +85,9 @@ export function AppHeader({
 
           {/* 3대 메인 메뉴 */}
           <div className="flex items-center gap-2 sm:gap-3 md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
-            <ShowMenu category="LOVE" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
-            <ShowMenu category="VICTORY" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
-            <ShowMenu category="STAR" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} />
+            <ShowMenu category="LOVE" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadLove} />
+            <ShowMenu category="VICTORY" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadVictory} />
+            <ShowMenu category="STAR" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadStar} />
           </div>
 
           {/* 우측 영역 - 로그인 상태에 따라 다르게 표시 */}

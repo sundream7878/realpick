@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
-import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone } from "lucide-react"
+import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone, Settings } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -15,18 +15,19 @@ interface TSeasonOption {
 }
 
 import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
-import { TShowCategory } from "@/lib/constants/shows"
+import { TShowCategory, getShowByName } from "@/lib/constants/shows"
 
 interface TSidebarNavigationProps {
-  selectedShow: "나는솔로" | "돌싱글즈"
+  selectedShow?: string
   selectedSeason: string
   isMissionStatusOpen: boolean
   onMissionStatusToggle: () => void
   onSeasonSelect: (season: string) => void
   onMissionModalOpen: () => void
-  activeNavItem?: "home" | "missions" | "mypage" | "casting"
+  activeNavItem?: "home" | "missions" | "mypage" | "casting" | "admin"
   seasonOptions?: TSeasonOption[]
   category?: TShowCategory
+  activeShowIds?: Set<string>
 }
 
 export function SidebarNavigation({
@@ -43,13 +44,15 @@ export function SidebarNavigation({
     { value: "28기", label: "28기", href: "/p-missions?season=28" },
     { value: "27기", label: "27기", href: "/p-missions?season=27" },
   ],
-  category,
+  category: propCategory,
+  activeShowIds = new Set(),
 }: TSidebarNavigationProps) {
   const router = useRouter()
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingAction, setPendingAction] = useState<"mission" | "mypage" | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
 
+  const category = propCategory || (selectedShow ? getShowByName(selectedShow)?.category : undefined)
   const theme = getThemeColors(category)
 
   useEffect(() => {
@@ -59,13 +62,13 @@ export function SidebarNavigation({
 
       const getUserRole = async () => {
         const { data: { user } } = await supabase.auth.getUser()
-        console.log("[Sidebar] Current User:", user?.id)
+        // console.log("[Sidebar] Current User:", user?.id)
 
         if (user) {
           const { data, error } = await supabase.from("t_users").select("f_role").eq("f_id", user.id).single()
-          console.log("[Sidebar] Role Fetch Result:", data, error)
+          // console.log("[Sidebar] Role Fetch Result:", data, error)
           if (data) {
-            console.log("[Sidebar] Setting Role:", data.f_role)
+            // console.log("[Sidebar] Setting Role:", data.f_role)
             setUserRole(data.f_role)
           }
         } else {
@@ -76,7 +79,7 @@ export function SidebarNavigation({
       getUserRole()
 
       const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        console.log("[Sidebar] Auth State Changed:", _event, session?.user?.id)
+        // console.log("[Sidebar] Auth State Changed:", _event, session?.user?.id)
         getUserRole()
       })
 
@@ -119,31 +122,27 @@ export function SidebarNavigation({
   }
 
   return (
-    <aside className="w-64 bg-white border-r border-gray-200 flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16">
+    <aside className={`w-64 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
       <div className="p-6">
         <nav className="space-y-2">
           <Link href="/">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
-                }`}
+              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
             >
               <Home className="w-5 h-5" />
               홈
             </Button>
           </Link>
 
-
-
           <Link href="/p-casting">
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 relative ${activeNavItem === "casting" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
-                }`}
+              className={`w-full justify-start gap-3 ${activeNavItem === "casting" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
             >
               <Megaphone className="w-5 h-5" />
-              Real Casting
-              <span className="absolute right-2 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse">
+              <span>Real Casting</span>
+              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse ml-auto">
                 New
               </span>
             </Button>
@@ -163,14 +162,13 @@ export function SidebarNavigation({
           <div className="space-y-1">
             <Button
               variant="ghost"
-              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
-                }`}
+              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
               onClick={onMissionStatusToggle}
             >
               <div className="flex items-center gap-3">
                 <AlertCircle className="w-5 h-5" />
                 <div className="text-left leading-tight">
-                  <div>{selectedShow}</div>
+                  {selectedShow && <div>{selectedShow}</div>}
                   <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
                 </div>
               </div>
@@ -184,8 +182,7 @@ export function SidebarNavigation({
                     <Button
                       variant="ghost"
                       size="sm"
-                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : "hover:bg-gray-50"
-                        }`}
+                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
                       onClick={() => onSeasonSelect(option.value)}
                     >
                       {option.label}
@@ -199,8 +196,7 @@ export function SidebarNavigation({
           <Link href="/p-mypage" onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : "hover:bg-gray-50"
-                }`}
+              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
             >
               <User className="w-5 h-5" />
               마이페이지

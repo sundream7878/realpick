@@ -5,7 +5,7 @@ import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-naviga
 import { SidebarNavigation } from "./SidebarNavigation"
 import { AppHeader } from "./AppHeader"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
-import { getShowByName } from "@/lib/constants/shows"
+import { getShowByName, TShowCategory } from "@/lib/constants/shows"
 
 interface TSeasonOption {
   value: string
@@ -15,8 +15,8 @@ interface TSeasonOption {
 
 interface TAppLayoutProps {
   children: ReactNode
-  selectedShow: "나는솔로" | "돌싱글즈"
-  onShowChange: (show: "나는솔로" | "돌싱글즈") => void
+  selectedShow?: string
+  onShowChange?: (show: string) => void
   selectedSeason: string
   isMissionStatusOpen: boolean
   onMissionStatusToggle: () => void
@@ -32,6 +32,7 @@ interface TAppLayoutProps {
   showHeader?: boolean
   showBottomNav?: boolean
   mainClassName?: string
+  category?: TShowCategory
 }
 
 export function AppLayout({
@@ -53,10 +54,11 @@ export function AppLayout({
   showHeader = true,
   showBottomNav = true,
   mainClassName = "",
+  category: propCategory,
 }: TAppLayoutProps) {
   // 선택된 프로그램의 카테고리 확인
   const showInfo = getShowByName(selectedShow)
-  const category = showInfo?.category
+  const category = propCategory || showInfo?.category
 
   console.log("[AppLayout] selectedShow:", selectedShow, "Resolved Category:", category)
 

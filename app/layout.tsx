@@ -13,10 +13,14 @@ export const metadata: Metadata = {
   description: "리얼 예능 특화 집단지성 투표 플랫폼",
   generator: "v0.app",
   icons: {
-    icon: "/icon.svg",
-    shortcut: "/icon.svg",
-    apple: "/icon.svg",
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+    ],
+    shortcut: "/favicon-32x32.png",
+    apple: "/apple-touch-icon.png",
   },
+  manifest: "/manifest.json",
 }
 
 export const viewport: Viewport = {

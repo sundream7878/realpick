@@ -25,7 +25,7 @@ export interface ThemeColors {
     }
 }
 
-export const THEME_PALETTES: Record<TShowCategory, ThemeColors> = {
+export const THEME_PALETTES: Record<string, ThemeColors> = {
     LOVE: {
         border: "border-pink-200",
         bgGradient: "from-pink-50 to-pink-100",
@@ -97,9 +97,61 @@ export const THEME_PALETTES: Record<TShowCategory, ThemeColors> = {
             text: "text-yellow-800",
             subText: "text-yellow-700"
         }
+    },
+    UNIFIED: {
+        border: "border-indigo-400/30",
+        bgGradient: "from-[var(--brand-navy)] to-slate-900",
+        text: "text-white",
+        button: "bg-gradient-to-r from-[var(--brand-pink)] to-[var(--brand-gold)]",
+        buttonHover: "hover:opacity-90",
+        badge: "bg-gradient-to-r from-[var(--brand-pink)] to-[var(--brand-gold)]",
+        badgeBorder: "border-transparent",
+        badgeText: "text-white font-bold",
+        subBadge: "bg-white/10 backdrop-blur-sm",
+        subBadgeBorder: "border-white/10",
+        subBadgeText: "text-white",
+        iconBg: "bg-white/10",
+        iconBorder: "border-white/20",
+        iconText: "text-[var(--brand-gold)]",
+        progressBar: ["from-[var(--brand-pink)] to-[var(--brand-gold)]", "from-indigo-400 to-blue-500", "from-pink-400 to-purple-500"],
+        mysteryBox: {
+            bg: "from-indigo-900/50 to-slate-900/50",
+            border: "border-indigo-500/30",
+            iconBg: "from-[var(--brand-pink)] to-[var(--brand-gold)]",
+            text: "text-white",
+            subText: "text-gray-300"
+        }
+    },
+    PROFILE: {
+        border: "border-[#3E757B]/30",
+        bgGradient: "from-[#2C2745] to-[#3E757B]", // Darker custom gradient
+        text: "text-white",
+        button: "bg-white/20 backdrop-blur-sm",
+        buttonHover: "hover:bg-white/30",
+        badge: "bg-[#3E757B]",
+        badgeBorder: "border-[#3E757B]",
+        badgeText: "text-white",
+        subBadge: "bg-white/20 backdrop-blur-sm",
+        subBadgeBorder: "border-white/20",
+        subBadgeText: "text-white",
+        iconBg: "bg-white/10",
+        iconBorder: "border-white/20",
+        iconText: "text-[#3E757B]",
+        progressBar: ["from-[#2C2745] to-[#3E757B]", "from-[#3E757B] to-emerald-500", "from-purple-400 to-[#2C2745]"],
+        mysteryBox: {
+            bg: "from-[#2C2745]/50 to-[#3E757B]/50",
+            border: "border-[#3E757B]/30",
+            iconBg: "from-[#2C2745] to-[#3E757B]",
+            text: "text-white",
+            subText: "text-[#3E757B]/80"
+        }
     }
 }
 
 export function getThemeColors(category: TShowCategory | undefined): ThemeColors {
-    return THEME_PALETTES[category || "LOVE"]
+    // 카테고리가 없으면 통합(UNIFIED) 테마 반환
+    if (!category) {
+        return THEME_PALETTES.UNIFIED as ThemeColors
+    }
+    return THEME_PALETTES[category] || THEME_PALETTES.LOVE
 }

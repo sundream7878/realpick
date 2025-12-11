@@ -117,6 +117,7 @@ export default function DealerLoungePage() {
             userTier={userTierInfo}
             onAvatarClick={() => router.push("/p-mypage")}
             activeNavItem="home" // Or add a specific nav item for dealer lounge if needed
+            category="PROFILE"
         >
             <div className="max-w-7xl mx-auto">
                 {/* Header */}

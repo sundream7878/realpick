@@ -369,6 +369,7 @@ export default function HomePage() {
           }}
           activeShowIds={activeShowIds}
           showStatuses={showStatuses}
+          missions={missions}
         />
 
 
@@ -580,7 +581,7 @@ export default function HomePage() {
 
         {/* 사이드바 (햄버거 메뉴) */}
         <SidebarNavigation
-          selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+          selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}
           selectedSeason={selectedFilter}
           isMissionStatusOpen={isMissionStatusOpen}
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}

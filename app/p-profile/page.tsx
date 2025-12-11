@@ -202,9 +202,9 @@ export default function ProfilePage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-rose-50 via-pink-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-[#2C2745]/10 via-[#3E757B]/10 to-purple-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-rose-500 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <div className="w-8 h-8 border-2 border-[#3E757B] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-600">로딩 중...</p>
         </div>
       </div>
@@ -231,13 +231,13 @@ export default function ProfilePage() {
             <div className="flex flex-col-reverse lg:flex-row gap-8">
               <div className="flex-1 space-y-6">
                 <div className="flex items-center justify-between mb-2">
-                  <h1 className="text-3xl font-bold bg-gradient-to-r from-rose-600 to-pink-600 bg-clip-text text-transparent">
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-[#2C2745] to-[#3E757B] bg-clip-text text-transparent">
                     등급 로드맵
                   </h1>
                 </div>
                 {userTier.minPoints < 5000 && (
-                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm border border-rose-100 p-6 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-rose-100 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
+                  <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-sm border border-[#3E757B]/20 p-6 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[#2C2745]/10 rounded-full blur-3xl -mr-16 -mt-16 opacity-50"></div>
                     <h3 className="text-lg font-semibold text-gray-800 mb-2">다음 등급 목표</h3>
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm text-gray-600">
@@ -246,7 +246,7 @@ export default function ProfilePage() {
                           return nextTier ? `${nextTier.name}까지` : "최고 등급입니다!";
                         })()}
                       </span>
-                      <span className="text-sm font-bold text-rose-600">
+                      <span className="text-sm font-bold text-[#3E757B]">
                         {(() => {
                           const nextTier = [...TIERS].reverse().find(t => t.minPoints > userPoints);
                           return nextTier ? `${(nextTier.minPoints - userPoints).toLocaleString()}P 남음` : "";
@@ -255,7 +255,7 @@ export default function ProfilePage() {
                     </div>
                     <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden">
                       <div
-                        className="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-1000 ease-out"
+                        className="h-full bg-gradient-to-r from-[#2C2745] to-[#3E757B] rounded-full transition-all duration-1000 ease-out"
                         style={{
                           width: (() => {
                             const nextTier = [...TIERS].reverse().find(t => t.minPoints > userPoints);
@@ -281,19 +281,19 @@ export default function ProfilePage() {
                       <div
                         key={tier.name}
                         className={`relative flex items-center p-4 rounded-2xl border transition-all duration-300 ${isCurrent
-                          ? "bg-white border-rose-500 shadow-md ring-2 ring-rose-100 z-10"
+                          ? "bg-white border-[#3E757B] shadow-md ring-2 ring-[#3E757B]/20 z-10"
                           : isNextTarget
-                            ? "bg-white border-rose-300 shadow-[0_0_15px_rgba(251,113,133,0.15)] scale-[1.01] z-10"
+                            ? "bg-white border-[#3E757B]/50 shadow-[0_0_15px_rgba(62,117,123,0.15)] scale-[1.01] z-10"
                             : "bg-white border-gray-100"
                           }`}
                       >
                         {isNextTarget && (
-                          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-rose-500 to-pink-500 text-white text-xs font-bold px-3 py-1 rounded-full shadow-md animate-bounce">
+                          <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-gradient-to-r from-[#2C2745] to-[#3E757B] text-white text-xs font-bold px-3 py-1 rounded-full shadow-md animate-bounce">
                             도전! NEXT LEVEL
                           </div>
                         )}
 
-                        <div className={`relative w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center mr-4 ${isCurrent ? "bg-rose-50" : isNextTarget ? "bg-rose-50/50" : "bg-gray-50"
+                        <div className={`relative w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center mr-4 ${isCurrent ? "bg-[#3E757B]/10" : isNextTarget ? "bg-[#3E757B]/5" : "bg-gray-50"
                           }`}>
                           <Image
                             src={tier.characterImage}
@@ -303,7 +303,7 @@ export default function ProfilePage() {
                             className="w-14 h-14 object-contain"
                           />
                           {isCurrent && (
-                            <div className="absolute -bottom-1 -right-1 bg-rose-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
+                            <div className="absolute -bottom-1 -right-1 bg-[#2C2745] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm">
                               MY
                             </div>
                           )}
@@ -314,7 +314,7 @@ export default function ProfilePage() {
                             <h4 className={`font-bold text-lg ${isCurrent || isNextTarget ? "text-gray-900" : "text-gray-700"}`}>
                               {tier.name}
                             </h4>
-                            <span className={`text-sm font-medium ${isCurrent || isNextTarget ? "text-rose-600" : "text-gray-500"}`}>
+                            <span className={`text-sm font-medium ${isCurrent || isNextTarget ? "text-[#3E757B]" : "text-gray-500"}`}>
                               {tier.minPoints.toLocaleString()}P 이상
                             </span>
                           </div>
@@ -330,10 +330,10 @@ export default function ProfilePage() {
 
               <div className="w-full lg:w-96 flex-shrink-0">
                 <div className="sticky top-24">
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-rose-100 p-8 mb-6">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#3E757B]/20 p-8 mb-6">
                     <div className="flex flex-col items-center text-center mb-8">
                       <div className="relative mb-4">
-                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-rose-200 to-pink-200 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
+                        <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2C2745]/20 to-[#3E757B]/20 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
                           <Image
                             src={userTier.characterImage || "/placeholder.svg"}
                             alt={userTier.name}
@@ -348,17 +348,17 @@ export default function ProfilePage() {
                         <h2 className="text-2xl font-bold text-gray-800">{userNickname}님</h2>
                         <p className="text-gray-600">{userEmail}</p>
                         <div className="flex items-center justify-center gap-4 mt-4">
-                          <div className="bg-gradient-to-r from-rose-100 to-pink-100 px-4 py-2 rounded-full">
-                            <span className="text-sm font-medium text-rose-700">{userTier.name}</span>
+                          <div className="bg-gradient-to-r from-[#2C2745]/10 to-[#3E757B]/10 px-4 py-2 rounded-full">
+                            <span className="text-sm font-medium text-[#2C2745]">{userTier.name}</span>
                           </div>
                           <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-4 py-2 rounded-full">
-                            <span className="text-sm font-medium text-purple-700">{userPoints.toLocaleString()}P</span>
+                            <span className="text-sm font-medium text-[#3E757B]">{userPoints.toLocaleString()}P</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
-                    <div className="bg-gradient-to-r from-rose-50 to-pink-50 rounded-xl p-6 mb-6 border border-rose-100">
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-6 mb-6 border border-[#3E757B]/20">
                       <Label className="text-sm font-medium text-gray-700 mb-4 block">닉네임</Label>
                       {isEditing ? (
                         <div className="space-y-4">
@@ -366,7 +366,7 @@ export default function ProfilePage() {
                             value={editedNickname}
                             onChange={(e) => setEditedNickname(e.target.value)}
                             placeholder="닉네임을 입력하세요"
-                            className="border-rose-200 focus:border-rose-400 focus:ring-rose-400 bg-white/70"
+                            className="border-[#3E757B]/30 focus:border-[#3E757B] focus:ring-[#3E757B] bg-white/70"
                           />
                           <div className="flex gap-3">
                             <Button
@@ -380,7 +380,7 @@ export default function ProfilePage() {
                               취소
                             </Button>
                             <Button
-                              className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                              className="flex-1 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#221e36] hover:to-[#2f5a60] text-white shadow-lg hover:shadow-xl transition-all duration-200"
                               onClick={handleSave}
                               disabled={isSaving}
                             >
@@ -393,7 +393,7 @@ export default function ProfilePage() {
                           <span className="text-lg font-semibold text-gray-900">{userNickname}</span>
                           <Button
                             variant="outline"
-                            className="border-rose-300 text-rose-600 hover:bg-rose-50 bg-white/70"
+                            className="border-[#3E757B]/50 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white/70"
                             onClick={() => setIsEditing(true)}
                           >
                             <Edit2 className="w-4 h-4 mr-2" />

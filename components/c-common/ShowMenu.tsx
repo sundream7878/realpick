@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from "react"
 import { ChevronDown } from "lucide-react"
 import { CATEGORIES, SHOWS, type TShowCategory } from "@/lib/constants/shows"
 import { useRouter } from "next/navigation"
+import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
 
 interface TShowMenuProps {
     category: TShowCategory
@@ -11,14 +12,15 @@ interface TShowMenuProps {
     onShowSelect?: (showId: string) => void
     activeShowIds?: Set<string>
     showStatuses?: Record<string, string>
+    hasUnreadMissions?: boolean
 }
 
-export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses }: TShowMenuProps) {
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses, hasUnreadMissions }: TShowMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const categoryInfo = CATEGORIES[category]
-    const shows = SHOWS[category]
+    const shows = SHOWS[category] || []
 
     // 현재 카테고리에 선택된 쇼가 있는지 확인
     const selectedShow = shows.find(s => s.id === selectedShowId)
@@ -101,6 +103,11 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <ChevronDown
                     className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
+
+                {/* 읽지 않은 미션 배지 */}
+                {hasUnreadMissions && (
+                    <BreathingLightBadge />
+                )}
             </button>
 
             {/* 드롭다운 메뉴 */}
