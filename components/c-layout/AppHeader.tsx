@@ -85,9 +85,36 @@ export function AppHeader({
 
           {/* 3대 메인 메뉴 */}
           <div className="flex items-center gap-2 sm:gap-3 md:absolute md:left-1/2 md:transform md:-translate-x-1/2">
-            <ShowMenu category="LOVE" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadLove} />
-            <ShowMenu category="VICTORY" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadVictory} />
-            <ShowMenu category="STAR" selectedShowId={selectedShowId} onShowSelect={onShowSelect} activeShowIds={activeShowIds} showStatuses={showStatuses} hasUnreadMissions={hasUnreadStar} />
+            <ShowMenu 
+              category="LOVE" 
+              selectedShowId={selectedShowId} 
+              onShowSelect={onShowSelect} 
+              activeShowIds={activeShowIds} 
+              showStatuses={showStatuses} 
+              hasUnreadMissions={hasUnreadLove}
+              unreadMissionIds={unreadMissionIds}
+              missions={missions}
+            />
+            <ShowMenu 
+              category="VICTORY" 
+              selectedShowId={selectedShowId} 
+              onShowSelect={onShowSelect} 
+              activeShowIds={activeShowIds} 
+              showStatuses={showStatuses} 
+              hasUnreadMissions={hasUnreadVictory}
+              unreadMissionIds={unreadMissionIds}
+              missions={missions}
+            />
+            <ShowMenu 
+              category="STAR" 
+              selectedShowId={selectedShowId} 
+              onShowSelect={onShowSelect} 
+              activeShowIds={activeShowIds} 
+              showStatuses={showStatuses} 
+              hasUnreadMissions={hasUnreadStar}
+              unreadMissionIds={unreadMissionIds}
+              missions={missions}
+            />
           </div>
 
           {/* 우측 영역 - 로그인 상태에 따라 다르게 표시 */}

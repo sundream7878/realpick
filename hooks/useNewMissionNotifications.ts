@@ -66,9 +66,14 @@ export function useNewMissionNotifications() {
                     const uniqueIds = Array.from(new Set(updated))
                     setUnreadMissions(uniqueIds)
                     setUnreadMissionIds(uniqueIds)
+
+                    // 토스트 알림 (선택사항)
+                    console.log(`🔔 새 미션: ${newMission.f_title}`)
                 }
             )
-            .subscribe()
+            .subscribe((status) => {
+                console.log("[Realtime] t_missions1 구독 상태:", status)
+            })
 
         // t_missions2 INSERT 이벤트 구독
         const channel2 = supabase
@@ -89,9 +94,14 @@ export function useNewMissionNotifications() {
                     const uniqueIds = Array.from(new Set(updated))
                     setUnreadMissions(uniqueIds)
                     setUnreadMissionIds(uniqueIds)
+
+                    // 토스트 알림 (선택사항)
+                    console.log(`🔔 새 미션: ${newMission.f_title}`)
                 }
             )
-            .subscribe()
+            .subscribe((status) => {
+                console.log("[Realtime] t_missions2 구독 상태:", status)
+            })
 
         // 클린업
         return () => {

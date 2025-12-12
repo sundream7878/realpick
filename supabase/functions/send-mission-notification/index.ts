@@ -81,16 +81,20 @@ serve(async (req) => {
         missionId
       })
 
-      // Supabase Auth의 이메일 기능 사용
-      // 주의: 이 방법은 인증 이메일용이므로, 실제로는 외부 SMTP 또는 다른 방법 필요
-      // 여기서는 로그만 출력
-      console.log(`[Email Notification] Would send email to: ${userEmail}`)
-      console.log(`[Email Notification] Subject: [RealPick] 새로운 ${getCategoryName(category)} 미션!`)
+      const subject = `[RealPick] 새로운 ${getCategoryName(category)} 미션!`
 
-      // 실제 이메일 발송은 Supabase의 SMTP 설정이 필요하거나
-      // Database Webhook으로 외부 서비스 호출 필요
+      // 실제 이메일 발송
+      const result = await sendEmail({
+        to: userEmail,
+        subject,
+        html: emailHtml
+      })
 
-      return { success: true, email: userEmail }
+      return {
+        success: result.success,
+        email: userEmail,
+        error: result.error
+      }
     })
 
     const results = await Promise.all(emailPromises)

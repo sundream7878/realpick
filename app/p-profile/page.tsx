@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation"
 import { Button } from "@/components/c-ui/button"
 import { Input } from "@/components/c-ui/input"
 import { Label } from "@/components/c-ui/label"
-import { Edit2, LogOut, UserX } from "lucide-react"
+import { Switch } from "@/components/c-ui/switch"
+import { Edit2, LogOut, UserX, Bell, Mail } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -17,6 +18,7 @@ import { getUser, updateUserProfile } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { createClient } from "@/lib/supabase/client"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -35,6 +37,11 @@ export default function ProfilePage() {
   const [editedNickname, setEditedNickname] = useState(userNickname)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+
+  // 알림 설정
+  const [emailNotification, setEmailNotification] = useState(true)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(['LOVE', 'VICTORY', 'STAR'])
+  const [isSavingNotification, setIsSavingNotification] = useState(false)
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -57,6 +64,19 @@ export default function ProfilePage() {
               setUserPoints(user.points)
               setUserTier(getTierFromDbOrPoints(user.tier, user.points))
               setEditedNickname(user.nickname)
+            }
+
+            // 알림 설정 로드
+            const supabase = createClient()
+            const { data: prefs } = await supabase
+              .from('t_notification_preferences')
+              .select('*')
+              .eq('f_user_id', currentUserId)
+              .single()
+
+            if (prefs) {
+              setEmailNotification(prefs.f_email_enabled)
+              setSelectedCategories(prefs.f_categories || [])
             }
           } catch (error) {
             console.error("유저 데이터 로딩 실패:", error)
@@ -199,6 +219,75 @@ export default function ProfilePage() {
       }
     }
   }
+
+  const toggleCategory = (categoryId: string) => {
+    setSelectedCategories(prev =>
+      prev.includes(categoryId)
+        ? prev.filter(c => c !== categoryId)
+        : [...prev, categoryId]
+    )
+  }
+
+  const handleSaveNotification = async () => {
+    setIsSavingNotification(true)
+    try {
+      const currentUserId = getUserId()
+      if (!currentUserId) {
+        throw new Error("사용자 ID를 찾을 수 없습니다.")
+      }
+
+      const supabase = createClient()
+      const payload = {
+        f_user_id: currentUserId,
+        f_email_enabled: emailNotification,
+        f_categories: selectedCategories
+      }
+
+      // 기존 설정 확인
+      const { data: existing } = await supabase
+        .from('t_notification_preferences')
+        .select('f_id')
+        .eq('f_user_id', currentUserId)
+        .single()
+
+      if (existing) {
+        // 업데이트
+        const { error } = await supabase
+          .from('t_notification_preferences')
+          .update(payload)
+          .eq('f_user_id', currentUserId)
+
+        if (error) throw error
+      } else {
+        // 생성
+        const { error } = await supabase
+          .from('t_notification_preferences')
+          .insert([payload])
+
+        if (error) throw error
+      }
+
+      toast({
+        title: "저장 완료",
+        description: "알림 설정이 저장되었습니다.",
+      })
+    } catch (error) {
+      console.error("알림 설정 저장 실패:", error)
+      toast({
+        title: "저장 실패",
+        description: error instanceof Error ? error.message : "알림 설정 저장 중 오류가 발생했습니다.",
+        variant: "destructive",
+      })
+    } finally {
+      setIsSavingNotification(false)
+    }
+  }
+
+  const CATEGORIES = [
+    { id: 'LOVE', name: '로맨스', emoji: '❤️' },
+    { id: 'VICTORY', name: '서바이벌', emoji: '🏆' },
+    { id: 'STAR', name: '오디션', emoji: '⭐' }
+  ]
 
   if (isLoading) {
     return (
@@ -422,6 +511,85 @@ export default function ProfilePage() {
                         계정 탈퇴
                       </Button>
                     </div>
+                  </div>
+
+                  {/* 이메일 알림 설정 */}
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#3E757B]/20 p-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <Bell className="w-5 h-5 text-[#3E757B]" />
+                      <h3 className="text-lg font-semibold text-gray-800">이메일 알림</h3>
+                    </div>
+
+                    {/* 이메일 알림 ON/OFF */}
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-6 border border-[#3E757B]/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-[#3E757B]" />
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">알림 받기</p>
+                            <p className="text-xs text-gray-600 mt-0.5">새 미션 등록 시 이메일</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={emailNotification}
+                          onCheckedChange={setEmailNotification}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 카테고리 선택 */}
+                    {emailNotification && (
+                      <div className="space-y-3 mb-6">
+                        <Label className="text-sm font-medium text-gray-700">관심 카테고리</Label>
+                        <div className="space-y-2">
+                          {CATEGORIES.map(category => {
+                            const isSelected = selectedCategories.includes(category.id)
+                            return (
+                              <button
+                                key={category.id}
+                                onClick={() => toggleCategory(category.id)}
+                                className={`
+                                  w-full p-3 rounded-xl border-2 transition-all text-left
+                                  ${isSelected
+                                    ? 'border-[#3E757B] bg-[#3E757B]/10'
+                                    : 'border-gray-200 bg-white/70 hover:border-gray-300'
+                                  }
+                                `}
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-2xl">{category.emoji}</span>
+                                    <span className="text-sm font-medium text-gray-900">{category.name}</span>
+                                  </div>
+                                  <div className={`
+                                    w-5 h-5 rounded-full border-2 flex items-center justify-center
+                                    ${isSelected
+                                      ? 'border-[#3E757B] bg-[#3E757B]'
+                                      : 'border-gray-300'
+                                    }
+                                  `}>
+                                    {isSelected && (
+                                      <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                </div>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 저장 버튼 */}
+                    <Button
+                      onClick={handleSaveNotification}
+                      disabled={isSavingNotification}
+                      className="w-full bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#221e36] hover:to-[#2f5a60] text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                    >
+                      {isSavingNotification ? "저장 중..." : "알림 설정 저장"}
+                    </Button>
                   </div>
                 </div>
               </div>

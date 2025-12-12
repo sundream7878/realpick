@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client"
 import { getThumbnailFromUrl } from "@/lib/utils/u-media/youtube.util"
 import { CreateMissionData, TMission, TMatchPairs } from "@/types/t-vote/vote.types"
 import { addPointLog } from "@/lib/supabase/points"
+import { sendMissionNotification } from "@/lib/supabase/email-notification"
 
 /**
  * 미션 생성
@@ -70,6 +71,15 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         })
       }).catch(err => console.error("Embedding generation failed:", err))
 
+      // 이메일 알림 발송 (비동기, 에러 무시)
+      sendMissionNotification({
+        missionId: data.f_id,
+        missionTitle: missionData.title,
+        category: missionData.category,
+        showId: missionData.showId,
+        creatorId: userId
+      }).catch(err => console.error("Email notification failed:", err))
+
       return { success: true, missionId: data.f_id }
     }
 
@@ -104,6 +114,15 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         table: 't_missions1'
       })
     }).catch(err => console.error("Embedding generation failed:", err))
+
+    // 이메일 알림 발송 (비동기, 에러 무시)
+    sendMissionNotification({
+      missionId: data.f_id,
+      missionTitle: missionData.title,
+      category: missionData.category,
+      showId: missionData.showId,
+      creatorId: userId
+    }).catch(err => console.error("Email notification failed:", err))
 
     return { success: true, missionId: data.f_id }
 

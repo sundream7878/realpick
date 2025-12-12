@@ -108,6 +108,7 @@ CREATE POLICY "Users can update their own pickresult1" ON t_pickresult1
 -- ============================================
 -- 7. PickResult2 테이블 정책 (커플 매칭 예측)
 -- ============================================
+-- 주의: t_pickresult2는 회차별로 row를 나누지 않고, f_votes JSONB에 모든 회차를 저장합니다
 -- 사용자는 자신의 예측만 조회 가능
 CREATE POLICY "Users can view their own pickresult2" ON t_pickresult2
   FOR SELECT USING (auth.uid() = f_user_id);
@@ -122,11 +123,8 @@ CREATE POLICY "Users can update their own pickresult2" ON t_pickresult2
     auth.uid() = f_user_id 
     AND EXISTS (
       SELECT 1 FROM t_missions2 
-      JOIN t_episodes ON t_episodes.f_mission_id = t_missions2.f_id 
       WHERE t_missions2.f_id = t_pickresult2.f_mission_id 
-      AND t_episodes.f_episode_no = t_pickresult2.f_episode_no
       AND t_missions2.f_status = 'open'
-      AND t_episodes.f_status = 'open'
       AND t_missions2.f_deadline > NOW()
     )
   );

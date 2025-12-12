@@ -5,6 +5,7 @@ import { ChevronDown } from "lucide-react"
 import { CATEGORIES, SHOWS, type TShowCategory } from "@/lib/constants/shows"
 import { useRouter } from "next/navigation"
 import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
+import type { TMission } from "@/types/t-vote/vote.types"
 
 interface TShowMenuProps {
     category: TShowCategory
@@ -13,9 +14,11 @@ interface TShowMenuProps {
     activeShowIds?: Set<string>
     showStatuses?: Record<string, string>
     hasUnreadMissions?: boolean
+    unreadMissionIds?: string[]
+    missions?: TMission[]
 }
 
-export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses, hasUnreadMissions }: TShowMenuProps) {
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses, hasUnreadMissions, unreadMissionIds, missions }: TShowMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
@@ -25,6 +28,12 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     // 현재 카테고리에 선택된 쇼가 있는지 확인
     const selectedShow = shows.find(s => s.id === selectedShowId)
     const isCategoryActive = !!selectedShow
+    
+    // 각 프로그램별 읽지 않은 미션 개수 계산
+    const getUnreadCountForShow = (showId: string) => {
+        if (!missions || !unreadMissionIds) return 0
+        return missions.filter(m => m.showId === showId && unreadMissionIds.includes(m.id)).length
+    }
 
     // 외부 클릭 감지
     useEffect(() => {
@@ -83,8 +92,8 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-          flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm
-          transition-all duration-200
+          relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm
+          transition-all duration-200 overflow-visible
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white/70 text-gray-700 hover:bg-white hover:shadow-md"
@@ -104,9 +113,11 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
 
-                {/* 읽지 않은 미션 배지 */}
+                {/* 읽지 않은 미션 배지 - 버튼 내부 우측에 위치 */}
                 {hasUnreadMissions && (
-                    <BreathingLightBadge />
+                    <div className="ml-1 flex-shrink-0">
+                        <BreathingLightBadge />
+                    </div>
                 )}
             </button>
 
@@ -154,6 +165,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
 
                             const shouldDisable = !isActive
                             const isSelected = show.id === selectedShowId
+                            const unreadCount = getUnreadCountForShow(show.id)
 
                             return (
                                 <button
@@ -161,7 +173,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                                     onClick={() => !shouldDisable && handleShowClick(show.id)}
                                     disabled={shouldDisable}
                                     className={`
-                      w-full px-4 py-2.5 text-left text-sm
+                      relative w-full px-4 py-2.5 text-left text-sm
                       transition-all duration-150
                       flex items-center justify-between
                       ${isSelected
@@ -172,13 +184,31 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                                         }
                     `}
                                 >
-                                    <span>
+                                    <span className="flex items-center gap-1.5">
                                         {show.displayName}
                                         {isUpcoming && <span className="ml-1 text-xs text-gray-400 font-normal">(예정)</span>}
                                         {isUndecided && <span className="ml-1 text-xs text-gray-400 font-normal">(미정)</span>}
+                                        {/* 프로그램별 읽지 않은 미션 배지 - 크기 50% 축소 */}
+                                        {unreadCount > 0 && (
+                                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full animate-pulse">
+                                                {unreadCount}
+                                            </span>
+                                        )}
                                     </span>
                                     {isSelected && (
-                                        <div className={`w-1.5 h-1.5 rounded-full ${theme.buttonOpen.split(" ")[1].replace("from-", "bg-")}`} />
+                                        <div className={`w-1.5 h-1.5 rounded-full ${(() => {
+                                            // 카테고리별 선택 표시 색상 추출
+                                            switch(category) {
+                                                case "LOVE":
+                                                    return "bg-rose-500"
+                                                case "VICTORY":
+                                                    return "bg-blue-600"
+                                                case "STAR":
+                                                    return "bg-yellow-400"
+                                                default:
+                                                    return "bg-rose-500"
+                                            }
+                                        })()}`} />
                                     )}
                                 </button>
                             )
