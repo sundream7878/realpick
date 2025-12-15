@@ -9,7 +9,7 @@ import "./globals.css"
 // Force CSS rebuild
 
 export const metadata: Metadata = {
-  title: "RealPick - 리얼 예능 투표 플랫폼",
+  title: "리얼픽 - 리얼 예능 투표 플랫폼",
   description: "리얼 예능 특화 집단지성 투표 플랫폼",
   generator: "v0.app",
   icons: {

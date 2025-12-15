@@ -1,6 +1,6 @@
 /**
  * 이메일 알림 발송 유틸리티
- * Supabase Edge Function을 호출하여 Gmail SMTP로 이메일 전송
+ * Next.js API Route를 호출하여 Resend로 이메일 전송
  */
 
 /**
@@ -19,50 +19,50 @@ export async function sendMissionNotification({
   showId?: string
   creatorId: string
 }): Promise<{ success: boolean; error?: string }> {
+  console.log('[Email] 🚀 Starting email notification process:', { missionId, missionTitle, category, showId, creatorId })
+  
   try {
     // 카테고리가 없으면 알림 발송 안 함
     if (!category) {
-      console.log('[Email] No category specified, skipping notification')
+      console.log('[Email] ⚠️ No category specified, skipping notification')
       return { success: true }
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-    const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    // Next.js API Route 호출
+    const apiUrl = '/api/send-mission-notification'
+    console.log('[Email] 📡 Calling API Route:', apiUrl)
 
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.warn('[Email] Supabase credentials not configured')
-      return { success: false, error: 'Supabase credentials not configured' }
+    const payload = {
+      missionId,
+      missionTitle,
+      category,
+      showId,
+      creatorId
     }
+    console.log('[Email] 📦 Payload:', JSON.stringify(payload, null, 2))
 
-    // Supabase Edge Function 호출
-    const functionUrl = `${supabaseUrl}/functions/v1/send-mission-notification`
-
-    const response = await fetch(functionUrl, {
+    const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`,
       },
-      body: JSON.stringify({
-        missionId,
-        missionTitle,
-        category,
-        showId,
-        creatorId
-      })
+      body: JSON.stringify(payload)
     })
+
+    console.log('[Email] 📥 Response status:', response.status, response.statusText)
 
     if (!response.ok) {
       const error = await response.text()
-      console.error('[Email] Edge Function error:', error)
+      console.error('[Email] ❌ API Route error:', error)
       return { success: false, error }
     }
 
     const result = await response.json()
-    console.log('[Email] Notification sent:', result)
+    console.log('[Email] ✅ Notification sent successfully:', result)
     return { success: true }
   } catch (error: any) {
-    console.error('[Email] Failed to send notification:', error)
+    console.error('[Email] 💥 Failed to send notification:', error)
+    console.error('[Email] 💥 Error stack:', error.stack)
     return { success: false, error: error.message }
   }
 }

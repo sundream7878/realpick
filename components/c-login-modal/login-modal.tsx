@@ -6,6 +6,7 @@ import { Input } from "@/components/c-ui/input"
 import { Label } from "@/components/c-ui/label"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/c-ui/dialog"
 import { Mail } from "lucide-react"
+import Image from "next/image"
 
 interface LoginModalProps {
   isOpen: boolean
@@ -168,10 +169,19 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
         <div className="p-6 sm:p-8">
           {/* 헤더 */}
           <DialogHeader className="text-center mb-6">
-            <DialogTitle className="text-3xl font-bold bg-gradient-to-r from-rose-500 to-pink-600 bg-clip-text text-transparent mb-2">
-              RealPick
-            </DialogTitle>
-            <DialogDescription className="text-gray-700 text-base">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2">
+              <Image 
+                src="/favicon-32x32.png" 
+                alt="리얼픽 로고" 
+                width={28} 
+                height={28}
+                className="object-contain sm:w-8 sm:h-8"
+              />
+              <DialogTitle className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-[#2C2745] to-[#3E757B] bg-clip-text text-transparent">
+                리얼픽
+              </DialogTitle>
+            </div>
+            <DialogDescription className="text-gray-700 text-sm sm:text-base">
               {step === "email" ? "로그인하고 분석을 시작하세요" : "이메일을 확인해주세요"}
             </DialogDescription>
           </DialogHeader>
@@ -200,7 +210,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                       setTimeout(() => setShowSuggestions(false), 200)
                     }}
                     required
-                    className="h-12 border-gray-200 focus:border-rose-400 focus:ring-rose-400"
+                    className="h-12 border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B]"
                   />
                   {showSuggestions && emailSuggestions.length > 0 && (
                     <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
@@ -226,7 +236,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               <Button
                 type="submit"
                 disabled={isLoading || !email || !email.includes("@")}
-                className="w-full h-12 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-medium text-base"
+                className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
               >
                 {isLoading ? (
                   <div className="flex items-center gap-2">
@@ -238,7 +248,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                 )}
               </Button>
 
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
                 로그인하시면 이용약관 및 개인정보처리방침에 동의하게 됩니다.
               </p>
             </form>
@@ -246,8 +256,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
             /* OTP 코드 입력 단계 */
             <form onSubmit={handleCodeVerify} className="space-y-6">
               <div className="flex flex-col items-center justify-center space-y-4 py-2">
-                <div className="w-16 h-16 bg-rose-100 rounded-full flex items-center justify-center">
-                  <Mail className="w-8 h-8 text-rose-500" />
+                <div className="w-16 h-16 bg-[#3E757B]/10 rounded-full flex items-center justify-center">
+                  <Mail className="w-8 h-8 text-[#3E757B]" />
                 </div>
                 <div className="text-center space-y-2">
                   <h3 className="text-lg font-semibold text-gray-900">인증 코드를 입력하세요</h3>
@@ -271,7 +281,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                   value={code}
                   onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
                   required
-                  className="h-12 text-center text-2xl tracking-widest border-gray-200 focus:border-rose-400 focus:ring-rose-400"
+                  className="h-12 text-center text-2xl tracking-widest border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B]"
                   autoFocus
                 />
               </div>
@@ -279,7 +289,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
               <Button
                 type="submit"
                 disabled={isVerifying || code.length !== 6}
-                className="w-full h-12 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-medium text-base"
+                className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
               >
                 {isVerifying ? (
                   <div className="flex items-center gap-2">
@@ -300,7 +310,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     setCode("")
                   }}
                   variant="outline"
-                  className="w-full h-12 border-gray-300 text-gray-700 hover:bg-gray-50"
+                  className="w-full h-11 sm:h-12 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm sm:text-base"
                 >
                   이메일 변경
                 </Button>
@@ -310,14 +320,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
                     type="button"
                     onClick={handleResendCode}
                     disabled={isResending}
-                    className="text-sm text-rose-600 hover:text-rose-700 disabled:text-gray-400"
+                    className="text-sm text-[#3E757B] hover:text-[#2C2745] disabled:text-gray-400"
                   >
                     {isResending ? "재전송 중..." : "코드 재전송"}
                   </button>
                 </div>
               </div>
 
-              <p className="text-xs text-gray-500 text-center">
+              <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
                 이메일이 보이지 않나요? 스팸 폴더를 확인해주세요.
               </p>
             </form>

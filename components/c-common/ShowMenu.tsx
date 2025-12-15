@@ -87,13 +87,14 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     const theme = getThemeColors(category)
 
     return (
-        <div className="relative" ref={menuRef}>
+        <div className="relative z-50" ref={menuRef}>
             {/* 메뉴 버튼 */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-          relative flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg font-medium text-sm
-          transition-all duration-200 overflow-visible
+          relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg font-medium
+          transition-all duration-200
+          min-w-[90px] sm:min-w-[110px] md:w-auto
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white/70 text-gray-700 hover:bg-white hover:shadow-md"
@@ -104,13 +105,13 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden sm:block w-7 h-7 object-contain"
+                    className="hidden md:block w-6 h-6 md:w-7 md:h-7 object-contain flex-shrink-0"
                 />
-                <span className="text-sm sm:text-base whitespace-nowrap">
-                    {selectedShow ? selectedShow.displayName : (isOpen ? categoryInfo.label : categoryInfo.description)}
+                <span className="text-[11px] sm:text-xs md:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis">
+                    {selectedShow ? selectedShow.displayName : categoryInfo.description}
                 </span>
                 <ChevronDown
-                    className={`w-4 h-4 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
 
                 {/* 읽지 않은 미션 배지 - 버튼 내부 우측에 위치 */}
@@ -129,7 +130,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             bg-white rounded-xl shadow-2xl border border-gray-100
             overflow-hidden
             animate-in fade-in slide-in-from-top-2 duration-200
-            z-50
+            z-[100]
           "
                 >
                     {/* 프로그램 목록 (헤더 제거) */}

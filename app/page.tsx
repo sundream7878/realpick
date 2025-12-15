@@ -7,6 +7,8 @@ import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-naviga
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
+import Onboarding from "@/components/c-onboarding/onboarding"
+import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -24,6 +26,8 @@ import { getShowById } from "@/lib/constants/shows"
 
 export default function HomePage() {
   const router = useRouter()
+  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
@@ -42,7 +46,23 @@ export default function HomePage() {
   const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
   const userId = getUserId() || "user123"
 
-  // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합
+  // 로그인 상태 체크
+  useEffect(() => {
+    const checkLoginStatus = async () => {
+      const loggedIn = await isAuthenticated()
+      setIsLoggedIn(loggedIn)
+    }
+    checkLoginStatus()
+
+    // 인증 상태 변경 감지
+    const handleAuthChange = () => {
+      checkLoginStatus()
+    }
+    window.addEventListener('auth-change', handleAuthChange)
+    return () => window.removeEventListener('auth-change', handleAuthChange)
+  }, [])
+
+  // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합 (로그인 여부와 무관하게 로드)
   useEffect(() => {
     const loadMissions = async () => {
       setIsLoading(true)
@@ -350,6 +370,79 @@ export default function HomePage() {
       .catch(err => console.error("Failed to fetch show statuses", err))
   }, [])
 
+  // 로그인 상태 체크 중일 때 로딩 표시
+  if (isLoggedIn === null) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-[#3E757B] border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // 로그인하지 않은 사용자에게 온보딩 표시 (카테고리 클릭은 가능하도록 미션 전달)
+  if (!isLoggedIn) {
+    return (
+      <>
+        <AppHeader
+          selectedShow="나는솔로"
+          onShowChange={() => { }}
+          userNickname=""
+          userPoints={0}
+          userTier={getTierFromPoints(0)}
+          onAvatarClick={() => {}}
+          selectedShowId={selectedShowId}
+          onShowSelect={(showId) => {
+            setSelectedShowId(showId === selectedShowId ? null : showId)
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
+          activeShowIds={activeShowIds}
+          showStatuses={showStatuses}
+          missions={missions}
+        />
+        
+        {/* 카테고리 선택 시 미션 목록 표시 */}
+        {selectedShowId && !isLoading ? (
+          <main className="flex-1 p-4 space-y-4 max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {displayMissions.map((mission) => (
+                <MissionCard
+                  key={mission.id}
+                  mission={mission}
+                  shouldShowResults={false}
+                  onViewPick={() => {
+                    setShowLoginModal(true) // 비로그인 상태에서 미션 클릭 시 로그인 유도
+                  }}
+                />
+              ))}
+            </div>
+            {displayMissions.length === 0 && (
+              <div className="text-center py-12 text-gray-500">
+                <p>해당 프로그램의 미션이 아직 없습니다.</p>
+              </div>
+            )}
+          </main>
+        ) : (
+          <Onboarding 
+            onGetStarted={() => setShowLoginModal(true)}
+          />
+        )}
+        
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          onLoginSuccess={() => {
+            setShowLoginModal(false)
+            window.location.reload() // 로그인 후 페이지 새로고침
+          }}
+        />
+      </>
+    )
+  }
+
+  // 로그인한 사용자에게 기존 미션 목록 표시
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">

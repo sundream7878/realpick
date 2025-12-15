@@ -36,24 +36,23 @@ SMTP Port: 587
 SMTP Username: your-email@gmail.com
 SMTP Password: [Gmail 앱 비밀번호]
 Sender Email: your-email@gmail.com
-Sender Name: RealPick
+Sender Name: 리얼픽
 ```
 
 💡 **Gmail 앱 비밀번호**는 이전에 만든 16자리 비밀번호 사용
 
-#### 1-3. 이메일 템플릿 확인
+#### 1-3. 이메일 템플릿 커스터마이징
 
-**Authentication** → **Email Templates** 섹션에서:
+**리얼픽 브랜드 색상을 적용한 전문 템플릿을 사용하려면:**
 
-- **Magic Link** 템플릿 확인
-- 필요 시 한글로 커스터마이징
+📄 **`docs/SUPABASE_EMAIL_TEMPLATE_SETUP.md`** 문서를 참조하세요!
 
-예시:
+**간단한 템플릿 예시:**
 ```html
-<h2>RealPick 로그인</h2>
+<h2>리얼픽 로그인</h2>
 <p>안녕하세요,</p>
 <p>로그인을 위한 6자리 인증 코드입니다:</p>
-<h1 style="letter-spacing: 5px;">{{ .Token }}</h1>
+<h1 style="letter-spacing: 5px; color: #2C2745;">{{ .Token }}</h1>
 <p>이 코드는 10분간 유효합니다.</p>
 ```
 
@@ -128,7 +127,20 @@ SMTP Password: [SendGrid API Key]
 
 ## 📧 이메일 템플릿 커스터마이징
 
-### OTP 이메일 템플릿
+### 🎨 리얼픽 브랜드 템플릿 사용
+
+**리얼픽 디자인 시스템을 적용한 전문 이메일 템플릿:**
+
+📄 **상세 가이드: `docs/SUPABASE_EMAIL_TEMPLATE_SETUP.md`**
+
+이 문서에서 제공하는 템플릿은:
+- ✅ p-profile과 동일한 색상 테마 (`#2C2745` → `#3E757B`)
+- ✅ 네이버 메일 호환 (테이블 기반 레이아웃)
+- ✅ 모든 이메일 클라이언트 지원
+- ✅ 반응형 디자인
+- ✅ 텍스트 전용 버전 포함
+
+### 간단한 템플릿 (빠른 시작)
 
 **Authentication** → **Email Templates** → **Magic Link**:
 
@@ -145,7 +157,8 @@ SMTP Password: [SendGrid API Key]
       padding: 20px;
     }
     .code {
-      background: #f5f5f5;
+      background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%);
+      color: white;
       padding: 20px;
       text-align: center;
       font-size: 32px;
@@ -157,15 +170,15 @@ SMTP Password: [SendGrid API Key]
   </style>
 </head>
 <body>
-  <h2>RealPick 로그인</h2>
+  <h2 style="color: #2C2745;">리얼픽 로그인</h2>
   <p>안녕하세요,</p>
   <p>로그인을 위한 인증 코드입니다:</p>
   <div class="code">{{ .Token }}</div>
-  <p>이 코드는 <strong>10분</strong>간 유효합니다.</p>
+  <p>이 코드는 <strong style="color: #3E757B;">10분</strong>간 유효합니다.</p>
   <p>로그인을 시도하지 않으셨다면 이 이메일을 무시하세요.</p>
   <hr>
   <p style="color: #999; font-size: 12px;">
-    이 이메일은 RealPick에서 자동으로 발송되었습니다.
+    이 이메일은 리얼픽에서 자동으로 발송되었습니다.
   </p>
 </body>
 </html>

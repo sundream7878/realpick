@@ -46,14 +46,14 @@ export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChan
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-md bg-gradient-to-br from-rose-50 to-pink-50 border-rose-200">
+      <DialogContent className="max-w-[calc(100%-3rem)] sm:max-w-md bg-gradient-to-br from-[#2C2745]/5 to-[#3E757B]/5 border-[#3E757B]/20">
         <DialogHeader>
           <DialogTitle className="text-xl font-semibold text-gray-900">프로필</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* 닉네임 섹션 */}
-          <div className="bg-white/80 p-4 rounded-lg border border-rose-200 space-y-3">
+          <div className="bg-white/80 p-4 rounded-lg border border-[#3E757B]/20 space-y-3">
             <Label className="text-sm font-medium text-gray-700">닉네임</Label>
             {isEditing ? (
               <div className="space-y-3">
@@ -61,7 +61,7 @@ export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChan
                   value={editedNickname}
                   onChange={(e) => setEditedNickname(e.target.value)}
                   placeholder="닉네임을 입력하세요"
-                  className="border-rose-300 focus:border-rose-400 focus:ring-rose-400"
+                  className="border-[#3E757B]/30 focus:border-[#3E757B] focus:ring-[#3E757B]"
                 />
                 <div className="flex gap-2">
                   <Button
@@ -74,7 +74,7 @@ export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChan
                   </Button>
                   <Button
                     size="sm"
-                    className="flex-1 bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white"
+                    className="flex-1 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white"
                     onClick={handleSaveNickname}
                   >
                     저장
@@ -87,7 +87,7 @@ export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChan
                 <Button
                   size="sm"
                   variant="outline"
-                  className="border-rose-300 text-rose-600 hover:bg-rose-50 bg-transparent"
+                  className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-transparent"
                   onClick={() => setIsEditing(true)}
                 >
                   <Edit2 className="w-4 h-4 mr-1" />

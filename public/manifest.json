@@ -1,6 +1,6 @@
 {
-    "name": "RealPick - 리얼픽",
-    "short_name": "RealPick",
+    "name": "리얼픽 - 리얼 예능 투표 플랫폼",
+    "short_name": "리얼픽",
     "description": "참여형 예능 커뮤니티 투표 플랫폼",
     "start_url": "/",
     "display": "standalone",
