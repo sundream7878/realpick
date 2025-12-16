@@ -30,7 +30,7 @@ export default function Onboarding({ onGetStarted }: OnboardingProps) {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+    <div className="flex-1 w-full">
       {/* Progress Indicator */}
       <div className="fixed top-20 right-8 z-50 hidden lg:flex flex-col gap-3">
         {[0, 1, 2].map((step) => (
@@ -196,7 +196,7 @@ export default function Onboarding({ onGetStarted }: OnboardingProps) {
       </section>
 
       {/* STEP 2: 핵심 가치 */}
-      <section className="min-h-screen flex items-center justify-center px-4 py-12 sm:py-20 bg-gradient-to-b from-white to-gray-50">
+      <section className="min-h-screen flex items-center justify-center px-4 py-12 sm:py-20 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <div className="text-center mb-12 sm:mb-16">
             <h2 className="text-2xl sm:text-3xl md:text-5xl font-bold mb-4 px-4">

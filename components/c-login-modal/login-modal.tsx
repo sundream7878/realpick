@@ -12,11 +12,12 @@ interface LoginModalProps {
   isOpen: boolean
   onClose: () => void
   onLoginSuccess?: () => void
+  redirectUrl?: string // 로그인 후 리다이렉트할 URL
 }
 
 type LoginStep = "email" | "code"
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUrl }: LoginModalProps) {
   const [step, setStep] = useState<LoginStep>("email")
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
@@ -129,7 +130,10 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
       // 로그인 성공
       if (result.needsSetup || result.isNewUser) {
-        // 추가 정보 입력 필요
+        // 추가 정보 입력 필요 - 리다이렉트 URL 저장
+        if (redirectUrl) {
+          sessionStorage.setItem("rp_redirect_after_setup", redirectUrl)
+        }
         window.location.href = `/auth/setup?new=${result.isNewUser}`
       } else {
         // 로그인 완료
@@ -138,6 +142,12 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess }: LoginMod
 
         if (onLoginSuccess) {
           onLoginSuccess()
+        } else if (redirectUrl) {
+          // redirectUrl이 있으면 해당 URL로 이동
+          window.location.href = redirectUrl
+        } else {
+          // 기본 페이지로 이동 (나는솔로)
+          window.location.href = "/?show=nasolo"
         }
         onClose()
       }

@@ -415,6 +415,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           category={getShowById(selectedShowId)?.category}
+          selectedShowId={selectedShowId}
         />
         <MissionCreationModal
           isOpen={isMissionModalOpen}
@@ -429,7 +430,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               const showObj = getShowByName(show)
               if (showObj) setSelectedShowId(showObj.id)
             }}
-            onShowSelect={setSelectedShowId}
+            onShowSelect={(showId) => {
+              if (showId) {
+                router.push(`/?show=${showId}`)
+              } else {
+                router.push("/")
+              }
+            }}
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
@@ -501,7 +508,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               const showObj = getShowByName(show)
               if (showObj) setSelectedShowId(showObj.id)
             }}
-            onShowSelect={setSelectedShowId}
+            onShowSelect={(showId) => {
+              if (showId) {
+                router.push(`/?show=${showId}`)
+              } else {
+                router.push("/")
+              }
+            }}
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
@@ -860,11 +873,14 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     <Share2 className="w-4 h-4 mr-2" />
                     결과 공유하기
                   </Button>
-                  <Link href="/" className="block">
-                    <Button size="lg" className="w-full bg-transparent" variant="outline">
-                      다른 미션 보기
-                    </Button>
-                  </Link>
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-transparent" 
+                    variant="outline"
+                    onClick={() => router.back()}
+                  >
+                    다른 미션 보기
+                  </Button>
                 </div>
               </div >
             </div >
@@ -881,6 +897,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           category={getShowById(selectedShowId)?.category}
+          selectedShowId={selectedShowId}
         />
 
         {

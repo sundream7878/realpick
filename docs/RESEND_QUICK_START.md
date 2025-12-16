@@ -77,3 +77,4 @@ Resend API
 
 이제 RealPick의 미션 알림 시스템이 Resend로 작동합니다! 🚀
 
+

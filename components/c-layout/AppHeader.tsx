@@ -37,7 +37,7 @@ export function AppHeader({
   userPoints,
   userTier,
   onAvatarClick,
-  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-8 sm:h-10 md:h-14",
+  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-9 sm:h-10 md:h-12 lg:h-14",
   className = "",
   selectedShowId,
   onShowSelect,
@@ -72,10 +72,10 @@ export function AppHeader({
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-14 sm:h-16 ${className}`}
+      className={`sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 ${className}`}
     >
-      <div className="container mx-auto px-2 sm:px-4 lg:px-8 h-full max-w-full">
-        <div className="flex items-center justify-between h-full gap-1 sm:gap-2 md:gap-4 relative overflow-x-hidden">
+      <div className="mx-auto px-2 sm:px-3 md:px-4 lg:px-6 h-full max-w-full">
+        <div className="flex items-center justify-between h-full gap-2 sm:gap-3 md:gap-4 lg:gap-6 relative">
           {/* 로고 */}
           <div className="flex items-center flex-shrink-0 min-w-0">
             <Link href="/">
@@ -84,7 +84,7 @@ export function AppHeader({
           </div>
 
           {/* 3대 메인 메뉴 */}
-          <div className="flex items-center gap-1 sm:gap-2 md:gap-3 md:absolute md:left-1/2 md:transform md:-translate-x-1/2 flex-shrink min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 md:absolute md:left-1/2 md:transform md:-translate-x-1/2 flex-shrink min-w-0">
             <ShowMenu 
               category="LOVE" 
               selectedShowId={selectedShowId} 
@@ -132,9 +132,9 @@ export function AppHeader({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowLoginModal(true)}
-                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white/70 text-xs sm:text-sm px-2 sm:px-4 h-8 sm:h-9"
+                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white/70 text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-5 h-9 sm:h-10 md:h-11 whitespace-nowrap"
               >
-                <User className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
+                <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 mr-1 sm:mr-1.5 md:mr-2" />
                 로그인
               </Button>
             )}

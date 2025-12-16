@@ -178,7 +178,13 @@ export default function VotePage({ params }: { params: { id: string } }) {
             const showObj = getShowByName(show)
             if (showObj) setSelectedShowId(showObj.id)
           }}
-          onShowSelect={setSelectedShowId}
+          onShowSelect={(showId) => {
+            if (showId) {
+              router.push(`/?show=${showId}`)
+            } else {
+              router.push("/")
+            }
+          }}
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}

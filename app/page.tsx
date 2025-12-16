@@ -11,7 +11,7 @@ import Onboarding from "@/components/c-onboarding/onboarding"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getMissions, getMissions2 } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted, getVote1, getAllVotes2 } from "@/lib/supabase/votes"
 import { getTopVotersByMission } from "@/lib/supabase/top-voters"
@@ -26,6 +26,7 @@ import { getShowById } from "@/lib/constants/shows"
 
 export default function HomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [userNickname, setUserNickname] = useState("")
@@ -34,7 +35,7 @@ export default function HomePage() {
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedFilter, setSelectedFilter] = useState("전체")
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [selectedUserVote, setSelectedUserVote] = useState<TVoteSubmission | null>(null)
@@ -44,7 +45,21 @@ export default function HomePage() {
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
   const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
   const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
+  const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | undefined>(undefined)
   const userId = getUserId() || "user123"
+
+  // URL 쿼리 파라미터 동기화 및 기본 카테고리 설정
+  useEffect(() => {
+    const showParam = searchParams.get('show')
+    
+    // 로그인된 사용자이고 쿼리 파라미터가 없으면 기본으로 nasolo 설정
+    if (isLoggedIn && !showParam) {
+      router.push('/?show=nasolo')
+      return
+    }
+    
+    setSelectedShowId(showParam)
+  }, [searchParams, isLoggedIn, router])
 
   // 로그인 상태 체크
   useEffect(() => {
@@ -385,60 +400,252 @@ export default function HomePage() {
   // 로그인하지 않은 사용자에게 온보딩 표시 (카테고리 클릭은 가능하도록 미션 전달)
   if (!isLoggedIn) {
     return (
-      <>
-        <AppHeader
-          selectedShow="나는솔로"
-          onShowChange={() => { }}
-          userNickname=""
-          userPoints={0}
-          userTier={getTierFromPoints(0)}
-          onAvatarClick={() => {}}
-          selectedShowId={selectedShowId}
-          onShowSelect={(showId) => {
-            setSelectedShowId(showId === selectedShowId ? null : showId)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}
-          activeShowIds={activeShowIds}
-          showStatuses={showStatuses}
-          missions={missions}
-        />
-        
-        {/* 카테고리 선택 시 미션 목록 표시 */}
-        {selectedShowId && !isLoading ? (
-          <main className="flex-1 p-4 space-y-4 max-w-7xl mx-auto">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {displayMissions.map((mission) => (
-                <MissionCard
-                  key={mission.id}
-                  mission={mission}
-                  shouldShowResults={false}
-                  onViewPick={() => {
-                    setShowLoginModal(true) // 비로그인 상태에서 미션 클릭 시 로그인 유도
-                  }}
-                />
-              ))}
-            </div>
-            {displayMissions.length === 0 && (
-              <div className="text-center py-12 text-gray-500">
-                <p>해당 프로그램의 미션이 아직 없습니다.</p>
-              </div>
-            )}
-          </main>
-        ) : (
-          <Onboarding 
-            onGetStarted={() => setShowLoginModal(true)}
+      <div className="min-h-screen bg-gray-50">
+        <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+          <AppHeader
+            selectedShow="나는솔로"
+            onShowChange={() => { }}
+            userNickname=""
+            userPoints={0}
+            userTier={getTierFromPoints(0)}
+            onAvatarClick={() => {}}
+            selectedShowId={selectedShowId}
+            onShowSelect={(showId) => {
+              const newShowId = showId === selectedShowId ? null : showId
+              setSelectedShowId(newShowId)
+              // URL 업데이트
+              if (newShowId) {
+                router.push(`/?show=${newShowId}`)
+              } else {
+                router.push('/')
+              }
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            activeShowIds={activeShowIds}
+            showStatuses={showStatuses}
+            missions={missions}
           />
-        )}
-        
-        <LoginModal
-          isOpen={showLoginModal}
-          onClose={() => setShowLoginModal(false)}
-          onLoginSuccess={() => {
-            setShowLoginModal(false)
-            window.location.reload() // 로그인 후 페이지 새로고침
-          }}
-        />
-      </>
+          
+          {/* 카테고리 선택 시 미션 목록 표시 */}
+          {selectedShowId && !isLoading ? (
+            <main className="flex-1 p-4 space-y-4 md:pl-72">
+              {/* 메인 미션 배너 */}
+              {mainMission && (
+                <div
+                  className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 md:p-6 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer"
+                  onClick={() => {
+                    const targetUrl = isMainMissionClosed 
+                      ? `/p-mission/${mainMission.id}/results` 
+                      : `/p-mission/${mainMission.id}/vote`
+                    setRedirectAfterLogin(targetUrl)
+                    setShowLoginModal(true)
+                  }}
+                >
+                  {/* 배경 애니메이션 효과 */}
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/20 rounded-full blur-3xl -mr-16 -mt-16 animate-pulse" />
+                  <div className="absolute bottom-0 left-0 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl -ml-16 -mb-16 animate-pulse delay-700" />
+                  <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10 mix-blend-soft-light"></div>
+                  {/* 반짝이는 효과 (Shimmer) */}
+                  <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent z-0"></div>
+
+                  <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+                    {/* 왼쪽: 미션 카드 (원본 크기 유지 & 3D 효과) */}
+                    <div className="w-full md:w-1/2 perspective-1000 flex-shrink-0">
+                      <div className="pointer-events-none transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-y-6">
+                        <MissionCard
+                          mission={mainMission}
+                          shouldShowResults={false}
+                          onViewPick={() => { }}
+                          variant="hot"
+                        />
+                      </div>
+                    </div>
+
+                    {/* 오른쪽: 상세 설명 */}
+                    <div className="w-full md:w-1/2 text-center md:text-left space-y-3">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 bg-white/10 backdrop-blur-md border border-white/20 rounded-full text-[10px] font-bold text-purple-300 mb-1 animate-fade-in-up">
+                        {!isMainMissionClosed ? (
+                          <>
+                            <span className="relative flex h-2 w-2">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-purple-400 opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-purple-500"></span>
+                            </span>
+                            {mainMission.form === 'match' ? '💖 MAIN MATCH' : mainMission.form === 'tournament' ? '🏆 MAIN TOURNAMENT' : '🔥 HOT ISSUE'}
+                          </>
+                        ) : (
+                          <>
+                            <span className="relative flex h-2 w-2">
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-400"></span>
+                            </span>
+                            {mainMission.form === 'match' ? '💖 CLOSED MATCH' : mainMission.form === 'tournament' ? '🏆 CLOSED TOURNAMENT' : '✅ CLOSED'}
+                          </>
+                        )}
+                      </div>
+
+                      <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
+                        {mainMission.title}
+                      </h1>
+
+                      {!isMainMissionClosed ? (
+                        <>
+                          <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep line-clamp-2 animate-fade-in-up delay-200">
+                            {mainMission.description || "여러분의 촉으로 결과를 예측해보세요! 가장 많은 사람들이 선택한 결과는 무엇일까요?"}
+                          </p>
+
+                          <div className="flex flex-col md:flex-row items-center gap-3 pt-2 justify-center md:justify-start animate-fade-in-up delay-300">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setRedirectAfterLogin(`/p-mission/${mainMission.id}/vote`)
+                                setShowLoginModal(true)
+                              }}
+                              className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-sm px-6 py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
+                              size="default"
+                            >
+                              지금 투표 참여하기
+                            </Button>
+                            <p className="text-xs text-gray-400">
+                              현재 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span> 참여 중
+                            </p>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <p className="text-gray-300 text-sm md:text-base max-w-xl mx-auto md:mx-0 break-keep animate-fade-in-up delay-200">
+                            🏆 미션이 마감되었습니다! 총 <span className="text-white font-bold">{mainMission.stats?.participants?.toLocaleString()}명</span>이 참여했습니다.
+                          </p>
+
+                          <div className="bg-white/10 backdrop-blur-md rounded-xl p-4 border border-white/20 animate-fade-in-up delay-300">
+                            <h3 className="text-sm font-bold text-white mb-3 flex items-center gap-2">
+                              TOP 3 랭킹
+                            </h3>
+                            <div className="space-y-2">
+                              {topVoters.length > 0 ? (
+                                topVoters.map((voter, index) => (
+                                  <div key={index} className="flex items-center justify-between text-xs">
+                                    <div className="flex items-center gap-2">
+                                      <span className={`font-bold text-xs px-1.5 py-0.5 rounded ${index === 0 ? 'bg-yellow-500/20 text-yellow-300' : index === 1 ? 'bg-gray-500/20 text-gray-300' : 'bg-orange-500/20 text-orange-300'}`}>
+                                        {index + 1}위
+                                      </span>
+                                      <span className="text-white font-medium">{voter.nickname}</span>
+                                      <span className="text-gray-400 text-[10px]">{voter.tier}</span>
+                                    </div>
+                                    <span className="text-purple-300 font-bold">{voter.points.toLocaleString()}P</span>
+                                  </div>
+                                ))
+                              ) : (
+                                <p className="text-gray-400 text-xs text-center py-2">아직 참여자가 없습니다</p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="flex justify-center md:justify-start animate-fade-in-up delay-400">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation()
+                                setRedirectAfterLogin(`/p-mission/${mainMission.id}/results`)
+                                setShowLoginModal(true)
+                              }}
+                              variant="outline"
+                              className="border-white/50 text-white hover:bg-white/20 hover:border-white font-bold text-sm px-6 py-2 bg-white/10"
+                            >
+                              전체 결과 보기
+                            </Button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* 필터 (가로 스크롤) */}
+              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 pt-2">
+                {["전체", "진행중", "마감", "핫이슈"].map((filter) => (
+                  <button
+                    key={filter}
+                    onClick={() => setSelectedFilter(filter)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors ${selectedFilter === filter
+                      ? "bg-gray-900 text-white"
+                      : "bg-gray-100 text-gray-500 hover:bg-gray-200"
+                      }`}
+                  >
+                    {filter}
+                  </button>
+                ))}
+              </div>
+
+              {/* 미션 목록 */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {displayMissions.length > 0 ? (
+                  displayMissions.map((mission, index) => (
+                    <div key={mission.id} id={`mission-${mission.id}`}>
+                      <MissionCard
+                        mission={mission}
+                        shouldShowResults={false}
+                        onViewPick={() => {
+                          // 비로그인 상태에서 미션 클릭 시 로그인 유도
+                          setRedirectAfterLogin(`/p-mission/${mission.id}/vote`)
+                          setShowLoginModal(true)
+                        }}
+                        variant={index === 0 && !mainMission ? "hot" : "default"}
+                      />
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-10 text-gray-400">
+                    <p>해당 프로그램의 미션이 아직 없습니다.</p>
+                  </div>
+                )}
+              </div>
+            </main>
+          ) : (
+            <Onboarding 
+              onGetStarted={() => {
+                setRedirectAfterLogin("/?show=nasolo")
+                setShowLoginModal(true)
+              }}
+            />
+          )}
+
+          {/* 하단 네비게이션 (카테고리 선택 시에만 표시) */}
+          {selectedShowId && !isLoading && (
+            <>
+              <BottomNavigation
+                onMissionClick={() => {
+                  setRedirectAfterLogin(window.location.pathname + window.location.search)
+                  setShowLoginModal(true)
+                }}
+                onStatusClick={() => setIsMissionStatusOpen(true)}
+              />
+
+              {/* 사이드바 (햄버거 메뉴) */}
+              <SidebarNavigation
+                selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}
+                selectedSeason={selectedFilter}
+                isMissionStatusOpen={isMissionStatusOpen}
+                onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+                onSeasonSelect={setSelectedFilter}
+                onMissionModalOpen={() => {
+                  setRedirectAfterLogin(window.location.pathname + window.location.search)
+                  setShowLoginModal(true)
+                }}
+                category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+                selectedShowId={selectedShowId}
+              />
+            </>
+          )}
+          
+          <LoginModal
+            isOpen={showLoginModal}
+            onClose={() => {
+              setShowLoginModal(false)
+              setRedirectAfterLogin(undefined)
+            }}
+            redirectUrl={redirectAfterLogin}
+          />
+        </div>
+      </div>
     )
   }
 
@@ -457,7 +664,14 @@ export default function HomePage() {
           onAvatarClick={() => router.push("/p-profile")}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
-            setSelectedShowId(showId === selectedShowId ? null : showId) // Toggle
+            const newShowId = showId === selectedShowId ? null : showId
+            setSelectedShowId(newShowId) // Toggle
+            // URL 업데이트
+            if (newShowId) {
+              router.push(`/?show=${newShowId}`)
+            } else {
+              router.push('/')
+            }
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
           activeShowIds={activeShowIds}
@@ -681,6 +895,7 @@ export default function HomePage() {
           onSeasonSelect={setSelectedFilter}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          selectedShowId={selectedShowId}
         />
 
         {/* 미션 생성 모달 */}

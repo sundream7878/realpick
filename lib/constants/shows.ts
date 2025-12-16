@@ -13,7 +13,7 @@ export interface TShow {
 // 프로그램 데이터
 export const SHOWS: Record<TShowCategory, TShow[]> = {
     LOVE: [
-        { id: "nasolo", name: "나는SOLO", displayName: "나는 SOLO (나는 솔로)", category: "LOVE", officialUrl: "https://prismstudios.sbs.co.kr/", defaultThumbnail: "/images/shows/nasolo.png" },
+        { id: "nasolo", name: "나는SOLO", displayName: "나는 SOLO", category: "LOVE", officialUrl: "https://prismstudios.sbs.co.kr/", defaultThumbnail: "/images/shows/nasolo.png" },
         { id: "nasolsagye", name: "나솔사계", displayName: "나솔사계", category: "LOVE", officialUrl: "https://programs.sbs.co.kr/plus/iamsolo_loveforever", defaultThumbnail: "/images/shows/nasolsagye.png" },
         { id: "dolsingles6", name: "돌싱글즈6", displayName: "돌싱글즈6", category: "LOVE", officialUrl: "https://www.mbn.co.kr/vod/programMain/966", defaultThumbnail: "/images/shows/dolsingles6.png" },
         { id: "solojihuk4", name: "솔로지옥4", displayName: "솔로지옥 시즌4", category: "LOVE", officialUrl: "https://www.netflix.com/kr/title/81436209", defaultThumbnail: "/images/shows/solojihuk4.png" },

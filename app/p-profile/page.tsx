@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/c-ui/button"
 import { Input } from "@/components/c-ui/input"
 import { Label } from "@/components/c-ui/label"
@@ -22,8 +22,9 @@ import { createClient } from "@/lib/supabase/client"
 
 export default function ProfilePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { toast } = useToast()
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
@@ -42,6 +43,12 @@ export default function ProfilePage() {
   const [emailNotification, setEmailNotification] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['LOVE', 'VICTORY', 'STAR'])
   const [isSavingNotification, setIsSavingNotification] = useState(false)
+
+  // URL 쿼리 파라미터 동기화
+  useEffect(() => {
+    const showParam = searchParams.get('show')
+    setSelectedShowId(showParam)
+  }, [searchParams])
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -558,7 +565,7 @@ export default function ProfilePage() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-2xl">{category.emoji}</span>
+                                    <span className="text-xl">{category.emoji}</span>
                                     <span className="text-sm font-medium text-gray-900">{category.name}</span>
                                   </div>
                                   <div className={`
@@ -608,6 +615,7 @@ export default function ProfilePage() {
           onMissionModalOpen={() => { }}
           activeNavItem="mypage"
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          selectedShowId={selectedShowId}
         />
       </div>
     </div>

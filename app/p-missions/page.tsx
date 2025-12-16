@@ -320,7 +320,13 @@ export default function MissionsPage() {
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
           selectedShowId={selectedShowId}
-          onShowSelect={(showId) => setSelectedShowId(showId)}
+          onShowSelect={(showId) => {
+            if (showId) {
+              router.push(`/?show=${showId}`)
+            } else {
+              router.push("/")
+            }
+          }}
           activeShowIds={activeShowIds}
           showStatuses={showStatuses}
         />
@@ -376,6 +382,7 @@ export default function MissionsPage() {
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           activeNavItem="missions"
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          selectedShowId={selectedShowId}
         />
 
         <MissionCreationModal

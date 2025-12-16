@@ -2,12 +2,16 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { createClient } from "@/lib/supabase/client"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
 import { Loader2, Trophy, Users, Layout, Crown } from "lucide-react"
-import { AppLayout } from "@/components/c-layout/AppLayout"
+import { AppHeader } from "@/components/c-layout/AppHeader"
+import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
+import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getShowById } from "@/lib/constants/shows"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 interface DealerStat {
@@ -21,16 +25,18 @@ interface DealerStat {
 
 export default function DealerLoungePage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [stats, setStats] = useState<DealerStat[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [currentUser, setCurrentUser] = useState<any>(null)
 
-    // AppLayout states
-    const [selectedShow, setSelectedShow] = useState<"나는솔로" | "돌싱글즈">("나는솔로")
+    // Layout states
+    const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
+    const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
 
     useEffect(() => {
         const checkPermissionAndLoadData = async () => {
@@ -75,6 +81,19 @@ export default function DealerLoungePage() {
         checkPermissionAndLoadData()
     }, [router])
 
+    // URL 쿼리 파라미터 동기화
+    useEffect(() => {
+        const showParam = searchParams.get('show')
+        setSelectedShowId(showParam)
+    }, [searchParams])
+
+    useEffect(() => {
+        fetch('/api/public/shows')
+            .then(res => res.json())
+            .then(data => setShowStatuses(data.statuses || {}))
+            .catch(err => console.error("Failed to fetch show statuses", err))
+    }, [])
+
     if (loading) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -103,23 +122,34 @@ export default function DealerLoungePage() {
     const rank = stats.findIndex(s => s.id === currentUser?.id) + 1
     const userTierInfo = getTierFromPoints(currentUser?.f_points || 0)
 
+    const handleSeasonSelect = (season: string) => {
+        setSelectedSeason(season)
+    }
+
     return (
-        <AppLayout
-            selectedShow={selectedShow}
-            onShowChange={setSelectedShow}
-            selectedSeason={selectedSeason}
-            isMissionStatusOpen={isMissionStatusOpen}
-            onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
-            onSeasonSelect={setSelectedSeason}
-            onMissionModalOpen={() => setIsMissionModalOpen(true)}
-            userNickname={currentUser?.f_nickname || ""}
-            userPoints={currentUser?.f_points || 0}
-            userTier={userTierInfo}
-            onAvatarClick={() => router.push("/p-mypage")}
-            activeNavItem="home" // Or add a specific nav item for dealer lounge if needed
-            category="PROFILE"
-        >
-            <div className="max-w-7xl mx-auto">
+        <div className="min-h-screen bg-gray-50 pb-20">
+            <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+                <AppHeader
+                    selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
+                    onShowChange={() => { }}
+                    userNickname={currentUser?.f_nickname || ""}
+                    userPoints={currentUser?.f_points || 0}
+                    userTier={userTierInfo}
+                    onAvatarClick={() => router.push("/p-profile")}
+                    selectedShowId={selectedShowId}
+                    onShowSelect={(showId) => {
+                        if (showId) {
+                            router.push(`/?show=${showId}`)
+                        } else {
+                            router.push("/")
+                        }
+                    }}
+                    activeShowIds={new Set()}
+                    showStatuses={showStatuses}
+                />
+
+                <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+                    <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -220,7 +250,28 @@ export default function DealerLoungePage() {
                         </div>
                     </div>
                 </div>
+                    </div>
+                </main>
+
+                <BottomNavigation />
+
+                <SidebarNavigation
+                    selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}
+                    selectedSeason={selectedSeason}
+                    isMissionStatusOpen={isMissionStatusOpen}
+                    onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+                    onSeasonSelect={handleSeasonSelect}
+                    onMissionModalOpen={() => setIsMissionModalOpen(true)}
+                    activeNavItem="home"
+                    category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+                    selectedShowId={selectedShowId}
+                />
+
+                <MissionCreationModal
+                    isOpen={isMissionModalOpen}
+                    onClose={() => setIsMissionModalOpen(false)}
+                />
             </div>
-        </AppLayout>
+        </div>
     )
 }

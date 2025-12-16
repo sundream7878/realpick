@@ -599,15 +599,14 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
             </div>
           ) : (
             <div className="flex justify-center">
-              <Link href="/">
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="px-16 py-4 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
-                >
-                  다른 미션 보기
-                </Button>
-              </Link>
+              <Button
+                size="lg"
+                variant="outline"
+                className="px-16 py-4 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
+                onClick={() => router.back()}
+              >
+                다른 미션 보기
+              </Button>
             </div>
           )}
         </div>

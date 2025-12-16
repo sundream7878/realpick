@@ -215,3 +215,4 @@ docs/EMAIL_NOTIFICATION_TEST_GUIDE.md
 
 ✅ **마이그레이션 완료!** 이제 Resend로 안정적이고 빠른 이메일 알림을 보낼 수 있습니다! 🎉
 
+

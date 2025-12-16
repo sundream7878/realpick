@@ -92,9 +92,9 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-          relative flex items-center gap-1 sm:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 rounded-lg font-medium
+          relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg font-medium
           transition-all duration-200
-          min-w-[90px] sm:min-w-[110px] md:w-auto
+          min-w-[65px] sm:min-w-[75px] md:min-w-[85px] lg:min-w-[95px]
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white/70 text-gray-700 hover:bg-white hover:shadow-md"
@@ -105,18 +105,18 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden md:block w-6 h-6 md:w-7 md:h-7 object-contain flex-shrink-0"
+                    className="hidden md:block w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 object-contain flex-shrink-0"
                 />
-                <span className="text-[11px] sm:text-xs md:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis">
+                <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
                     {selectedShow ? selectedShow.displayName : categoryInfo.description}
                 </span>
                 <ChevronDown
-                    className={`w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
 
                 {/* 읽지 않은 미션 배지 - 버튼 내부 우측에 위치 */}
                 {hasUnreadMissions && (
-                    <div className="ml-1 flex-shrink-0">
+                    <div className="ml-0.5 flex-shrink-0 scale-90 sm:scale-100">
                         <BreathingLightBadge />
                     </div>
                 )}
@@ -126,16 +126,15 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             {isOpen && (
                 <div
                     className="
-            absolute top-full left-0 mt-2 w-56
-            bg-white rounded-xl shadow-2xl border border-gray-100
-            overflow-hidden
+            absolute top-full left-0 mt-1 w-36 sm:w-44 md:w-52
+            bg-white rounded-lg shadow-xl border border-gray-100
             animate-in fade-in slide-in-from-top-2 duration-200
             z-[100]
           "
                 >
                     {/* 프로그램 목록 (헤더 제거) */}
                     {/* 프로그램 목록 (헤더 제거) */}
-                    <div className="py-2 max-h-96 overflow-y-auto">
+                    <div className="py-1 sm:py-1.5">
                         {shows.slice().sort((a, b) => {
                             // Status Priority: ACTIVE (0) > UNDECIDED (1) > UPCOMING (2)
                             const getStatus = (id: string) => showStatuses?.[id] || 'ACTIVE'
@@ -174,7 +173,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                                     onClick={() => !shouldDisable && handleShowClick(show.id)}
                                     disabled={shouldDisable}
                                     className={`
-                      relative w-full px-4 py-2.5 text-left text-sm
+                      relative w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm
                       transition-all duration-150
                       flex items-center justify-between
                       ${isSelected
@@ -185,13 +184,13 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                                         }
                     `}
                                 >
-                                    <span className="flex items-center gap-1.5">
-                                        {show.displayName}
-                                        {isUpcoming && <span className="ml-1 text-xs text-gray-400 font-normal">(예정)</span>}
-                                        {isUndecided && <span className="ml-1 text-xs text-gray-400 font-normal">(미정)</span>}
-                                        {/* 프로그램별 읽지 않은 미션 배지 - 크기 50% 축소 */}
+                                    <span className="flex items-center gap-1">
+                                        <span className="truncate">{show.displayName}</span>
+                                        {isUpcoming && <span className="text-[10px] sm:text-xs text-gray-400 font-normal whitespace-nowrap">(예정)</span>}
+                                        {isUndecided && <span className="text-[10px] sm:text-xs text-gray-400 font-normal whitespace-nowrap">(미정)</span>}
+                                        {/* 프로그램별 읽지 않은 미션 배지 - 크기 축소 */}
                                         {unreadCount > 0 && (
-                                            <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 text-[10px] font-bold text-white bg-red-500 rounded-full animate-pulse">
+                                            <span className="inline-flex items-center justify-center min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 sm:px-1 text-[8px] sm:text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
                                                 {unreadCount}
                                             </span>
                                         )}

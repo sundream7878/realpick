@@ -17,7 +17,7 @@ import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/supabase/missions"
 import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
@@ -29,12 +29,13 @@ import { getShowByName, getShowById } from "@/lib/constants/shows"
 
 export default function MyPage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
+  const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
@@ -88,6 +89,12 @@ export default function MyPage() {
       window.removeEventListener("storage", handleAuthChange)
     }
   }, [userId])
+
+  // URL 쿼리 파라미터 동기화
+  useEffect(() => {
+    const showParam = searchParams.get('show')
+    setSelectedShowId(showParam)
+  }, [searchParams])
 
   useEffect(() => {
     fetch('/api/public/shows')
@@ -937,7 +944,13 @@ export default function MyPage() {
           userTier={userTier}
           onAvatarClick={() => router.push("/p-profile")}
           selectedShowId={selectedShowId}
-          onShowSelect={(showId) => setSelectedShowId(showId)}
+          onShowSelect={(showId) => {
+            if (showId) {
+              router.push(`/?show=${showId}`)
+            } else {
+              router.push("/")
+            }
+          }}
           activeShowIds={new Set([...createdMissions, ...participatedMissions].map(m => m.showId).filter(Boolean) as string[])}
           showStatuses={showStatuses}
         />
@@ -1178,8 +1191,9 @@ export default function MyPage() {
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
-          // activeNavItem="mypage" // Removed to prevent "My Page" from being highlighted as requested
-          category="PROFILE"
+          activeNavItem="mypage"
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          selectedShowId={selectedShowId}
         />
 
         <MissionCreationModal

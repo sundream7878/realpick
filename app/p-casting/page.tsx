@@ -135,7 +135,13 @@ export default function CastingPage() {
                     userTier={userTier}
                     onAvatarClick={() => router.push("/p-profile")}
                     selectedShowId={selectedShowId}
-                    onShowSelect={(showId) => setSelectedShowId(showId)}
+                    onShowSelect={(showId) => {
+                        if (showId) {
+                            router.push(`/?show=${showId}`)
+                        } else {
+                            router.push("/")
+                        }
+                    }}
                     showStatuses={showStatuses}
                 />
 
@@ -304,6 +310,8 @@ export default function CastingPage() {
                     onSeasonSelect={setSelectedSeason}
                     onMissionModalOpen={() => setIsMissionModalOpen(true)}
                     category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+                    activeNavItem="casting"
+                    selectedShowId={selectedShowId}
                 />
 
                 <MissionCreationModal

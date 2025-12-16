@@ -1,8 +1,8 @@
 "use client"
 
-import { Home, AlertCircle, User, Plus } from "lucide-react"
+import { Home, AlertCircle, User, Plus, Megaphone } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useSearchParams } from "next/navigation"
 import { useState, useEffect } from "react"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -18,11 +18,16 @@ interface BottomNavigationProps {
 
 export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNavigationProps) {
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [pendingMissionCreation, setPendingMissionCreation] = useState(false)
   const [userRole, setUserRole] = useState<TUserRole>("PICKER")
   const [canCreateMissions, setCanCreateMissions] = useState(false)
+  
+  // 현재 선택된 카테고리 쿼리 파라미터
+  const selectedShowId = searchParams.get('show')
+  const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
 
   // Load user role
   useEffect(() => {
@@ -77,6 +82,12 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
       href: "/",
       active: pathname === "/",
     },
+    {
+      icon: Megaphone,
+      label: "리얼캐스팅",
+      href: "/p-casting",
+      active: pathname === "/p-casting",
+    },
     ...(canCreateMissions ? [{
       icon: Plus,
       label: "미션게시",
@@ -94,7 +105,7 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
     {
       icon: User,
       label: "마이페이지",
-      href: "/p-mypage",
+      href: myPageUrl,
       active: pathname === "/p-mypage",
     },
   ]
@@ -102,7 +113,7 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
   return (
     <>
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50 safe-area-inset-bottom">
-        <div className="flex justify-around items-center h-16 px-2">
+        <div className="flex justify-around items-center h-16 px-1">
           {navItems.map((item, index) => {
             const Icon = item.icon
             if (item.onClick) {
@@ -110,11 +121,11 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
                 <button
                   key={index}
                   onClick={item.onClick}
-                  className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                  className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-colors flex-1 min-w-0 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                     }`}
                 >
-                  <Icon className="w-5 h-5" />
-                  <span className="text-xs font-medium">{item.label}</span>
+                  <Icon className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-[10px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{item.label}</span>
                 </button>
               )
             }
@@ -122,11 +133,11 @@ export function BottomNavigation({ onMissionClick, onStatusClick }: BottomNaviga
               <Link
                 key={item.href}
                 href={item.href!}
-                className={`flex flex-col items-center justify-center gap-1 py-2 px-3 rounded-lg transition-colors flex-1 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-colors flex-1 min-w-0 ${item.active ? "text-pink-600 bg-pink-50" : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                   }`}
               >
-                <Icon className="w-5 h-5" />
-                <span className="text-xs font-medium">{item.label}</span>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                <span className="text-[10px] font-medium whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">{item.label}</span>
               </Link>
             )
           })}

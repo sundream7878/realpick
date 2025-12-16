@@ -90,8 +90,14 @@ export default function AuthSetupPage() {
         description: "추가 정보가 저장되었습니다.",
       })
 
-      // 홈으로 리다이렉트
-      router.push("/")
+      // 저장된 리다이렉트 URL이 있으면 해당 URL로, 없으면 나는솔로 메인으로
+      const redirectUrl = sessionStorage.getItem("rp_redirect_after_setup")
+      if (redirectUrl) {
+        sessionStorage.removeItem("rp_redirect_after_setup")
+        router.push(redirectUrl)
+      } else {
+        router.push("/?show=nasolo")
+      }
     } catch (error) {
       console.error("추가 정보 저장 실패:", error)
       toast({

@@ -28,6 +28,7 @@ interface TSidebarNavigationProps {
   seasonOptions?: TSeasonOption[]
   category?: TShowCategory
   activeShowIds?: Set<string>
+  selectedShowId?: string | null
 }
 
 export function SidebarNavigation({
@@ -46,6 +47,7 @@ export function SidebarNavigation({
   ],
   category: propCategory,
   activeShowIds = new Set(),
+  selectedShowId = null,
 }: TSidebarNavigationProps) {
   const router = useRouter()
   const [showLoginModal, setShowLoginModal] = useState(false)
@@ -54,6 +56,12 @@ export function SidebarNavigation({
 
   const category = propCategory || (selectedShow ? getShowByName(selectedShow)?.category : undefined)
   const theme = getThemeColors(category)
+  
+  // 현재 선택된 쿼리 파라미터 구성
+  const currentQuery = selectedShowId ? `?show=${selectedShowId}` : ""
+  const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+  const dealerLoungeUrl = selectedShowId ? `/dealer/lounge?show=${selectedShowId}` : "/dealer/lounge"
+  const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -125,7 +133,7 @@ export function SidebarNavigation({
     <aside className={`w-64 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
       <div className="p-6">
         <nav className="space-y-2">
-          <Link href="/">
+          <Link href={homeUrl}>
             <Button
               variant="ghost"
               className={`w-full justify-start gap-3 ${activeNavItem === "home" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
@@ -193,7 +201,7 @@ export function SidebarNavigation({
             )}
           </div>
 
-          <Link href="/p-mypage" onClick={handleMyPageClick}>
+          <Link href={myPageUrl} onClick={handleMyPageClick}>
             <Button
               variant="ghost"
               className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
@@ -204,7 +212,7 @@ export function SidebarNavigation({
           </Link>
 
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
-            <Link href="/dealer/lounge">
+            <Link href={dealerLoungeUrl}>
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 hover:bg-purple-50 text-purple-700 font-medium"
