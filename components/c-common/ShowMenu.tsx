@@ -97,7 +97,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
           min-w-[65px] sm:min-w-[75px] md:min-w-[85px] lg:min-w-[95px]
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
-                        : "bg-white/70 text-gray-700 hover:bg-white hover:shadow-md"
+                        : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md"
                     }
         `}
             >

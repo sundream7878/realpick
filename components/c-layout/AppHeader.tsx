@@ -74,7 +74,7 @@ export function AppHeader({
 
   return (
     <header
-      className={`sticky top-0 z-40 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 ${className}`}
+      className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 shadow-sm ${className}`}
     >
       <div className="mx-auto px-2 sm:px-3 md:px-4 lg:px-6 h-full max-w-full">
         <div className="flex items-center justify-between h-full gap-2 sm:gap-3 md:gap-4 lg:gap-6 relative">
@@ -140,7 +140,7 @@ export function AppHeader({
                 variant="outline"
                 size="sm"
                 onClick={() => setShowLoginModal(true)}
-                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white/70 text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-5 h-9 sm:h-10 md:h-11 whitespace-nowrap"
+                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-5 h-9 sm:h-10 md:h-11 whitespace-nowrap"
               >
                 <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 mr-1 sm:mr-1.5 md:mr-2" />
                 로그인
