@@ -440,7 +440,10 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
-            onAvatarClick={() => router.push("/p-profile")}
+            onAvatarClick={() => {
+              const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+              router.push(profileUrl)
+            }}
             showStatuses={showStatuses}
           />
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
@@ -518,7 +521,10 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             userNickname={userNickname}
             userPoints={userPoints}
             userTier={userTier}
-            onAvatarClick={() => router.push("/p-profile")}
+            onAvatarClick={() => {
+              const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+              router.push(profileUrl)
+            }}
             showStatuses={showStatuses}
           />
 

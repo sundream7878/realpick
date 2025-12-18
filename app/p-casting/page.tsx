@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
@@ -20,15 +20,22 @@ import type { TTierInfo } from "@/types/t-tier/tier.types"
 
 export default function CastingPage() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const [selectedType, setSelectedType] = useState<"all" | TRecruitType>("all")
     const [selectedCategory, setSelectedCategory] = useState<"ALL" | TShowCategory>("ALL")
 
     // 사이드바/모달 상태 관리
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-    const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
+    const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+
+    // URL의 show 파라미터 동기화
+    useEffect(() => {
+        const showParam = searchParams.get('show')
+        setSelectedShowId(showParam)
+    }, [searchParams])
 
     // 유저 정보
     const [userNickname, setUserNickname] = useState("")
@@ -133,7 +140,10 @@ export default function CastingPage() {
                     userNickname={userNickname}
                     userPoints={userPoints}
                     userTier={userTier}
-                    onAvatarClick={() => router.push("/p-profile")}
+                    onAvatarClick={() => {
+                        const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+                        router.push(profileUrl)
+                    }}
                     selectedShowId={selectedShowId}
                     onShowSelect={(showId) => {
                         if (showId) {

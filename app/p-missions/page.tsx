@@ -41,6 +41,12 @@ export default function MissionsPage() {
   // season 파라미터를 selectedSeason으로 변환
   const selectedSeason = season === "all" ? "전체" : `${season}기`
 
+  // URL의 show 파라미터 읽기 및 selectedShowId 동기화
+  useEffect(() => {
+    const showParam = searchParams.get('show')
+    setSelectedShowId(showParam)
+  }, [searchParams])
+
   // 실제 미션 데이터와 Mock 커플매칭 데이터 혼합
   useEffect(() => {
     const loadMissions = async () => {
@@ -286,6 +292,12 @@ export default function MissionsPage() {
 
   const filteredMissions = Array.isArray(missions) ? missions
     .filter((mission) => {
+      // 1. 프로그램(카테고리) 필터링
+      if (selectedShowId && mission.showId !== selectedShowId) {
+        return false
+      }
+
+      // 2. 시즌 필터링
       if (season === "all") return true
 
       // 기수별 미션인 경우에만 필터링
@@ -318,7 +330,10 @@ export default function MissionsPage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
+          onAvatarClick={() => {
+            const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+            router.push(profileUrl)
+          }}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             if (showId) {

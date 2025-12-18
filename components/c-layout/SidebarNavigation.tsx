@@ -24,7 +24,7 @@ interface TSidebarNavigationProps {
   onMissionStatusToggle: () => void
   onSeasonSelect: (season: string) => void
   onMissionModalOpen: () => void
-  activeNavItem?: "home" | "missions" | "mypage" | "casting" | "admin"
+  activeNavItem?: "home" | "missions" | "mypage" | "casting" | "admin" | "dealer"
   seasonOptions?: TSeasonOption[]
   category?: TShowCategory
   activeShowIds?: Set<string>
@@ -60,6 +60,7 @@ export function SidebarNavigation({
   // 현재 선택된 쿼리 파라미터 구성
   const currentQuery = selectedShowId ? `?show=${selectedShowId}` : ""
   const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+  const castingUrl = selectedShowId ? `/p-casting?show=${selectedShowId}` : "/p-casting"
   const dealerLoungeUrl = selectedShowId ? `/dealer/lounge?show=${selectedShowId}` : "/dealer/lounge"
   const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
 
@@ -143,7 +144,7 @@ export function SidebarNavigation({
             </Button>
           </Link>
 
-          <Link href="/p-casting">
+          <Link href={castingUrl}>
             <Button
               variant="ghost"
               className={`w-full justify-start gap-3 ${activeNavItem === "casting" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
@@ -185,18 +186,25 @@ export function SidebarNavigation({
 
             {isMissionStatusOpen && (
               <div className="ml-8 space-y-1">
-                {seasonOptions.map((option) => (
-                  <Link key={option.value} href={option.href}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
-                      onClick={() => onSeasonSelect(option.value)}
-                    >
-                      {option.label}
-                    </Button>
-                  </Link>
-                ))}
+                {seasonOptions.map((option) => {
+                  // 기존 href에 show 파라미터 추가
+                  const href = selectedShowId 
+                    ? `${option.href}&show=${selectedShowId}`
+                    : option.href
+                  
+                  return (
+                    <Link key={option.value} href={href}>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
+                        onClick={() => onSeasonSelect(option.value)}
+                      >
+                        {option.label}
+                      </Button>
+                    </Link>
+                  )
+                })}
               </div>
             )}
           </div>
@@ -215,7 +223,7 @@ export function SidebarNavigation({
             <Link href={dealerLoungeUrl}>
               <Button
                 variant="ghost"
-                className="w-full justify-start gap-3 hover:bg-purple-50 text-purple-700 font-medium"
+                className={`w-full justify-start gap-3 ${activeNavItem === "dealer" ? "bg-purple-100 text-purple-700 hover:bg-purple-100" : "hover:bg-purple-50 text-purple-700"} font-medium`}
               >
                 <User className="w-5 h-5 text-purple-600" />
                 딜러 라운지

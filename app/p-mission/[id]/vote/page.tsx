@@ -188,7 +188,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
+          onAvatarClick={() => {
+            const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+            router.push(profileUrl)
+          }}
           showStatuses={showStatuses}
         />
 

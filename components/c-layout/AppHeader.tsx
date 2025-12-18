@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/c-ui/button"
 import { User } from "lucide-react"
 import { ShowMenu } from "@/components/c-common/ShowMenu"
@@ -45,6 +46,7 @@ export function AppHeader({
   showStatuses,
   missions = [],
 }: TAppHeaderProps) {
+  const router = useRouter()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const { unreadMissionIds } = useNewMissionNotifications()
@@ -78,9 +80,15 @@ export function AppHeader({
         <div className="flex items-center justify-between h-full gap-2 sm:gap-3 md:gap-4 lg:gap-6 relative">
           {/* 로고 */}
           <div className="flex items-center flex-shrink-0 min-w-0">
-            <Link href="/">
-              <img src="/realpick-logo-new.png" alt="리얼픽" className={logoClassName} />
-            </Link>
+            <img 
+              src="/realpick-logo-new.png" 
+              alt="리얼픽" 
+              className={logoClassName}
+              onClick={() => {
+                const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+                router.push(homeUrl)
+              }}
+            />
           </div>
 
           {/* 3대 메인 메뉴 */}

@@ -135,7 +135,10 @@ export default function DealerLoungePage() {
                     userNickname={currentUser?.f_nickname || ""}
                     userPoints={currentUser?.f_points || 0}
                     userTier={userTierInfo}
-                    onAvatarClick={() => router.push("/p-profile")}
+                    onAvatarClick={() => {
+                        const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+                        router.push(profileUrl)
+                    }}
                     selectedShowId={selectedShowId}
                     onShowSelect={(showId) => {
                         if (showId) {
@@ -262,7 +265,7 @@ export default function DealerLoungePage() {
                     onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
                     onSeasonSelect={handleSeasonSelect}
                     onMissionModalOpen={() => setIsMissionModalOpen(true)}
-                    activeNavItem="home"
+                    activeNavItem="dealer"
                     category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
                     selectedShowId={selectedShowId}
                 />

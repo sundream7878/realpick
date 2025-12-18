@@ -661,7 +661,10 @@ export default function HomePage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
+          onAvatarClick={() => {
+            const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+            router.push(profileUrl)
+          }}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             const newShowId = showId === selectedShowId ? null : showId

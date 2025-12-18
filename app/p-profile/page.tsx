@@ -316,7 +316,10 @@ export default function ProfilePage() {
           userNickname={userNickname}
           userPoints={userPoints}
           userTier={userTier}
-          onAvatarClick={() => router.push("/p-profile")}
+          onAvatarClick={() => {
+            // 프로필 페이지에서는 페이지 상단으로 스크롤
+            window.scrollTo({ top: 0, behavior: 'smooth' })
+          }}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => setSelectedShowId(showId)}
           showStatuses={showStatuses}
