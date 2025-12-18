@@ -25,3 +25,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# sensitive documentation
+docs/*SETUP*.md
+docs/*AUTH*.md
+docs/*SMTP*.md
+**/credentials*.md
+**/secrets*.md
