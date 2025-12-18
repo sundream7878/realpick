@@ -1,11 +1,10 @@
 [build]
-  command = "npm install && npm run build"
+  command = "pnpm install && pnpm run build"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
 [build.environment]
   NODE_VERSION = "20"
-  NPM_FLAGS = "--legacy-peer-deps"
-  NPM_CONFIG_LEGACY_PEER_DEPS = "true"
+  NPM_FLAGS = "--production=false"
 
