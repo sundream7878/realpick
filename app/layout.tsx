@@ -5,6 +5,7 @@ import { GeistMono } from "geist/font/mono"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import { Toaster } from "@/components/c-ui/toaster"
+import { KakaoSDK } from "@/components/c-common/KakaoSDK"
 import "./globals.css"
 // Force CSS rebuild
 
@@ -37,6 +38,9 @@ export default function RootLayout({
   return (
     <html lang="ko">
       <body className={`font-sans ${GeistSans.variable} ${GeistMono.variable} antialiased`}>
+        {/* 카카오 SDK */}
+        <KakaoSDK />
+
         <Suspense fallback={<div>Loading...</div>}>
           <div className="min-h-screen bg-background">{children}</div>
         </Suspense>

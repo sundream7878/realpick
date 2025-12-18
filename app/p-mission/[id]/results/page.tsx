@@ -26,6 +26,7 @@ import { AppHeader } from "@/components/c-layout/AppHeader"
 import { isAuthenticated } from "@/lib/auth-utils"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import { ShareModal } from "@/components/c-share-modal/share-modal"
 
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
@@ -86,6 +87,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [isMyPicksModalOpen, setIsMyPicksModalOpen] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const router = useRouter()
 
   const handleSeasonSelect = (season: string) => {
@@ -875,7 +877,12 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
 
                 <div className="space-y-2">
-                  <Button size="lg" className="w-full bg-purple-600 hover:bg-purple-700" variant="default">
+                  <Button 
+                    size="lg" 
+                    className="w-full bg-purple-600 hover:bg-purple-700" 
+                    variant="default"
+                    onClick={() => setIsShareModalOpen(true)}
+                  >
                     <Share2 className="w-4 h-4 mr-2" />
                     결과 공유하기
                   </Button>
@@ -917,6 +924,16 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             />
           )
         }
+
+        {/* 공유 모달 */}
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          title={mission.title}
+          description={`${mission.stats?.participants || 0}명이 참여한 미션 결과를 확인해보세요!`}
+          url={typeof window !== "undefined" ? window.location.href : ""}
+          hashtags={["리얼픽", mission.showId || "나는솔로", mission.kind === "predict" ? "예측픽" : "공감픽"]}
+        />
       </div>
     </div >
   )

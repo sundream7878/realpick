@@ -15,6 +15,16 @@ export async function POST(request: Request) {
             })
         }
 
+        // 환경 변수 체크
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.warn("[Verify] Supabase 환경 변수가 설정되지 않았습니다. 검증을 건너뜁니다.")
+            return NextResponse.json({
+                status: "pass",
+                reasons: [],
+                suggestions: []
+            })
+        }
+
         const supabase = createServiceClient()
 
         // 1. Exact Match Check (DB)
@@ -39,7 +49,11 @@ export async function POST(request: Request) {
         }
 
         // 2. AI Semantic Similarity Check (LLM Only - gemini-2.0-flash-exp)
-        if (process.env.GOOGLE_API_KEY) {
+        const googleApiKey = process.env.GOOGLE_API_KEY
+        
+        if (!googleApiKey) {
+            console.warn("[Verify] GOOGLE_API_KEY가 설정되지 않았습니다. AI 검증을 건너뜁니다.")
+        } else {
             try {
                 // Fetch recent missions for context (limit 25 from each table)
                 // We rely on LLM with recent context because vector search API is unreliable.
@@ -61,7 +75,7 @@ export async function POST(request: Request) {
                 if (existingTitles.length > 0) {
                     console.log("[Verify] Checking against", existingTitles.length, "recent titles")
 
-                    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
+                    const genAI = new GoogleGenerativeAI(googleApiKey!)
                     // Use gemini-2.0-flash-exp as it is confirmed working
                     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" })
 

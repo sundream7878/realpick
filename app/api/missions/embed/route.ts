@@ -11,8 +11,14 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
         }
 
+        // 환경 변수 체크
         if (!process.env.GOOGLE_API_KEY) {
-            console.error("Missing GOOGLE_API_KEY")
+            console.error("[Embed] Missing GOOGLE_API_KEY")
+            return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
+        }
+
+        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+            console.error("[Embed] Missing Supabase environment variables")
             return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
         }
 

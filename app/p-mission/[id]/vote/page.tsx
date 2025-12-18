@@ -17,6 +17,9 @@ import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { Button } from "@/components/c-ui/button"
+import { Share2 } from "lucide-react"
+import { ShareModal } from "@/components/c-share-modal/share-modal"
 
 export default function VotePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -28,6 +31,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [selectedShowId, setSelectedShowId] = useState<string>("nasolo")
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [userVote, setUserVote] = useState<TVoteSubmission | null>(null)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const userId = getUserId()
 
   useEffect(() => {
@@ -196,6 +200,19 @@ export default function VotePage({ params }: { params: { id: string } }) {
         />
 
         <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">
+          {/* 공유 버튼 */}
+          <div className="flex justify-end mb-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsShareModalOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Share2 className="w-4 h-4" />
+              공유하기
+            </Button>
+          </div>
+
           {mission.form === "binary" && (
             <MultiVotePage mission={mission} />
           )}
@@ -214,6 +231,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
             currentUserId={userId || undefined}
           />
         </main>
+
+        {/* 공유 모달 */}
+        {mission && (
+          <ShareModal
+            isOpen={isShareModalOpen}
+            onClose={() => setIsShareModalOpen(false)}
+            title={mission.title}
+            description={`${mission.stats?.participants || 0}명이 참여 중! 지금 함께 예측해보세요!`}
+            url={typeof window !== "undefined" ? window.location.href : ""}
+            hashtags={["리얼픽", mission.showId || "나는솔로", mission.kind === "predict" ? "예측픽" : "공감픽"]}
+          />
+        )}
 
         <BottomNavigation />
       </div>
