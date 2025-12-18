@@ -2,8 +2,19 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 
-// Resend 클라이언트 초기화
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend 클라이언트는 필요할 때 초기화 (환경 변수 체크 후)
+let resend: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) {
+    console.warn('[Mission Notification] RESEND_API_KEY is not set');
+    return null;
+  }
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 // Supabase 서비스 롤 클라이언트 (RLS 우회)
 const supabaseAdmin = createClient(
@@ -153,6 +164,16 @@ export async function POST(request: NextRequest) {
   console.log('[Mission Notification] 🎯 API Route called!');
   
   try {
+    // 0. Resend API 키 체크
+    const resendClient = getResendClient();
+    if (!resendClient) {
+      console.warn('[Mission Notification] ⚠️ RESEND_API_KEY is not set; skipping email notifications');
+      return NextResponse.json(
+        { success: true, message: 'Email notifications skipped (no API key)', sent: 0 },
+        { status: 200 }
+      );
+    }
+
     // 1. 요청 본문 파싱
     const payload: MissionNotificationPayload = await request.json();
     const { missionId, missionTitle, category, showId, creatorId } = payload;
@@ -224,7 +245,7 @@ export async function POST(request: NextRequest) {
           baseUrl,
         });
 
-        const { data, error } = await resend.emails.send({
+        const { data, error } = await resendClient.emails.send({
           from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
           to: userEmail,
           subject: `[리얼픽] 새로운 ${getCategoryName(category)} 미션!`,

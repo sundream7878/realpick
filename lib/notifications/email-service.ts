@@ -8,7 +8,18 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Resend 클라이언트를 필요할 때만 초기화
+let resend: Resend | null = null;
+
+function getResendClient(): Resend | null {
+  if (!process.env.RESEND_API_KEY) {
+    return null;
+  }
+  if (!resend) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 interface SendEmailParams {
   to: string;
@@ -23,7 +34,8 @@ export const emailService = {
    */
   send: async ({ to, subject, html, text }: SendEmailParams): Promise<{ success: boolean; error?: string }> => {
     // 1. Check for API Key
-    if (!process.env.RESEND_API_KEY) {
+    const resendClient = getResendClient();
+    if (!resendClient) {
       console.warn("⚠️ [Email Service] RESEND_API_KEY is missing. Falling back to console log.");
       console.log(`📧 To: ${to}\nSubject: ${subject}\nHTML: ${html.substring(0, 50)}...`);
       return { success: true };
@@ -31,7 +43,7 @@ export const emailService = {
 
     try {
       // 2. Send via Resend
-      const { data, error } = await resend.emails.send({
+      const { data, error } = await resendClient.emails.send({
         from: '리얼픽 <onboarding@resend.dev>', // Default Resend test domain or verified domain
         to: [to],
         subject: subject,
