@@ -16,17 +16,34 @@ function getResendClient(): Resend | null {
   return resend;
 }
 
-// Supabase 서비스 롤 클라이언트 (RLS 우회)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
+// Supabase 서비스 롤 클라이언트 (RLS 우회) - lazy initialization
+let supabaseAdmin: ReturnType<typeof createClient> | null = null;
+
+function getSupabaseAdmin() {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error(
+      '[Mission Notification] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for send-mission-notification'
+    );
   }
-);
+
+  if (!supabaseAdmin) {
+    supabaseAdmin = createClient(
+      supabaseUrl,
+      supabaseKey,
+      {
+        auth: {
+          autoRefreshToken: false,
+          persistSession: false
+        }
+      }
+    );
+  }
+
+  return supabaseAdmin;
+}
 
 interface MissionNotificationPayload {
   missionId: string;
@@ -164,7 +181,16 @@ export async function POST(request: NextRequest) {
   console.log('[Mission Notification] 🎯 API Route called!');
   
   try {
-    // 0. Resend API 키 체크
+    // 0. 환경 변수 체크 (Supabase)
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn('[Mission Notification] ⚠️ Supabase environment variables are not set; skipping notifications');
+      return NextResponse.json(
+        { success: true, message: 'Notifications skipped (no Supabase config)', sent: 0 },
+        { status: 200 }
+      );
+    }
+
+    // 1. Resend API 키 체크
     const resendClient = getResendClient();
     if (!resendClient) {
       console.warn('[Mission Notification] ⚠️ RESEND_API_KEY is not set; skipping email notifications');
@@ -174,7 +200,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. 요청 본문 파싱
+    // 2. 요청 본문 파싱
     const payload: MissionNotificationPayload = await request.json();
     const { missionId, missionTitle, category, showId, creatorId } = payload;
 
@@ -187,11 +213,12 @@ export async function POST(request: NextRequest) {
       fromEmail: process.env.RESEND_FROM_EMAIL
     });
 
-    // 2. 알림 수신 대상 조회
+    // 3. 알림 수신 대상 조회
     // - 이메일 알림이 활성화되어 있고
     // - 해당 카테고리를 구독 중인 사용자
     // - 미션 생성자는 제외
-    const { data: preferences, error: prefError } = await supabaseAdmin
+    const supabaseClient = getSupabaseAdmin();
+    const { data: preferences, error: prefError } = await supabaseClient
       .from('t_notification_preferences')
       .select(`
         f_user_id,
@@ -224,11 +251,11 @@ export async function POST(request: NextRequest) {
 
     console.log(`[Mission Notification] Found ${preferences.length} users to notify`);
 
-    // 3. 미션 URL 생성
+    // 4. 미션 URL 생성
     const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
     const missionUrl = `${baseUrl}/p-mission/${missionId}/vote`;
 
-    // 4. 이메일 발송 (순차 처리로 rate limit 회피)
+    // 5. 이메일 발송 (순차 처리로 rate limit 회피)
     const results = [];
     
     for (const pref of preferences) {
