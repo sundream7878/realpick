@@ -119,18 +119,19 @@ export function ShareModal({
         })
       }
     } else {
-      // 데스크톱: 카카오톡 웹 팝업
-      window.open("https://web.kakao.com/", "_blank", "width=600,height=700")
-      
-      // 링크 복사
+      // 데스크톱: 링크 복사만 (카카오톡 웹은 데스크톱용이 없음)
       try {
         await navigator.clipboard.writeText(shareText)
         toast({
           title: "링크 복사 완료!",
-          description: "카카오톡 웹에서 붙여넣기 해주세요.",
+          description: "카카오톡 PC 버전에 붙여넣기 해주세요.",
         })
       } catch (error) {
-        // 복사 실패해도 웹은 열림
+        toast({
+          title: "복사 실패",
+          description: "링크 복사에 실패했습니다.",
+          variant: "destructive",
+        })
       }
     }
   }
