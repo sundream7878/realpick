@@ -119,13 +119,50 @@ export function ShareModal({
         })
       }
     } else {
-      // 데스크톱: 링크 복사만 (카카오톡 웹은 데스크톱용이 없음)
+      // 데스크톱: 카카오톡 PC 앱 연결 시도
       try {
+        // 1. 링크 먼저 복사
         await navigator.clipboard.writeText(shareText)
-        toast({
-          title: "링크 복사 완료!",
-          description: "카카오톡 PC 버전에 붙여넣기 해주세요.",
-        })
+        
+        // 2. 카카오톡 PC 앱 실행 시도
+        const kakaoScheme = `kakaotalk://send?text=${encodeURIComponent(shareText)}`
+        
+        // iframe을 사용하여 앱 실행 시도
+        const iframe = document.createElement('iframe')
+        iframe.style.display = 'none'
+        iframe.src = kakaoScheme
+        document.body.appendChild(iframe)
+        
+        // 카카오톡 앱이 열리면 성공, 아니면 복사 완료 메시지 표시
+        let appOpened = false
+        
+        const blurHandler = () => {
+          appOpened = true
+          document.body.removeChild(iframe)
+        }
+        
+        window.addEventListener('blur', blurHandler, { once: true })
+        
+        setTimeout(() => {
+          window.removeEventListener('blur', blurHandler)
+          if (document.body.contains(iframe)) {
+            document.body.removeChild(iframe)
+          }
+          
+          if (!appOpened) {
+            // 앱이 열리지 않았으면 링크 복사 알림
+            toast({
+              title: "링크 복사 완료!",
+              description: "카카오톡 PC 버전에 붙여넣기 해주세요.",
+            })
+          } else {
+            toast({
+              title: "카카오톡 실행!",
+              description: "카카오톡에 붙여넣기 해주세요.",
+            })
+          }
+        }, 1000)
+        
       } catch (error) {
         toast({
           title: "복사 실패",
