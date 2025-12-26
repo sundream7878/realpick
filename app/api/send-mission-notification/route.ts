@@ -444,8 +444,34 @@ export async function POST(request: NextRequest) {
     );
 
     // 5. 미션 URL 생성
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || 'http://localhost:3000';
+    // baseUrl 우선순위: NEXT_PUBLIC_SITE_URL > NEXT_PUBLIC_SUPABASE_URL (rest/v1 제거) > localhost
+    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    
+    if (!baseUrl) {
+      // Supabase URL에서 rest/v1 경로 제거
+      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+      if (supabaseUrl) {
+        baseUrl = supabaseUrl.replace('/rest/v1', '').replace(/\/$/, ''); // 마지막 슬래시도 제거
+      }
+    }
+    
+    // 기본값 설정
+    if (!baseUrl) {
+      baseUrl = 'http://localhost:3000';
+      console.warn('[Mission Notification] ⚠️ NEXT_PUBLIC_SITE_URL not set, using default:', baseUrl);
+    }
+    
+    // baseUrl 정규화 (마지막 슬래시 제거)
+    baseUrl = baseUrl.replace(/\/$/, '');
+    
     const missionUrl = `${baseUrl}/p-mission/${missionId}/vote`;
+    
+    console.log('[Mission Notification] 🔗 Generated URLs:', {
+      baseUrl,
+      missionUrl,
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'NOT SET',
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL || 'NOT SET'
+    });
 
     // 6. 이메일 발송 (순차 처리로 rate limit 회피)
     const results = [];
