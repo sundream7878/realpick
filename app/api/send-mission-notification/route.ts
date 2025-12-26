@@ -1,49 +1,45 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { createClient } from '@supabase/supabase-js';
+import { createServiceClient } from '@/lib/supabase/service';
 
 // Resend 클라이언트는 필요할 때 초기화 (환경 변수 체크 후)
 let resend: Resend | null = null;
 
 function getResendClient(): Resend | null {
-  if (!process.env.RESEND_API_KEY) {
+  const apiKey = process.env.RESEND_API_KEY;
+  
+  if (!apiKey) {
     console.warn('[Mission Notification] RESEND_API_KEY is not set');
     return null;
   }
-  if (!resend) {
-    resend = new Resend(process.env.RESEND_API_KEY);
+  
+  // API Key 형식 검증
+  const trimmedKey = apiKey.trim();
+  if (!trimmedKey.startsWith('re_')) {
+    console.error('[Mission Notification] ⚠️ RESEND_API_KEY format is invalid (should start with "re_")');
+    console.error('[Mission Notification] Key starts with:', trimmedKey.substring(0, 5));
+    return null;
   }
+  
+  // 키에 공백이나 줄바꿈이 있는지 확인
+  if (apiKey !== trimmedKey || apiKey.includes('\n') || apiKey.includes('\r')) {
+    console.warn('[Mission Notification] ⚠️ RESEND_API_KEY contains whitespace, trimming...');
+  }
+  
+  if (!resend) {
+    try {
+      resend = new Resend(trimmedKey);
+      console.log('[Mission Notification] ✅ Resend client created with key:', trimmedKey.substring(0, 10) + '...');
+    } catch (error: any) {
+      console.error('[Mission Notification] ❌ Failed to create Resend client:', error);
+      return null;
+    }
+  }
+  
   return resend;
 }
 
-// Supabase 서비스 롤 클라이언트 (RLS 우회) - lazy initialization
-let supabaseAdmin: ReturnType<typeof createClient> | null = null;
-
-function getSupabaseAdmin() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-  if (!supabaseUrl || !supabaseKey) {
-    throw new Error(
-      '[Mission Notification] NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set for send-mission-notification'
-    );
-  }
-
-  if (!supabaseAdmin) {
-    supabaseAdmin = createClient(
-      supabaseUrl,
-      supabaseKey,
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false
-        }
-      }
-    );
-  }
-
-  return supabaseAdmin;
-}
+// Supabase 서비스 롤 클라이언트는 createServiceClient() 사용 (다른 API와 일관성 유지)
 
 interface MissionNotificationPayload {
   missionId: string;
@@ -71,6 +67,31 @@ function getCategoryColor(category: string): string {
     STAR: '#EAB308', // yellow-500
   };
   return colorMap[category] || '#6B7280';
+}
+
+// Resend from 필드 형식 검증 및 변환
+function formatFromEmail(emailOrDomain: string | undefined, defaultEmail: string = 'onboarding@resend.dev'): string {
+  if (!emailOrDomain) {
+    return defaultEmail;
+  }
+
+  const trimmed = emailOrDomain.trim();
+
+  // 이미 올바른 이메일 형식인지 확인 (email@domain.com 또는 Name <email@domain.com>)
+  if (trimmed.includes('@')) {
+    // 이메일 주소가 포함되어 있으면 그대로 반환
+    return trimmed;
+  }
+
+  // 도메인만 있는 경우: noreply@도메인 형식으로 변환
+  if (trimmed && !trimmed.includes('@') && !trimmed.includes('<')) {
+    console.warn(`[Mission Notification] ⚠️ RESEND_FROM_EMAIL is domain only (${trimmed}), converting to noreply@${trimmed}`);
+    return `리얼픽 <noreply@${trimmed}>`;
+  }
+
+  // 그 외의 경우 기본값 사용
+  console.warn(`[Mission Notification] ⚠️ RESEND_FROM_EMAIL format is invalid (${trimmed}), using default: ${defaultEmail}`);
+  return defaultEmail;
 }
 
 // HTML 이메일 템플릿 생성
@@ -181,22 +202,62 @@ export async function POST(request: NextRequest) {
   console.log('[Mission Notification] 🎯 API Route called!');
   
   try {
-    // 0. 환경 변수 체크 (Supabase)
+    // 0. 환경 변수 체크 (Supabase) - 상세 로깅
+    console.log('[Mission Notification] 🔍 Environment variables check:', {
+      NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ? 'SET' : 'MISSING',
+      SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'MISSING',
+      RESEND_API_KEY: process.env.RESEND_API_KEY ? 'SET' : 'MISSING',
+      RESEND_FROM_EMAIL: process.env.RESEND_FROM_EMAIL || 'NOT SET',
+      NEXT_PUBLIC_SITE_URL: process.env.NEXT_PUBLIC_SITE_URL || 'NOT SET'
+    });
+
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn('[Mission Notification] ⚠️ Supabase environment variables are not set; skipping notifications');
+      const missing = [];
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL) missing.push('NEXT_PUBLIC_SUPABASE_URL');
+      if (!process.env.SUPABASE_SERVICE_ROLE_KEY) missing.push('SUPABASE_SERVICE_ROLE_KEY');
+      
+      console.warn('[Mission Notification] ⚠️ Missing environment variables:', missing);
       return NextResponse.json(
-        { success: true, message: 'Notifications skipped (no Supabase config)', sent: 0 },
-        { status: 200 }
+        { 
+          success: false, 
+          message: 'Notifications skipped (no Supabase config)', 
+          missing: missing,
+          sent: 0 
+        },
+        { status: 500 }
       );
     }
 
     // 1. Resend API 키 체크
+    const resendApiKey = process.env.RESEND_API_KEY;
+    const trimmedKey = resendApiKey?.trim();
+    
+    console.log('[Mission Notification] 🔑 Resend API Key check:', {
+      hasKey: !!resendApiKey,
+      keyLength: resendApiKey ? resendApiKey.length : 0,
+      trimmedLength: trimmedKey ? trimmedKey.length : 0,
+      keyPrefix: trimmedKey ? trimmedKey.substring(0, 10) + '...' : 'MISSING',
+      keyStartsWith: trimmedKey ? (trimmedKey.startsWith('re_') ? '✅ Correct format (re_)' : '❌ Wrong format') : 'MISSING',
+      hasWhitespace: resendApiKey && resendApiKey !== trimmedKey,
+      fromEmail: process.env.RESEND_FROM_EMAIL || 'NOT SET (will use onboarding@resend.dev)'
+    });
+    
+    // 키에 문제가 있는지 확인
+    if (resendApiKey && resendApiKey !== trimmedKey) {
+      console.warn('[Mission Notification] ⚠️ RESEND_API_KEY contains leading/trailing whitespace! This may cause authentication issues.');
+    }
+
     const resendClient = getResendClient();
     if (!resendClient) {
       console.warn('[Mission Notification] ⚠️ RESEND_API_KEY is not set; skipping email notifications');
       return NextResponse.json(
-        { success: true, message: 'Email notifications skipped (no API key)', sent: 0 },
-        { status: 200 }
+        { 
+          success: false, 
+          message: 'Email notifications skipped (no API key)', 
+          error: 'RESEND_API_KEY environment variable is missing',
+          sent: 0 
+        },
+        { status: 500 }
       );
     }
 
@@ -217,50 +278,187 @@ export async function POST(request: NextRequest) {
     // - 이메일 알림이 활성화되어 있고
     // - 해당 카테고리를 구독 중인 사용자
     // - 미션 생성자는 제외
-    const supabaseClient = getSupabaseAdmin();
-    const { data: preferences, error: prefError } = await supabaseClient
-      .from('t_notification_preferences')
-      .select(`
-        f_user_id,
-        f_email_enabled,
-        f_categories,
-        user:f_user_id (
-          f_email,
-          f_nickname
-        )
-      `)
-      .eq('f_email_enabled', true)
-      .contains('f_categories', [category])
-      .neq('f_user_id', creatorId);
-
-    if (prefError) {
-      console.error('[Mission Notification] Error fetching preferences:', prefError);
+    let supabaseClient;
+    try {
+      supabaseClient = createServiceClient();
+      console.log('[Mission Notification] ✅ Supabase service client created');
+    } catch (error: any) {
+      console.error('[Mission Notification] ❌ Failed to create Supabase service client:', error);
       return NextResponse.json(
-        { error: 'Failed to fetch notification preferences', details: prefError.message },
+        { 
+          error: 'Failed to initialize Supabase client', 
+          details: error.message,
+          hint: 'Check SUPABASE_SERVICE_ROLE_KEY environment variable in Netlify'
+        },
         { status: 500 }
       );
     }
 
+    // 먼저 Supabase 연결 테스트 (간단한 쿼리로)
+    console.log('[Mission Notification] Testing Supabase connection...');
+    const { data: testData, error: testError } = await supabaseClient
+      .from('t_users')
+      .select('f_id')
+      .limit(1);
+    
+    if (testError) {
+      console.error('[Mission Notification] ❌ Supabase connection test failed:', {
+        code: testError.code,
+        message: testError.message,
+        details: testError.details,
+        hint: testError.hint
+      });
+      
+      if (testError.message?.includes('Invalid API key') || testError.message?.includes('JWT')) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid Supabase API key', 
+            details: testError.message,
+            hint: 'The SUPABASE_SERVICE_ROLE_KEY may be incorrect. Check if you are using the Service Role Key (not Anon Key) from Supabase Dashboard → Settings → API → service_role section'
+          },
+          { status: 500 }
+        );
+      }
+      
+      return NextResponse.json(
+        { 
+          error: 'Supabase connection failed', 
+          details: testError.message,
+          code: testError.code
+        },
+        { status: 500 }
+      );
+    }
+    
+    console.log('[Mission Notification] ✅ Supabase connection test passed');
+
+    // 먼저 알림 설정만 조회 (RLS 우회를 위해 Service Role 사용)
+    console.log('[Mission Notification] Querying preferences for category:', category);
+    console.log('[Mission Notification] Creator ID to exclude:', creatorId);
+    
+    // 1단계: 이메일 알림이 활성화된 모든 사용자 조회 (배열 필터링은 JavaScript에서)
+    const { data: allPreferences, error: prefError } = await supabaseClient
+      .from('t_notification_preferences')
+      .select(`
+        f_user_id,
+        f_email_enabled,
+        f_categories
+      `)
+      .eq('f_email_enabled', true)
+      .neq('f_user_id', creatorId);
+    
+    console.log('[Mission Notification] Raw query result:', {
+      hasData: !!allPreferences,
+      count: allPreferences?.length || 0,
+      error: prefError ? {
+        code: prefError.code,
+        message: prefError.message,
+        details: prefError.details,
+        hint: prefError.hint
+      } : null,
+      sampleData: allPreferences?.slice(0, 2) // 처음 2개만 샘플로
+    });
+
+    if (prefError) {
+      console.error('[Mission Notification] Error fetching preferences:', prefError);
+      console.error('[Mission Notification] Error details:', {
+        code: prefError.code,
+        message: prefError.message,
+        details: prefError.details,
+        hint: prefError.hint
+      });
+      
+      // 테이블이 없는 경우와 API 키 오류를 구분
+      if (prefError.code === 'PGRST116' || prefError.message?.includes('relation') || prefError.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { 
+            error: 'Notification preferences table not found', 
+            details: 't_notification_preferences table may not exist. Run scripts/create_notification_preferences.sql',
+            errorCode: prefError.code
+          },
+          { status: 500 }
+        );
+      }
+      
+      if (prefError.message?.includes('Invalid API key') || prefError.message?.includes('JWT')) {
+        return NextResponse.json(
+          { 
+            error: 'Invalid Supabase API key', 
+            details: 'SUPABASE_SERVICE_ROLE_KEY is invalid or expired. Check Netlify environment variables.',
+            hint: 'Get the Service Role Key from Supabase Dashboard → Settings → API'
+          },
+          { status: 500 }
+        );
+      }
+
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch notification preferences', 
+          details: prefError.message,
+          code: prefError.code,
+          hint: prefError.hint
+        },
+        { status: 500 }
+      );
+    }
+
+    // 2단계: JavaScript에서 카테고리 필터링 (배열에 해당 카테고리가 포함되어 있는지)
+    const preferences = (allPreferences || []).filter(pref => {
+      const categories = pref.f_categories || [];
+      const hasCategory = Array.isArray(categories) && categories.includes(category);
+      console.log(`[Mission Notification] User ${pref.f_user_id}: categories=${JSON.stringify(categories)}, hasCategory=${hasCategory}`);
+      return hasCategory;
+    });
+
+    console.log(`[Mission Notification] After filtering: ${preferences.length} users to notify (out of ${allPreferences?.length || 0} total)`);
+
     if (!preferences || preferences.length === 0) {
-      console.log('[Mission Notification] No users to notify');
+      console.log('[Mission Notification] No users to notify after category filtering');
       return NextResponse.json(
         { success: true, message: 'No users to notify', sent: 0 },
         { status: 200 }
       );
     }
 
-    console.log(`[Mission Notification] Found ${preferences.length} users to notify`);
+    // 4. 사용자 정보 조회 (user_id 목록으로)
+    const userIds = preferences.map(p => p.f_user_id);
+    const { data: users, error: usersError } = await supabaseClient
+      .from('t_users')
+      .select('f_id, f_email, f_nickname')
+      .in('f_id', userIds);
 
-    // 4. 미션 URL 생성
-    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    if (usersError) {
+      console.error('[Mission Notification] Error fetching users:', usersError);
+      return NextResponse.json(
+        { 
+          error: 'Failed to fetch user information', 
+          details: usersError.message 
+        },
+        { status: 500 }
+      );
+    }
+
+    // 사용자 정보를 Map으로 변환 (빠른 조회)
+    const userMap = new Map(
+      (users || []).map(u => [u.f_id, { email: u.f_email, nickname: u.f_nickname || '사용자' }])
+    );
+
+    // 5. 미션 URL 생성
+    const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('/rest/v1', '') || 'http://localhost:3000';
     const missionUrl = `${baseUrl}/p-mission/${missionId}/vote`;
 
-    // 5. 이메일 발송 (순차 처리로 rate limit 회피)
+    // 6. 이메일 발송 (순차 처리로 rate limit 회피)
     const results = [];
     
     for (const pref of preferences) {
-      const userEmail = pref.user.f_email;
-      const userNickname = pref.user.f_nickname || '사용자';
+      const userInfo = userMap.get(pref.f_user_id);
+      if (!userInfo || !userInfo.email) {
+        console.warn(`[Mission Notification] User info not found for ${pref.f_user_id}`);
+        continue;
+      }
+
+      const userEmail = userInfo.email;
+      const userNickname = userInfo.nickname;
 
       try {
         const emailHtml = generateEmailHtml({
@@ -272,19 +470,37 @@ export async function POST(request: NextRequest) {
           baseUrl,
         });
 
+        // from 필드 형식 검증 및 변환
+        const fromEmail = formatFromEmail(process.env.RESEND_FROM_EMAIL);
+        console.log(`[Mission Notification] 📧 Sending email to ${userEmail} from ${fromEmail}`);
+        
         const { data, error } = await resendClient.emails.send({
-          from: process.env.RESEND_FROM_EMAIL || 'onboarding@resend.dev',
+          from: fromEmail,
           to: userEmail,
           subject: `[리얼픽] 새로운 ${getCategoryName(category)} 미션!`,
           html: emailHtml,
         });
 
         if (error) {
-          console.error(`[Mission Notification] Failed to send email to ${userEmail}:`, error);
+          console.error(`[Mission Notification] ❌ Failed to send email to ${userEmail}:`, {
+            statusCode: error.statusCode,
+            name: error.name,
+            message: error.message,
+            fullError: error
+          });
+          
+          // Resend API Key 오류인 경우 명확한 메시지
+          if (error.statusCode === 401 || error.message?.includes('API key') || error.message?.includes('invalid')) {
+            console.error('[Mission Notification] 🔴 RESEND_API_KEY is invalid or expired!');
+            console.error('[Mission Notification] 💡 Solution: Get a new API key from https://resend.com/api-keys and update Netlify environment variable');
+          }
+          
           results.push({
             success: false,
             email: userEmail,
             error: error.message || JSON.stringify(error),
+            statusCode: error.statusCode,
+            errorName: error.name
           });
         } else {
           console.log(`[Mission Notification] Successfully sent email to ${userEmail} (ID: ${data?.id})`);

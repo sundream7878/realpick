@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
-import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone, Settings } from "lucide-react"
+import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone, Settings, Shield } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -62,6 +62,7 @@ export function SidebarNavigation({
   const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
   const castingUrl = selectedShowId ? `/p-casting?show=${selectedShowId}` : "/p-casting"
   const dealerLoungeUrl = selectedShowId ? `/dealer/lounge?show=${selectedShowId}` : "/dealer/lounge"
+  const adminUrl = "/admin"
   const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
 
   useEffect(() => {
@@ -227,6 +228,18 @@ export function SidebarNavigation({
               >
                 <User className="w-5 h-5 text-purple-600" />
                 딜러 라운지
+              </Button>
+            </Link>
+          )}
+
+          {userRole === 'ADMIN' && (
+            <Link href={adminUrl}>
+              <Button
+                variant="ghost"
+                className={`w-full justify-start gap-3 ${activeNavItem === "admin" ? "bg-red-100 text-red-700 hover:bg-red-100" : "hover:bg-red-50 text-red-700"} font-medium`}
+              >
+                <Shield className="w-5 h-5 text-red-600" />
+                관리자 페이지
               </Button>
             </Link>
           )}
