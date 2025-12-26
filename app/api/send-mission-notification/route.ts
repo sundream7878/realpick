@@ -471,28 +471,69 @@ export async function POST(request: NextRequest) {
         });
 
         // from 필드 형식 검증 및 변환
-        const fromEmail = formatFromEmail(process.env.RESEND_FROM_EMAIL);
+        let fromEmail = formatFromEmail(process.env.RESEND_FROM_EMAIL);
         console.log(`[Mission Notification] 📧 Sending email to ${userEmail} from ${fromEmail}`);
         
-        const { data, error } = await resendClient.emails.send({
+        let data, error;
+        let retryWithDefault = false;
+
+        // 첫 번째 시도
+        const sendResult = await resendClient.emails.send({
           from: fromEmail,
           to: userEmail,
           subject: `[리얼픽] 새로운 ${getCategoryName(category)} 미션!`,
           html: emailHtml,
         });
 
+        data = sendResult.data;
+        error = sendResult.error;
+
+        // 도메인 인증 에러인 경우 기본값으로 재시도
+        if (error && (
+          error.message?.includes('domain is not verified') ||
+          error.message?.includes('not verified') ||
+          error.statusCode === 422
+        )) {
+          console.warn(`[Mission Notification] ⚠️ Domain verification error for ${fromEmail}, retrying with default email`);
+          retryWithDefault = true;
+          fromEmail = 'onboarding@resend.dev';
+          
+          // 기본 이메일로 재시도
+          const retryResult = await resendClient.emails.send({
+            from: fromEmail,
+            to: userEmail,
+            subject: `[리얼픽] 새로운 ${getCategoryName(category)} 미션!`,
+            html: emailHtml,
+          });
+          
+          data = retryResult.data;
+          error = retryResult.error;
+          
+          if (!error) {
+            console.log(`[Mission Notification] ✅ Successfully sent email with fallback address (ID: ${data?.id})`);
+          }
+        }
+
         if (error) {
           console.error(`[Mission Notification] ❌ Failed to send email to ${userEmail}:`, {
             statusCode: error.statusCode,
             name: error.name,
             message: error.message,
-            fullError: error
+            fullError: error,
+            retriedWithDefault: retryWithDefault
           });
           
           // Resend API Key 오류인 경우 명확한 메시지
           if (error.statusCode === 401 || error.message?.includes('API key') || error.message?.includes('invalid')) {
             console.error('[Mission Notification] 🔴 RESEND_API_KEY is invalid or expired!');
             console.error('[Mission Notification] 💡 Solution: Get a new API key from https://resend.com/api-keys and update Netlify environment variable');
+          }
+          
+          // 도메인 인증 에러 안내
+          if (error.message?.includes('domain is not verified') || error.message?.includes('not verified')) {
+            console.error('[Mission Notification] 🔴 Domain is not verified in Resend!');
+            console.error('[Mission Notification] 💡 Solution: Add and verify your domain at https://resend.com/domains');
+            console.error('[Mission Notification] 💡 Temporary: Using onboarding@resend.dev as fallback (already attempted)');
           }
           
           results.push({
@@ -503,11 +544,12 @@ export async function POST(request: NextRequest) {
             errorName: error.name
           });
         } else {
-          console.log(`[Mission Notification] Successfully sent email to ${userEmail} (ID: ${data?.id})`);
+          console.log(`[Mission Notification] ✅ Successfully sent email to ${userEmail} (ID: ${data?.id})${retryWithDefault ? ' [used fallback]' : ''}`);
           results.push({
             success: true,
             email: userEmail,
             emailId: data?.id,
+            usedFallback: retryWithDefault
           });
         }
 
