@@ -7,6 +7,7 @@ import { Button } from "@/components/c-ui/button"
 import { User } from "lucide-react"
 import { ShowMenu } from "@/components/c-common/ShowMenu"
 import { UserInfo } from "@/components/c-common/UserInfo"
+import { PointHistoryModal } from "@/components/c-common/PointHistoryModal"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { isAuthenticated } from "@/lib/auth-utils"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
@@ -38,7 +39,7 @@ export function AppHeader({
   userPoints,
   userTier,
   onAvatarClick,
-  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-9 sm:h-10 md:h-12 lg:h-14",
+  logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-10 sm:h-12 md:h-14 lg:h-16",
   className = "",
   selectedShowId,
   onShowSelect,
@@ -49,6 +50,7 @@ export function AppHeader({
   const router = useRouter()
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [showPointHistoryModal, setShowPointHistoryModal] = useState(false)
   const { unreadMissionIds } = useNewMissionNotifications()
 
   //  각 카테고리별 읽지 않은 미션 개수 계산
@@ -133,6 +135,7 @@ export function AppHeader({
                 points={userPoints}
                 tier={userTier}
                 onAvatarClick={onAvatarClick}
+                onPointsClick={() => setShowPointHistoryModal(true)}
                 showFullInfo={true}
               />
             ) : (
@@ -155,6 +158,12 @@ export function AppHeader({
         isOpen={showLoginModal}
         onClose={() => setShowLoginModal(false)}
         onLoginSuccess={() => setShowLoginModal(false)}
+      />
+
+      <PointHistoryModal
+        isOpen={showPointHistoryModal}
+        onClose={() => setShowPointHistoryModal(false)}
+        totalPoints={userPoints}
       />
     </header>
   )

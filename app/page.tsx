@@ -46,6 +46,11 @@ export default function HomePage() {
   const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
   const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
   const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | undefined>(undefined)
+  
+  // 페이지네이션 상태 추가
+  const [currentPage, setCurrentPage] = useState(1)
+  const MISSIONS_PER_PAGE = 8
+
   const userId = getUserId() || "user123"
 
   // URL 쿼리 파라미터 동기화 및 기본 카테고리 설정
@@ -89,7 +94,7 @@ export default function HomePage() {
         }
 
         // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
-        const result = await getMissions(10)
+        const result = await getMissions(100)
         let realMissions: TMission[] = []
 
         if (result.success && result.missions) {
@@ -128,7 +133,7 @@ export default function HomePage() {
         }
 
         // 2. Supabase에서 커플매칭 미션 가져오기
-        const coupleResult = await getMissions2(10)
+        const coupleResult = await getMissions2(100)
         let coupleMissions: TMission[] = []
 
         if (coupleResult.success && coupleResult.missions) {
@@ -371,7 +376,19 @@ export default function HomePage() {
   }, [mainMission?.id, isMainMissionClosed])
 
   // 메인 미션을 제외한 나머지 리스트
-  const displayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
+  const allDisplayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
+  
+  // 페이지네이션 적용
+  const totalPages = Math.ceil(allDisplayMissions.length / MISSIONS_PER_PAGE)
+  const displayMissions = allDisplayMissions.slice(
+    (currentPage - 1) * MISSIONS_PER_PAGE,
+    currentPage * MISSIONS_PER_PAGE
+  )
+
+  // 필터나 카테고리 변경 시 페이지 초기화
+  useEffect(() => {
+    setCurrentPage(1)
+  }, [selectedFilter, selectedShowId])
 
   // 활성화된 프로그램 ID 목록 (미션이 있는 프로그램)
   const activeShowIds = new Set(missions.map(m => m.showId).filter(Boolean) as string[])
@@ -588,7 +605,7 @@ export default function HomePage() {
                           setRedirectAfterLogin(`/p-mission/${mission.id}/vote`)
                           setShowLoginModal(true)
                         }}
-                        variant={index === 0 && !mainMission ? "hot" : "default"}
+                        variant={index === 0 && !mainMission && currentPage === 1 ? "hot" : "default"}
                       />
                     </div>
                   ))
@@ -598,6 +615,54 @@ export default function HomePage() {
                   </div>
                 )}
               </div>
+
+              {/* 페이지네이션 UI */}
+              {totalPages > 1 && (
+                <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentPage(p => Math.max(1, p - 1))
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === 1}
+                    className="h-8 w-16"
+                  >
+                    이전
+                  </Button>
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                      <button
+                        key={pageNum}
+                        onClick={() => {
+                          setCurrentPage(pageNum)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                        className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                          currentPage === pageNum
+                            ? "bg-gray-900 text-white shadow-md"
+                            : "bg-white text-gray-500 hover:bg-gray-100 border border-gray-100"
+                        }`}
+                      >
+                        {pageNum}
+                      </button>
+                    ))}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setCurrentPage(p => Math.min(totalPages, p + 1))
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    disabled={currentPage === totalPages}
+                    className="h-8 w-16"
+                  >
+                    다음
+                  </Button>
+                </div>
+              )}
             </main>
           ) : (
             <Onboarding 
@@ -871,7 +936,7 @@ export default function HomePage() {
                       }
                       setIsPickViewModalOpen(true)
                     }}
-                    variant={index === 0 && !mainMission ? "hot" : "default"} // 메인 미션이 있으면 리스트 첫번째는 hot 아님
+                    variant={index === 0 && !mainMission && currentPage === 1 ? "hot" : "default"} // 메인 미션이 있으면 리스트 첫번째는 hot 아님
                   />
                 </div>
               ))
@@ -881,6 +946,54 @@ export default function HomePage() {
               </div>
             )}
           </div>
+
+          {/* 페이지네이션 UI */}
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center gap-2 mt-8 mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCurrentPage(p => Math.max(1, p - 1))
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                disabled={currentPage === 1}
+                className="h-8 w-16"
+              >
+                이전
+              </Button>
+              <div className="flex items-center gap-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map((pageNum) => (
+                  <button
+                    key={pageNum}
+                    onClick={() => {
+                      setCurrentPage(pageNum)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className={`w-8 h-8 rounded-lg text-xs font-medium transition-all ${
+                      currentPage === pageNum
+                        ? "bg-gray-900 text-white shadow-md"
+                        : "bg-white text-gray-500 hover:bg-gray-100 border border-gray-100"
+                    }`}
+                  >
+                    {pageNum}
+                  </button>
+                ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  setCurrentPage(p => Math.min(totalPages, p + 1))
+                  window.scrollTo({ top: 0, behavior: 'smooth' })
+                }}
+                disabled={currentPage === totalPages}
+                className="h-8 w-16"
+              >
+                다음
+              </Button>
+            </div>
+          )}
         </main >
 
         {/* 하단 네비게이션 */}

@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/client"
 import { Button } from "@/components/c-ui/button"
 import { Switch } from "@/components/c-ui/switch"
 import { ArrowLeft, Bell, Mail } from "lucide-react"
+import { CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
 
 interface NotificationPreferences {
     f_id?: string
@@ -14,9 +15,9 @@ interface NotificationPreferences {
 }
 
 const CATEGORIES = [
-    { id: 'LOVE', name: '로맨스', emoji: '❤️', description: '나는 SOLO, 돌싱글즈 등' },
-    { id: 'VICTORY', name: '서바이벌', emoji: '🏆', description: '최강야구, 골때리는 그녀들 등' },
-    { id: 'STAR', name: '오디션', emoji: '⭐', description: '미스터트롯, 프로젝트7 등' }
+    { id: 'LOVE', name: GLOBAL_CATEGORIES.LOVE.description, icon: GLOBAL_CATEGORIES.LOVE.iconPath, description: '나는 SOLO, 돌싱글즈 등' },
+    { id: 'VICTORY', name: GLOBAL_CATEGORIES.VICTORY.description, icon: GLOBAL_CATEGORIES.VICTORY.iconPath, description: '최강야구, 골때리는 그녀들 등' },
+    { id: 'STAR', name: GLOBAL_CATEGORIES.STAR.description, icon: GLOBAL_CATEGORIES.STAR.iconPath, description: '미스터트롯, 프로젝트7 등' }
 ]
 
 export default function NotificationSettingsPage() {
@@ -204,7 +205,11 @@ export default function NotificationSettingsPage() {
                                     >
                                         <div className="flex items-center justify-between">
                                             <div className="flex items-center gap-3">
-                                                <span className="text-3xl">{category.emoji}</span>
+                                                {category.icon ? (
+                                                    <img src={category.icon} alt={category.name} className="w-10 h-10 object-contain" />
+                                                ) : (
+                                                    <span className="text-3xl">{(category as any).emoji}</span>
+                                                )}
                                                 <div>
                                                     <p className="font-semibold text-gray-900">{category.name}</p>
                                                     <p className="text-sm text-gray-600">{category.description}</p>

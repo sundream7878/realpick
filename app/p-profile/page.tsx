@@ -17,7 +17,7 @@ import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-t
 import { getUser, updateUserProfile } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
-import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { getShowByName, getShowById, CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
 import { createClient } from "@/lib/supabase/client"
 
 export default function ProfilePage() {
@@ -291,9 +291,9 @@ export default function ProfilePage() {
   }
 
   const CATEGORIES = [
-    { id: 'LOVE', name: '로맨스', emoji: '❤️' },
-    { id: 'VICTORY', name: '서바이벌', emoji: '🏆' },
-    { id: 'STAR', name: '오디션', emoji: '⭐' }
+    { id: 'LOVE', name: GLOBAL_CATEGORIES.LOVE.description, icon: GLOBAL_CATEGORIES.LOVE.iconPath },
+    { id: 'VICTORY', name: GLOBAL_CATEGORIES.VICTORY.description, icon: GLOBAL_CATEGORIES.VICTORY.iconPath },
+    { id: 'STAR', name: GLOBAL_CATEGORIES.STAR.description, icon: GLOBAL_CATEGORIES.STAR.iconPath }
   ]
 
   if (isLoading) {
@@ -568,7 +568,11 @@ export default function ProfilePage() {
                               >
                                 <div className="flex items-center justify-between">
                                   <div className="flex items-center gap-2">
-                                    <span className="text-xl">{category.emoji}</span>
+                                    {category.icon ? (
+                                      <img src={category.icon} alt={category.name} className="w-8 h-8 object-contain" />
+                                    ) : (
+                                      <span className="text-xl">{'emoji' in category ? (category as any).emoji : ''}</span>
+                                    )}
                                     <span className="text-sm font-medium text-gray-900">{category.name}</span>
                                   </div>
                                   <div className={`

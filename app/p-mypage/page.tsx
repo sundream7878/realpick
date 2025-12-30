@@ -7,9 +7,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Input } from "@/components/c-ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/c-ui/select"
 import { Heart, ChevronDown, ChevronUp, CheckCircle2, AlertCircle, Plus, X } from "lucide-react"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import type { TUserRole } from "@/lib/utils/permissions"
 import type { TMission, TMatchPairs } from "@/types/t-vote/vote.types"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -25,7 +26,8 @@ import { getUser } from "@/lib/supabase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { getShowByName, getShowById, CATEGORIES, SHOWS } from "@/lib/constants/shows"
+import type { TShowCategory } from "@/lib/constants/shows"
 
 export default function MyPage() {
   const router = useRouter()
@@ -33,11 +35,17 @@ export default function MyPage() {
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
+  const [userRole, setUserRole] = useState<TUserRole>("PICKER")
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  
+  // 필터 상태 추가
+  const [filterCategory, setFilterCategory] = useState<TShowCategory | "ALL">("ALL")
+  const [filterShowId, setFilterShowId] = useState<string>("ALL")
+
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
@@ -67,6 +75,7 @@ export default function MyPage() {
             setUserNickname(user.nickname)
             setUserPoints(user.points)
             setUserTier(getTierFromDbOrPoints(user.tier, user.points))
+            setUserRole(user.role as TUserRole)
           }
         } catch (error) {
           console.error("유저 데이터 로딩 실패:", error)
@@ -123,6 +132,7 @@ export default function MyPage() {
           if (mission.__table === "t_missions2") {
             return {
               id: mission.f_id,
+              showId: mission.f_show_id,
               title: mission.f_title,
               kind: mission.f_kind || "predict",
               form: "match",
@@ -153,6 +163,7 @@ export default function MyPage() {
 
           return {
             id: mission.f_id,
+            showId: mission.f_show_id,
             title: mission.f_title,
             kind: mission.f_kind,
             form: mission.f_form,
@@ -184,6 +195,7 @@ export default function MyPage() {
       if (participatedResult.success && participatedResult.missions) {
         const participated: TMission[] = participatedResult.missions.map((mission: any) => ({
           id: mission.f_id,
+          showId: mission.f_show_id,
           title: mission.f_title,
           kind: mission.f_kind,
           form: mission.f_form,
@@ -354,6 +366,22 @@ export default function MyPage() {
 
   const toggleMissionPanel = (missionId: string) => {
     setExpandedMissionId(prev => (prev === missionId ? null : missionId))
+  }
+
+  const needsAnswerEntry = (mission: TMission) => {
+    if (mission.kind !== "predict" || mission.status === "settled") return false
+    
+    if (mission.form === "match") {
+      // 모든 회차가 마감되었는지 확인
+      const totalEpisodes = mission.episodes || 8
+      const episodeStatuses = mission.episodeStatuses || {}
+      for (let i = 1; i <= totalEpisodes; i++) {
+        if (episodeStatuses[i] !== "settled") return false
+      }
+      return true
+    }
+    
+    return mission.deadline ? isDeadlinePassed(mission.deadline) : false
   }
 
   const handlePredictAnswerSubmit = async (missionId: string) => {
@@ -572,6 +600,40 @@ export default function MyPage() {
       [mission.id]: mission.result?.correctAnswer ?? "",
     }))
   }
+
+  // 필터링 로직 추가
+  const filterMissions = useCallback((missions: TMission[]) => {
+    return missions.filter(mission => {
+      const show = mission.showId ? getShowById(mission.showId) : null
+      
+      // 카테고리 필터
+      if (filterCategory !== "ALL" && show?.category !== filterCategory) {
+        return false
+      }
+      
+      // 프로그램 필터
+      if (filterShowId !== "ALL" && mission.showId !== filterShowId) {
+        return false
+      }
+      
+      return true
+    })
+  }, [filterCategory, filterShowId])
+
+  const filteredParticipatedMissions = useMemo(() => 
+    filterMissions(participatedMissions), 
+  [participatedMissions, filterMissions])
+
+  const filteredCreatedMissionsTotal = useMemo(() => 
+    filterMissions(createdMissions), 
+  [createdMissions, filterMissions])
+
+  const filteredCreatedMissionsByTab = useMemo(() => 
+    filteredCreatedMissionsTotal.filter(m => m.kind === createdTab),
+  [filteredCreatedMissionsTotal, createdTab])
+
+  const totalCreatedPages = Math.ceil(filteredCreatedMissionsByTab.length / ITEMS_PER_PAGE)
+  const currentCreatedMissions = filteredCreatedMissionsByTab.slice((createdPage - 1) * ITEMS_PER_PAGE, createdPage * ITEMS_PER_PAGE)
 
   const renderDealerPanel = (mission: TMission) => {
     const isClosedForDealer = isMissionClosedForDealer(mission)
@@ -929,10 +991,6 @@ export default function MyPage() {
     )
   }
 
-  const filteredCreatedMissions = createdMissions.filter(m => m.kind === createdTab)
-  const totalCreatedPages = Math.ceil(filteredCreatedMissions.length / ITEMS_PER_PAGE)
-  const currentCreatedMissions = filteredCreatedMissions.slice((createdPage - 1) * ITEMS_PER_PAGE, createdPage * ITEMS_PER_PAGE)
-
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
@@ -966,36 +1024,126 @@ export default function MyPage() {
             </div>
 
             <Tabs defaultValue="participated" className="w-full">
-              <TabsList className="grid w-full max-w-md grid-cols-2 mb-6">
-                <TabsTrigger value="participated" className="relative">
-                  내가 참여한 미션
-                  <Badge className="ml-2 bg-pink-500 hover:bg-pink-600 text-white">{participatedMissions.length}</Badge>
-                </TabsTrigger>
-                <TabsTrigger value="created" className="relative">
-                  내가 생성한 미션
-                  <Badge className="ml-2 bg-purple-500 hover:bg-purple-600 text-white">{createdMissions.length}</Badge>
-                </TabsTrigger>
-              </TabsList>
+              <div className="flex flex-col gap-4 mb-6">
+                <TabsList className={`grid w-full max-w-md ${userRole !== 'PICKER' ? 'grid-cols-2' : 'grid-cols-1 max-w-[200px]'}`}>
+                  <TabsTrigger value="participated" className="relative">
+                    내가 참여한 미션
+                    <Badge className="ml-2 bg-pink-500 hover:bg-pink-600 text-white">{filteredParticipatedMissions.length}</Badge>
+                  </TabsTrigger>
+                  {userRole !== 'PICKER' && (
+                    <TabsTrigger value="created" className="relative">
+                      내가 생성한 미션
+                      <Badge className="ml-2 bg-purple-500 hover:bg-purple-600 text-white">{filteredCreatedMissionsTotal.length}</Badge>
+                    </TabsTrigger>
+                  )}
+                </TabsList>
 
-              <TabsContent value="participated" className="space-y-4">
+                {/* 필터 영역 - 탭 아래로 이동 */}
+                <div className="flex flex-col gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm max-w-md">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-gray-400 w-12 shrink-0">분류</span>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <button
+                        onClick={() => {
+                          setFilterCategory("ALL")
+                          setFilterShowId("ALL")
+                        }}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${filterCategory === "ALL" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                      >
+                        전체
+                      </button>
+                      {Object.entries(CATEGORIES).filter(([id]) => id !== "UNIFIED").map(([id, info]) => (
+                        <button
+                          key={id}
+                          onClick={() => {
+                            setFilterCategory(id as TShowCategory)
+                            setFilterShowId("ALL")
+                          }}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all flex items-center gap-1.5 ${filterCategory === id ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                        >
+                          <img src={info.iconPath} alt={info.description} className="w-3.5 h-3.5 object-contain" />
+                          {info.description}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {filterCategory !== "ALL" && (
+                    <div className="flex items-center gap-2 pt-2 border-t border-gray-50">
+                      <span className="text-xs font-semibold text-gray-400 w-12 shrink-0">프로그램</span>
+                      <Select
+                        value={filterShowId}
+                        onValueChange={setFilterShowId}
+                      >
+                        <SelectTrigger className="flex-1 h-9 text-xs bg-white border-gray-200 rounded-xl focus:ring-0 shadow-none">
+                          <SelectValue placeholder="프로그램을 선택하세요" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-[200px] overflow-y-auto">
+                          <SelectItem value="ALL">전체 프로그램</SelectItem>
+                          {(SHOWS[filterCategory] || [])
+                            .slice()
+                            .sort((a, b) => {
+                              const getStatus = (id: string) => showStatuses[id] || 'ACTIVE'
+                              const getPriority = (status: string) => {
+                                if (status === 'ACTIVE') return 0
+                                if (status === 'UNDECIDED') return 1
+                                if (status === 'UPCOMING') return 2
+                                return 0
+                              }
+                              const priorityA = getPriority(getStatus(a.id))
+                              const priorityB = getPriority(getStatus(b.id))
+                              return priorityA - priorityB
+                            })
+                            .map(show => {
+                              const status = showStatuses[show.id] || 'ACTIVE'
+                              const isUpcoming = status === 'UPCOMING'
+                              const isUndecided = status === 'UNDECIDED'
+                              const isActive = status === 'ACTIVE'
+                              const statusText = isUpcoming ? " (예정)" : isUndecided ? " (미정)" : ""
+                              
+                              return (
+                                <SelectItem 
+                                  key={show.id} 
+                                  value={show.id}
+                                  disabled={!isActive}
+                                  className={!isActive ? "opacity-50 cursor-not-allowed" : ""}
+                                >
+                                  {show.displayName}{statusText}
+                                </SelectItem>
+                              )
+                            })}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <TabsContent value="participated" className="space-y-4 focus-visible:outline-none">
                 {isLoading ? (
                   <Card className="border-gray-200">
                     <CardContent className="py-12 text-center">
                       <p className="text-gray-500 text-lg">미션을 불러오는 중...</p>
                     </CardContent>
                   </Card>
-                ) : participatedMissions.length === 0 ? (
+                ) : filteredParticipatedMissions.length === 0 ? (
                   <Card className="border-gray-200">
                     <CardContent className="py-12 text-center">
-                      <p className="text-gray-500 text-lg">아직 참여한 미션이 없습니다.</p>
-                      <Link href="/">
-                        <Button className="mt-4 bg-pink-600 hover:bg-pink-700 text-white">미션 참여하러 가기</Button>
-                      </Link>
+                      <p className="text-gray-500 text-lg">
+                        {filterCategory === "ALL" && filterShowId === "ALL" 
+                          ? "아직 참여한 미션이 없습니다." 
+                          : "조건에 맞는 미션이 없습니다."}
+                      </p>
+                      {filterCategory === "ALL" && filterShowId === "ALL" && (
+                        <Link href="/">
+                          <Button className="mt-4 bg-pink-600 hover:bg-pink-700 text-white">미션 참여하러 가기</Button>
+                        </Link>
+                      )}
                     </CardContent>
                   </Card>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-                    {participatedMissions.map((mission) => (
+                    {filteredParticipatedMissions.map((mission) => (
                       <MissionCard
                         key={mission.id}
                         mission={mission}
@@ -1008,23 +1156,30 @@ export default function MyPage() {
                 )}
               </TabsContent>
 
-              <TabsContent value="created" className="space-y-4">
-                {isLoading ? (
+              {userRole !== 'PICKER' && (
+                <TabsContent value="created" className="space-y-4">
+                  {isLoading ? (
                   <Card className="border-gray-200">
                     <CardContent className="py-12 text-center">
                       <p className="text-gray-500 text-lg">미션을 불러오는 중...</p>
                     </CardContent>
                   </Card>
-                ) : createdMissions.length === 0 ? (
+                ) : filteredCreatedMissionsTotal.length === 0 ? (
                   <Card className="border-gray-200">
                     <CardContent className="py-12 text-center">
-                      <p className="text-gray-500 text-lg">아직 생성한 미션이 없습니다.</p>
-                      <Button
-                        className="mt-4 bg-purple-600 hover:bg-purple-700 text-white"
-                        onClick={() => setIsMissionModalOpen(true)}
-                      >
-                        미션 생성하기
-                      </Button>
+                      <p className="text-gray-500 text-lg">
+                        {filterCategory === "ALL" && filterShowId === "ALL"
+                          ? "아직 생성한 미션이 없습니다."
+                          : "조건에 맞는 미션이 없습니다."}
+                      </p>
+                      {filterCategory === "ALL" && filterShowId === "ALL" && (
+                        <Button
+                          className="mt-4 bg-purple-600 hover:bg-purple-700 text-white"
+                          onClick={() => setIsMissionModalOpen(true)}
+                        >
+                          미션 생성하기
+                        </Button>
+                      )}
                     </CardContent>
                   </Card>
                 ) : (
@@ -1041,7 +1196,7 @@ export default function MyPage() {
                           setCreatedPage(1)
                         }}
                       >
-                        예측픽 ({createdMissions.filter(m => m.kind === "predict").length})
+                        예측픽 ({filteredCreatedMissionsTotal.filter(m => m.kind === "predict").length})
                       </button>
                       <button
                         className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${createdTab === "majority"
@@ -1053,7 +1208,7 @@ export default function MyPage() {
                           setCreatedPage(1)
                         }}
                       >
-                        공감픽 ({createdMissions.filter(m => m.kind === "majority").length})
+                        공감픽 ({filteredCreatedMissionsTotal.filter(m => m.kind === "majority").length})
                       </button>
                     </div>
 
@@ -1069,6 +1224,7 @@ export default function MyPage() {
                       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
                         {currentCreatedMissions.map((mission) => {
                           const participants = mission.stats?.participants?.toLocaleString() ?? "0"
+                          const isAnswerRequired = needsAnswerEntry(mission)
                           const missionSettledText =
                             mission.kind === "predict"
                               ? mission.form === "match"
@@ -1081,8 +1237,15 @@ export default function MyPage() {
                                 : "결과 미확정"
 
                           return (
-                            <div key={mission.id} className="flex flex-col rounded-2xl border border-purple-100 bg-white shadow-sm">
-                              <div className="flex flex-col gap-4 p-5 h-full">
+                            <div key={mission.id} className={`flex flex-col rounded-2xl border transition-all ${isAnswerRequired ? "border-amber-400 bg-amber-50/30 shadow-md" : "border-purple-100 bg-white shadow-sm"}`}>
+                              <div className="flex flex-col gap-4 p-5 h-full relative">
+                                {isAnswerRequired && (
+                                  <div className="absolute top-4 right-4 animate-bounce">
+                                    <Badge className="bg-amber-500 text-white border-none text-[10px] py-0.5 px-2">
+                                      ⚠️ 정답 입력 필요
+                                    </Badge>
+                                  </div>
+                                )}
                                 <div className="space-y-2">
                                   <div className="flex flex-wrap items-center gap-2">
                                     <Badge className={`border ${mission.kind === "predict" ? "bg-blue-50 text-blue-700 border-blue-200" : "bg-green-50 text-green-700 border-green-200"}`}>
@@ -1114,9 +1277,9 @@ export default function MyPage() {
                                     {getStatusLabel(mission.status)}
                                   </Badge>
                                   <Button
-                                    variant="outline"
+                                    variant={isAnswerRequired ? "default" : "outline"}
                                     size="sm"
-                                    className="gap-2 w-full"
+                                    className={`gap-2 w-full ${isAnswerRequired ? "bg-amber-600 hover:bg-amber-700 text-white border-none shadow-sm" : ""}`}
                                     onClick={() => toggleMissionPanel(mission.id)}
                                   >
                                     {expandedMissionId === mission.id ? (
@@ -1181,8 +1344,9 @@ export default function MyPage() {
                   </div>
                 )}
               </TabsContent>
-            </Tabs>
-          </div>
+            )}
+          </Tabs>
+        </div>
         </main>
 
         <BottomNavigation />

@@ -105,7 +105,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden md:block w-4 h-4 md:w-5 md:h-5 lg:w-6 lg:h-6 object-contain flex-shrink-0"
+                    className="hidden md:block w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain flex-shrink-0"
                 />
                 <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
                     {selectedShow ? selectedShow.displayName : categoryInfo.description}
