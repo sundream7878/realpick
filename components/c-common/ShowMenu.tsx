@@ -92,7 +92,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`
-          relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-2 sm:px-3 md:px-4 py-1.5 sm:py-2 md:py-2.5 rounded-lg font-medium
+          relative flex items-center gap-1.5 sm:gap-2 md:gap-2.5 px-2 sm:px-3 md:px-4 py-0.5 sm:py-0.5 md:py-1 rounded-lg font-medium
           transition-all duration-200
           min-w-[65px] sm:min-w-[75px] md:min-w-[85px] lg:min-w-[95px]
           ${isOpen || isCategoryActive
@@ -105,13 +105,13 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden md:block w-6 h-6 md:w-8 md:h-8 lg:w-10 lg:h-10 object-contain flex-shrink-0"
+                    className="hidden md:block w-7 h-7 md:w-9 md:h-9 lg:w-11 lg:h-11 object-contain flex-shrink-0"
                 />
-                <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
+                <span className="text-[10px] sm:text-xs md:text-sm lg:text-base whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
                     {selectedShow ? selectedShow.displayName : categoryInfo.description}
                 </span>
                 <ChevronDown
-                    className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-4 md:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
+                    className={`w-3 h-3 sm:w-3.5 sm:h-3.5 md:w-4 md:h-4 lg:w-5 lg:h-5 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
 
                 {/* 읽지 않은 미션 배지 - 버튼 내부 우측에 위치 */}

@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation"
 import {
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import { getUserPointLogs } from "@/lib/supabase/points"
 import { getUserId } from "@/lib/auth-utils"
 import type { TPointLog } from "@/types/t-vote/vote.types"
 import { formatPoints } from "@/lib/utils/u-format-points/formatPoints.util"
-import { Coins, History, ArrowUpRight, ArrowDownLeft } from "lucide-react"
+import { Coins, History, ArrowUpRight, ArrowDownLeft, ExternalLink } from "lucide-react"
 
 interface PointHistoryModalProps {
   isOpen: boolean
@@ -20,6 +21,7 @@ interface PointHistoryModalProps {
 }
 
 export function PointHistoryModal({ isOpen, onClose, totalPoints }: PointHistoryModalProps) {
+  const router = useRouter()
   const [logs, setLogs] = useState<TPointLog[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -28,6 +30,13 @@ export function PointHistoryModal({ isOpen, onClose, totalPoints }: PointHistory
       loadLogs()
     }
   }, [isOpen])
+
+  const handleLogClick = (log: TPointLog) => {
+    if (log.missionId) {
+      onClose()
+      router.push(`/p-mission/${log.missionId}/results`)
+    }
+  }
 
   async function loadLogs() {
     const userId = getUserId()
@@ -80,32 +89,45 @@ export function PointHistoryModal({ isOpen, onClose, totalPoints }: PointHistory
               포인트 적립 내역이 없습니다.
             </div>
           ) : (
-            logs.map((log) => (
-              <div
-                key={log.id}
-                className="flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white hover:bg-gray-50 transition-colors"
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${log.diff > 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
-                    {log.diff > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+            logs.map((log) => {
+              const hasMission = !!log.missionId
+              return (
+                <div
+                  key={log.id}
+                  onClick={() => hasMission && handleLogClick(log)}
+                  className={`flex items-center justify-between p-3 rounded-xl border border-gray-100 bg-white transition-colors ${
+                    hasMission 
+                      ? "hover:bg-amber-50 hover:border-amber-200 cursor-pointer active:scale-[0.98]" 
+                      : "hover:bg-gray-50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 flex-1 min-w-0">
+                    <div className={`p-2 rounded-lg flex-shrink-0 ${log.diff > 0 ? "bg-emerald-50 text-emerald-600" : "bg-rose-50 text-rose-600"}`}>
+                      {log.diff > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownLeft className="w-4 h-4" />}
+                    </div>
+                    <div className="flex flex-col min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-sm font-semibold text-gray-900 line-clamp-1">{log.reason}</span>
+                        {hasMission && (
+                          <ExternalLink className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />
+                        )}
+                      </div>
+                      <span className="text-[10px] text-gray-400">
+                        {new Date(log.createdAt).toLocaleString("ko-KR", {
+                          month: "long",
+                          day: "numeric",
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-semibold text-gray-900 line-clamp-1">{log.reason}</span>
-                    <span className="text-[10px] text-gray-400">
-                      {new Date(log.createdAt).toLocaleString("ko-KR", {
-                        month: "long",
-                        day: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
+                  <div className={`text-sm font-bold flex-shrink-0 ml-2 ${log.diff > 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    {log.diff > 0 ? "+" : ""}{formatPoints(log.diff)}P
                   </div>
                 </div>
-                <div className={`text-sm font-bold ${log.diff > 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                  {log.diff > 0 ? "+" : ""}{formatPoints(log.diff)}P
-                </div>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       </DialogContent>
