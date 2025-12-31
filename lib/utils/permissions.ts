@@ -130,8 +130,9 @@ export function canManageMission(
 /**
  * 역할 체크 헬퍼 함수들
  */
-export function isAdmin(role: TUserRole): boolean {
-    return role === "ADMIN"
+export function isAdmin(role: TUserRole | string | undefined): boolean {
+    if (!role) return false
+    return role.toUpperCase() === "ADMIN"
 }
 
 export function isMainDealer(role: TUserRole): boolean {

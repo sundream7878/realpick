@@ -18,8 +18,20 @@ import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
 import { Button } from "@/components/c-ui/button"
-import { Share2 } from "lucide-react"
+import { Share2, Trash2 } from "lucide-react"
 import { ShareModal } from "@/components/c-share-modal/share-modal"
+import { getUser } from "@/lib/supabase/users"
+import { isAdmin } from "@/lib/utils/permissions"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/c-ui/alert-dialog"
 
 export default function VotePage({ params }: { params: { id: string } }) {
   const router = useRouter()
@@ -32,6 +44,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [userVote, setUserVote] = useState<TVoteSubmission | null>(null)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
+  const [isAdminUser, setIsAdminUser] = useState(false)
+  const [userRole, setUserRole] = useState<string>("")
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const userId = getUserId()
 
   useEffect(() => {
@@ -45,7 +61,15 @@ export default function VotePage({ params }: { params: { id: string } }) {
             setUserNickname(user.nickname)
             setUserPoints(user.points)
             setUserTier(getTierFromDbOrPoints(user.tier, user.points))
+            setUserRole(user.role || "")
+            const adminCheck = isAdmin(user.role)
+            console.log("User role:", user.role, "Is admin:", adminCheck, "User object:", user)
+            setIsAdminUser(adminCheck)
+          } else {
+            console.log("User not found for userId:", userId)
           }
+        } else {
+          console.log("No userId found")
         }
 
         // 2. 미션 정보 로드 (순차적 시도)
@@ -156,6 +180,31 @@ export default function VotePage({ params }: { params: { id: string } }) {
       .catch(err => console.error("Failed to fetch show statuses", err))
   }, [])
 
+  const handleDeleteMission = async () => {
+    if (!mission || !userId) return
+
+    setIsDeleting(true)
+    try {
+      const missionType = mission.form === "match" ? "mission2" : "mission1"
+      const response = await fetch(`/api/missions/delete?missionId=${mission.id}&missionType=${missionType}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("미션 삭제에 실패했습니다.")
+      }
+
+      // 삭제 성공 시 메인 페이지로 이동
+      router.push("/")
+    } catch (error) {
+      console.error("미션 삭제 실패:", error)
+      alert("미션 삭제에 실패했습니다.")
+    } finally {
+      setIsDeleting(false)
+      setIsDeleteDialogOpen(false)
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -200,8 +249,29 @@ export default function VotePage({ params }: { params: { id: string } }) {
         />
 
         <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">
-          {/* 공유 버튼 */}
-          <div className="flex justify-end mb-4">
+          {/* 공유 버튼 및 삭제 버튼 (관리자만) */}
+          <div className="flex justify-end gap-2 mb-4">
+            {isAdminUser && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={async () => {
+                  // 권한 재확인
+                  if (userId) {
+                    const user = await getUser(userId)
+                    if (user && isAdmin(user.role)) {
+                      setIsDeleteDialogOpen(true)
+                    } else {
+                      alert("관리자 권한이 필요합니다.")
+                    }
+                  }
+                }}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                삭제
+              </Button>
+            )}
             <Button
               variant="outline"
               size="sm"
@@ -212,6 +282,12 @@ export default function VotePage({ params }: { params: { id: string } }) {
               공유하기
             </Button>
           </div>
+          {/* 디버깅용: role 정보 표시 (개발 중에만) */}
+          {process.env.NODE_ENV === 'development' && userRole && (
+            <div className="text-xs text-gray-500 mb-2">
+              현재 역할: {userRole} | 관리자 여부: {isAdminUser ? '예' : '아니오'}
+            </div>
+          )}
 
           {mission.form === "binary" && (
             <MultiVotePage mission={mission} />
@@ -243,6 +319,30 @@ export default function VotePage({ params }: { params: { id: string } }) {
             hashtags={["리얼픽", mission.showId || "나는솔로", mission.kind === "predict" ? "예측픽" : "공감픽"]}
           />
         )}
+
+        {/* 삭제 확인 다이얼로그 */}
+        <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>미션 삭제</AlertDialogTitle>
+              <AlertDialogDescription>
+                정말로 이 미션을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.
+                <br />
+                <span className="font-semibold text-gray-900 mt-2 block">{mission?.title}</span>
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={isDeleting}>취소</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteMission}
+                disabled={isDeleting}
+                className="bg-red-600 hover:bg-red-700"
+              >
+                {isDeleting ? "삭제 중..." : "삭제"}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
         <BottomNavigation />
       </div>
