@@ -242,16 +242,45 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
         }
     }
 
+    // 댓글 정렬: 베스트 댓글(좋아요 3개 이상)을 맨 위로, 나머지는 최신순
+    const sortedComments = [...comments].sort((a, b) => {
+        const aIsBest = !a.isDeleted && a.likesCount >= 3
+        const bIsBest = !b.isDeleted && b.likesCount >= 3
+        
+        // 둘 다 베스트면 좋아요 수로 정렬
+        if (aIsBest && bIsBest) {
+            return b.likesCount - a.likesCount
+        }
+        
+        // 하나만 베스트면 베스트를 위로
+        if (aIsBest) return -1
+        if (bIsBest) return 1
+        
+        // 둘 다 일반 댓글이면 최신순
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    })
+
+    const totalCommentCount = comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0) + (c.replies?.reduce((rAcc, r) => rAcc + (r.replies?.length || 0), 0) || 0), 0)
+
     return (
         <div className="mt-2 pt-2 border-t border-gray-100">
             <div className="flex items-center justify-between mb-4 px-1">
-                <h3 className="text-base font-bold text-gray-900">
-                    댓글 <span className="text-gray-500 font-normal">{comments.reduce((acc, c) => acc + 1 + (c.replies?.length || 0) + (c.replies?.reduce((rAcc, r) => rAcc + (r.replies?.length || 0), 0) || 0), 0)}</span>
+                <h3 className="text-lg font-bold text-gray-900">
+                    댓글 달기 <span className="text-gray-500 font-normal">({totalCommentCount})</span>
                 </h3>
             </div>
 
+            {/* 댓글 입력창 (최상단) */}
+            <div className="mb-6">
+                <CommentInput
+                    onSubmit={handleAddComment}
+                    isLoading={isSubmitting}
+                    placeholder={currentUserId ? "내용을 입력해주세요." : "로그인 후 댓글을 남길 수 있습니다."}
+                />
+            </div>
+
             {/* 댓글 목록 */}
-            <div className="mb-4 min-h-[100px]">
+            <div className="min-h-[100px]">
                 {isLoading ? (
                     <div className="space-y-4 py-2">
                         {[1, 2].map(i => (
@@ -264,24 +293,19 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
                             </div>
                         ))}
                     </div>
+                ) : sortedComments.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                        첫 댓글을 남겨보세요!
+                    </div>
                 ) : (
                     <CommentList
-                        comments={comments}
+                        comments={sortedComments}
                         currentUserId={currentUserId}
                         onReply={handleReply}
                         onDelete={handleDelete}
                         onLike={handleLike}
                     />
                 )}
-            </div>
-
-            {/* 댓글 입력창 (하단 고정 느낌으로 배치하거나 목록 바로 아래) */}
-            <div className="sticky bottom-0 bg-white/95 backdrop-blur-sm pt-2 pb-4 border-t border-gray-50 -mx-4 px-4 md:static md:bg-transparent md:border-none md:p-0 md:mx-0">
-                <CommentInput
-                    onSubmit={handleAddComment}
-                    isLoading={isSubmitting}
-                    placeholder={currentUserId ? "댓글 달기..." : "로그인 후 댓글을 남길 수 있습니다."}
-                />
             </div>
         </div>
     )

@@ -79,9 +79,9 @@ export function AppHeader({
       className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 shadow-sm ${className}`}
     >
       <div className="mx-auto px-2 sm:px-3 md:px-4 lg:px-6 h-full max-w-full">
-        <div className="flex items-center justify-between h-full gap-2 sm:gap-3 md:gap-4 lg:gap-6 relative">
-          {/* 로고 */}
-          <div className="flex items-center flex-shrink-0 min-w-0">
+        <div className="grid grid-cols-3 items-center h-full gap-2">
+          {/* 좌측 - 로고 */}
+          <div className="flex items-center justify-start">
             <img 
               src="/realpick-logo-new.png" 
               alt="리얼픽" 
@@ -93,8 +93,8 @@ export function AppHeader({
             />
           </div>
 
-          {/* 3대 메인 메뉴 */}
-          <div className="flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 md:absolute md:left-1/2 md:transform md:-translate-x-1/2 flex-shrink min-w-0">
+          {/* 중앙 - 3대 메인 메뉴 */}
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
             <ShowMenu 
               category="LOVE" 
               selectedShowId={selectedShowId} 
@@ -127,8 +127,8 @@ export function AppHeader({
             />
           </div>
 
-          {/* 우측 영역 - 로그인 상태에 따라 다르게 표시 */}
-          <div className="flex items-center flex-shrink-0">
+          {/* 우측 - 로그인 상태에 따라 다르게 표시 (모바일에서는 숨김) */}
+          <div className="hidden md:flex items-center justify-end">
             {isLoggedIn ? (
               <UserInfo
                 nickname={userNickname}

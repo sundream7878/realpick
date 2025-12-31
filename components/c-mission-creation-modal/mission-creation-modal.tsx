@@ -212,7 +212,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [seasonNumber, setSeasonNumber] = useState("")
   const [options, setOptions] = useState<string[]>(["", ""])
   const [deadline, setDeadline] = useState("")
-  const [resultVisibility, setResultVisibility] = useState("")
+  const [resultVisibility, setResultVisibility] = useState("realtime") // 무조건 실시간 공개로 고정
   const [maleOptions, setMaleOptions] = useState<string[]>(["", ""])
   const [femaleOptions, setFemaleOptions] = useState<string[]>(["", ""])
   const [subjectivePlaceholder, setSubjectivePlaceholder] = useState("")
@@ -824,15 +824,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               <div>
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
-                  <Select value={resultVisibility} onValueChange={setResultVisibility}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="결과 공개" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="realtime">실시간 공개</SelectItem>
-                      <SelectItem value="auto"> 마감 후 자동 공개</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* 결과 공개는 무조건 실시간 공개로 고정 */}
+                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                    ✓ 실시간 공개 (자동 설정)
+                  </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
@@ -1004,15 +999,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               <div>
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
-                  <Select value={resultVisibility} onValueChange={setResultVisibility}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="결과 공개" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="realtime">실시간 공개</SelectItem>
-                      <SelectItem value="auto"> 마감 후 자동 공개</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* 결과 공개는 무조건 실시간 공개로 고정 */}
+                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                    ✓ 실시간 공개 (자동 설정)
+                  </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
@@ -1160,15 +1150,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               <div>
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
-                  <Select value={resultVisibility} onValueChange={setResultVisibility}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="결과 공개" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="realtime">실시간 공개</SelectItem>
-                      <SelectItem value="auto"> 마감 후 자동 공개</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* 결과 공개는 무조건 실시간 공개로 고정 */}
+                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                    ✓ 실시간 공개 (자동 설정)
+                  </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>
@@ -1334,8 +1319,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800">
                       💡 <strong>커플매칭 특성</strong><br />
-                      • 모든 회차 방영이 끝난 후, 최종 커플 선택이 완료되었을 때만 결과를 알 수 있습니다.<br />
-                      • 따라서 결과는 <strong>마감 후 자동 공개</strong>로만 설정됩니다.<br />
+                      • 회차별로 예측이 가능하며, 투표 결과는 <strong>실시간으로 공개</strong>됩니다.<br />
                       • 전체 미션 마감 날짜는 설정하지 않으며, 각 회차별로 관리됩니다.
                     </p>
                   </div>
@@ -1388,15 +1372,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               <div>
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
-                  <Select value={resultVisibility} onValueChange={setResultVisibility}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="결과 공개" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="realtime">실시간 공개</SelectItem>
-                      <SelectItem value="auto"> 마감 후 자동 공개</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  {/* 결과 공개는 무조건 실시간 공개로 고정 */}
+                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                    ✓ 실시간 공개 (자동 설정)
+                  </div>
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <Label className="text-sm font-medium">마감 설정 {isLive && <span className="text-red-500 text-xs ml-2">(라이브 미션)</span>}</Label>

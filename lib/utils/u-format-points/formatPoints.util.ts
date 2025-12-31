@@ -4,11 +4,14 @@
  * @param compact 모바일용 축약 형식 사용 여부 (1000 이상일 때 K 단위)
  * @returns 포맷팅된 포인트 문자열
  */
-export function formatPoints(points: number, compact: boolean = false): string {
-  if (compact && points >= 1000) {
-    return `${(points / 1000).toFixed(1)}K`
+export function formatPoints(points: number | undefined | null, compact: boolean = false): string {
+  // undefined나 null인 경우 0으로 처리
+  const safePoints = points ?? 0
+  
+  if (compact && safePoints >= 1000) {
+    return `${(safePoints / 1000).toFixed(1)}K`
   }
-  return points.toLocaleString()
+  return safePoints.toLocaleString()
 }
 
 /**
@@ -16,7 +19,7 @@ export function formatPoints(points: number, compact: boolean = false): string {
  * @param points 포인트 숫자
  * @returns "1,250P" 형식의 문자열
  */
-export function formatPointsWithSuffix(points: number): string {
+export function formatPointsWithSuffix(points: number | undefined | null): string {
   return `${formatPoints(points)}P`
 }
 

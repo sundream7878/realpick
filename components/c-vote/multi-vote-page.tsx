@@ -356,30 +356,6 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
           )}
         </div>
 
-        {/* 참조 URL - 유튜브 임베드 플레이어 */}
-        {currentMission.referenceUrl && isYoutubeUrl(currentMission.referenceUrl) ? (
-          <div className="mt-4 flex justify-center">
-            <div className="w-full max-w-lg">
-              <div className="relative w-full" style={{ paddingBottom: '56.25%' }}>
-                <iframe
-                  className="absolute top-0 left-0 w-full h-full rounded-lg shadow-md"
-                  src={getYoutubeEmbedUrl(currentMission.referenceUrl) || ''}
-                  title="YouTube video player"
-                  frameBorder="0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              </div>
-            </div>
-          </div>
-        ) : currentMission.referenceUrl ? (
-          <div className="flex items-center gap-2 text-sm text-blue-600">
-            <Link href={currentMission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-              🔗 참고 링크 확인하기
-            </Link>
-          </div>
-        ) : null}
-
         <div className="flex items-center gap-2 text-sm text-gray-600">
           <Users className="w-4 h-4" />
           <span className="font-semibold text-gray-900">{currentMission.stats?.participants?.toLocaleString() || "0"}</span>명 참여
@@ -603,7 +579,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
           </Card>
 
           {/* 마감 후에만 최종 결과 페이지 버튼 */}
-          {currentMission.deadline && isDeadlinePassed(currentMission.deadline) ? (
+          {currentMission.deadline && isDeadlinePassed(currentMission.deadline) && (
             <div className="flex justify-center">
               <Button
                 size="lg"
@@ -613,20 +589,33 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
                 최종 결과 보기
               </Button>
             </div>
-          ) : (
-            <div className="flex justify-center">
-              <Button
-                size="lg"
-                variant="outline"
-                className="px-16 py-4 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
-                onClick={() => router.back()}
-              >
-                다른 미션 보기
-              </Button>
-            </div>
           )}
         </div>
       )}
+
+      {/* 참조 URL - 유튜브 임베드 플레이어 */}
+      {currentMission.referenceUrl && isYoutubeUrl(currentMission.referenceUrl) ? (
+        <div className="mt-6 flex justify-center">
+          <div className="w-full max-w-2xl">
+            <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
+              <iframe
+                className="absolute top-0 left-0 w-full h-full"
+                src={getYoutubeEmbedUrl(currentMission.referenceUrl) || ''}
+                title="YouTube video player"
+                frameBorder="0"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowFullScreen
+              />
+            </div>
+          </div>
+        </div>
+      ) : currentMission.referenceUrl ? (
+        <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
+          <Link href={currentMission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+            🔗 참고 링크 확인하기
+          </Link>
+        </div>
+      ) : null}
 
       {/* 로그인 모달 */}
       <LoginModal

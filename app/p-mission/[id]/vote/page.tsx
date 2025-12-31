@@ -257,7 +257,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
           showStatuses={showStatuses}
         />
 
-        <main className="w-full max-w-6xl mx-auto px-6 md:px-8 py-4">
+        <main className="w-full max-w-4xl mx-auto px-4 md:px-6 py-4">
           {/* 공유 버튼 및 삭제 버튼 (관리자만) */}
           <div className="flex justify-end gap-2 mb-4">
             {isAdminUser && (
@@ -310,11 +310,25 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
 
           {/* 댓글 섹션 추가 */}
-          <CommentSection
-            missionId={mission.id}
-            missionType={mission.form === "match" ? "mission2" : "mission1"}
-            currentUserId={userId || undefined}
-          />
+          <div className="mt-8">
+            <CommentSection
+              missionId={mission.id}
+              missionType={mission.form === "match" ? "mission2" : "mission1"}
+              currentUserId={userId || undefined}
+            />
+          </div>
+
+          {/* 다른 미션 보기 버튼 */}
+          <div className="flex justify-center pt-8 pb-4">
+            <Button
+              size="lg"
+              variant="outline"
+              className="px-8 py-3 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
+              onClick={() => router.back()}
+            >
+              다른 미션 보기
+            </Button>
+          </div>
         </main>
 
         {/* 공유 모달 */}

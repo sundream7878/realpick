@@ -88,15 +88,20 @@ export default function HomePage() {
       setIsLoading(true)
       try {
         // 0. 관리자 설정 메인 미션 ID 가져오기
-        const adminSetting = await getMainMissionId()
+        const adminSettingPromise = getMainMissionId()
+
+        // 1. Supabase에서 미션 가져오기 (병렬 처리로 최적화)
+        const [adminSetting, result, coupleResult] = await Promise.all([
+          adminSettingPromise,
+          getMissions(30), // 100개 -> 30개로 줄임
+          getMissions2(30)  // 100개 -> 30개로 줄임
+        ])
+
         if (adminSetting.success) {
           setAdminMainMissionId(adminSetting.missionId)
         }
 
-        // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
-        const result = await getMissions(100)
         let realMissions: TMission[] = []
-
         if (result.success && result.missions) {
           // Supabase 데이터를 TMission 형태로 변환
           realMissions = result.missions.map((mission: any) => ({
@@ -132,10 +137,8 @@ export default function HomePage() {
           }))
         }
 
-        // 2. Supabase에서 커플매칭 미션 가져오기
-        const coupleResult = await getMissions2(100)
+        // 2. 커플매칭 미션 변환
         let coupleMissions: TMission[] = []
-
         if (coupleResult.success && coupleResult.missions) {
           coupleMissions = coupleResult.missions.map((mission: any) => ({
             id: mission.f_id,
@@ -169,22 +172,29 @@ export default function HomePage() {
           }))
         }
 
-        // 4. 두 데이터 합치기
+        // 3. 두 데이터 합치기
         const combinedMissions = [...realMissions, ...coupleMissions]
         setMissions(combinedMissions)
 
-        // 5. 인증된 사용자의 경우 투표 여부 확인
+        // 4. 투표 여부 확인 (비동기 백그라운드 처리)
+        // UI를 먼저 표시하고 투표 여부는 나중에 업데이트
+        setIsLoading(false)
+
+        // 투표 여부 확인을 백그라운드에서 처리
         if (isAuthenticated()) {
+          // 병렬로 모든 투표 확인 (Promise.all 사용)
+          const voteChecks = combinedMissions.map(mission => 
+            checkUserVoted(userId, mission.id).then(hasVoted => ({ id: mission.id, hasVoted }))
+          )
+          
+          const results = await Promise.all(voteChecks)
           const voted = new Set<string>()
-          for (const mission of combinedMissions) {
-            const hasVoted = await checkUserVoted(userId, mission.id)
-            if (hasVoted) {
-              voted.add(mission.id)
-            }
-          }
+          results.forEach(({ id, hasVoted }) => {
+            if (hasVoted) voted.add(id)
+          })
           setVotedMissions(voted)
         } else {
-          // 비인증 사용자는 localStorage 확인
+          // 비인증 사용자는 localStorage 확인 (동기적, 빠름)
           const voted = new Set<string>()
           combinedMissions.forEach((mission) => {
             const localVote = localStorage.getItem(`rp_picked_${mission.id}`)
@@ -197,7 +207,6 @@ export default function HomePage() {
       } catch (error) {
         console.error("미션 로딩 실패:", error)
         setMissions([])
-      } finally {
         setIsLoading(false)
       }
     }

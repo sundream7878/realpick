@@ -23,6 +23,7 @@ import { getRandomComment } from "@/lib/utils/u-comment-generator/commentGenerat
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
+import { CommentSection } from "@/components/c-comment/CommentSection"
 import { isAuthenticated } from "@/lib/auth-utils"
 import { getUser } from "@/lib/supabase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
@@ -96,6 +97,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMyPicksModalOpen, setIsMyPicksModalOpen] = useState(false)
+  const userId = getUserId()
   const [loading, setLoading] = useState(true)
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
@@ -588,7 +590,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           />
 
           <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
-            <div className="max-w-6xl mx-auto">
+            <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Button
                   variant="ghost"
@@ -977,6 +979,27 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     size="lg" 
                     className="w-full bg-transparent" 
                     variant="outline"
+                    onClick={() => router.back()}
+                  >
+                    다른 미션 보기
+                  </Button>
+                </div>
+
+                {/* 댓글 섹션 추가 */}
+                <div className="mt-8">
+                  <CommentSection
+                    missionId={mission.id}
+                    missionType={mission.form === "match" ? "mission2" : "mission1"}
+                    currentUserId={userId || undefined}
+                  />
+                </div>
+
+                {/* 다른 미션 보기 버튼 */}
+                <div className="flex justify-center pt-8 pb-4">
+                  <Button
+                    size="lg"
+                    variant="outline"
+                    className="px-8 py-3 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
                     onClick={() => router.back()}
                   >
                     다른 미션 보기

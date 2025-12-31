@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
-import { Home, Plus, AlertCircle, ChevronDown, ChevronRight, User, Megaphone, Settings, Shield } from "lucide-react"
+import { Plus, User, Megaphone, Shield } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -135,16 +135,6 @@ export function SidebarNavigation({
     <aside className={`w-64 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
       <div className="p-6">
         <nav className="space-y-2">
-          <Link href={homeUrl}>
-            <Button
-              variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "home" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
-            >
-              <Home className="w-5 h-5" />
-              홈
-            </Button>
-          </Link>
-
           <Link href={castingUrl}>
             <Button
               variant="ghost"
@@ -168,47 +158,6 @@ export function SidebarNavigation({
               미션 게시하기
             </Button>
           )}
-
-          <div className="space-y-1">
-            <Button
-              variant="ghost"
-              className={`w-full justify-between gap-3 ${activeNavItem === "missions" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
-              onClick={onMissionStatusToggle}
-            >
-              <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5" />
-                <div className="text-left leading-tight">
-                  {selectedShow && <div>{selectedShow}</div>}
-                  <div className="text-sm">미션현황{getSeasonDisplayText()}</div>
-                </div>
-              </div>
-              {isMissionStatusOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-            </Button>
-
-            {isMissionStatusOpen && (
-              <div className="ml-8 space-y-1">
-                {seasonOptions.map((option) => {
-                  // 기존 href에 show 파라미터 추가
-                  const href = selectedShowId 
-                    ? `${option.href}&show=${selectedShowId}`
-                    : option.href
-                  
-                  return (
-                    <Link key={option.value} href={href}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className={`w-full justify-start text-sm ${selectedSeason === option.value ? `${theme.subBadge} ${theme.text}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
-                        onClick={() => onSeasonSelect(option.value)}
-                      >
-                        {option.label}
-                      </Button>
-                    </Link>
-                  )
-                })}
-              </div>
-            )}
-          </div>
 
           <Link href={myPageUrl} onClick={handleMyPageClick}>
             <Button
