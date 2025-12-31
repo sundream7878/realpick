@@ -25,3 +25,16 @@ export function getThumbnailFromUrl(url: string): string | null {
     if (!videoId) return null
     return getYoutubeThumbnailUrl(videoId)
 }
+
+// 유튜브 URL인지 확인
+export function isYoutubeUrl(url: string): boolean {
+    if (!url) return false
+    return /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/.test(url)
+}
+
+// 유튜브 임베드 URL 생성
+export function getYoutubeEmbedUrl(url: string): string | null {
+    const videoId = getYoutubeVideoId(url)
+    if (!videoId) return null
+    return `https://www.youtube.com/embed/${videoId}`
+}

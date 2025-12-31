@@ -15,12 +15,14 @@ export const metadata: Metadata = {
   generator: "v0.app",
   icons: {
     icon: [
-      { url: "/favicon-80x80.png", sizes: "80x80", type: "image/png" },
-      { url: "/favicon-80x80.png", sizes: "192x192", type: "image/png" },
-      { url: "/favicon-80x80.png", sizes: "512x512", type: "image/png" },
+      { url: "/favicon-100x100.png", sizes: "100x100", type: "image/png" },
+      { url: "/favicon-100x100.png", sizes: "144x144", type: "image/png" },
+      { url: "/icons/icon-192x192.png", sizes: "192x192", type: "image/png" },
+      { url: "/favicon-100x100.png", sizes: "256x256", type: "image/png" },
+      { url: "/icons/icon-512x512.png", sizes: "512x512", type: "image/png" },
     ],
-    shortcut: "/favicon-80x80.png",
-    apple: "/favicon-80x80.png",
+    shortcut: "/icons/icon-512x512.png",
+    apple: "/icons/icon-512x512.png",
   },
   manifest: "/manifest.json",
 }

@@ -46,10 +46,17 @@ export function useNewMissionNotifications() {
         setUnreadMissionIds(initialUnread)
 
         const supabase = createClient()
+        
+        // Realtime 연결 상태 확인
+        console.log("[Realtime] Supabase 클라이언트 초기화 완료")
+
+        // 고유한 채널 이름 생성 (타임스탬프 기반으로 충돌 방지)
+        const channelId1 = `mission1-inserts-${Date.now()}`
+        const channelId2 = `mission2-inserts-${Date.now()}`
 
         // t_missions1 INSERT 이벤트 구독
         const channel1 = supabase
-            .channel("mission1-inserts")
+            .channel(channelId1)
             .on(
                 "postgres_changes",
                 {
@@ -71,13 +78,21 @@ export function useNewMissionNotifications() {
                     console.log(`🔔 새 미션: ${newMission.f_title}`)
                 }
             )
-            .subscribe((status) => {
-                console.log("[Realtime] t_missions1 구독 상태:", status)
+            .subscribe((status, err) => {
+                console.log("[Realtime] t_missions1 구독 상태:", status, "채널:", channelId1)
+                if (err) {
+                    console.error("[Realtime] t_missions1 구독 에러:", err)
+                }
+                if (status === "SUBSCRIBED") {
+                    console.log("✅ t_missions1 구독 성공!")
+                } else if (status === "TIMED_OUT" || status === "CLOSED") {
+                    console.warn("[Realtime] t_missions1 구독이 종료되었습니다. 상태:", status)
+                }
             })
 
         // t_missions2 INSERT 이벤트 구독
         const channel2 = supabase
-            .channel("mission2-inserts")
+            .channel(channelId2)
             .on(
                 "postgres_changes",
                 {
@@ -99,8 +114,16 @@ export function useNewMissionNotifications() {
                     console.log(`🔔 새 미션: ${newMission.f_title}`)
                 }
             )
-            .subscribe((status) => {
-                console.log("[Realtime] t_missions2 구독 상태:", status)
+            .subscribe((status, err) => {
+                console.log("[Realtime] t_missions2 구독 상태:", status, "채널:", channelId2)
+                if (err) {
+                    console.error("[Realtime] t_missions2 구독 에러:", err)
+                }
+                if (status === "SUBSCRIBED") {
+                    console.log("✅ t_missions2 구독 성공!")
+                } else if (status === "TIMED_OUT" || status === "CLOSED") {
+                    console.warn("[Realtime] t_missions2 구독이 종료되었습니다. 상태:", status)
+                }
             })
 
         // 클린업
