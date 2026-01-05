@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility } from "@/lib/supabase/admin"
+import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow } from "@/lib/supabase/admin"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/supabase/users"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search, Lock, KeyRound, Eye, EyeOff } from "lucide-react"
+import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2 } from "lucide-react"
 import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 
 export default function AdminPage() {
@@ -51,6 +51,19 @@ export default function AdminPage() {
     
     // Show Visibility State (프로그램 활성화/비활성화)
     const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+    
+    // Custom Shows State
+    const [customShows, setCustomShows] = useState<any[]>([])
+    
+    // Add Show Dialog State
+    const [isAddShowDialogOpen, setIsAddShowDialogOpen] = useState(false)
+    const [newShow, setNewShow] = useState({
+        id: "",
+        name: "",
+        displayName: "",
+        category: "LOVE" as TShowCategory,
+        officialUrl: ""
+    })
 
     useEffect(() => {
         const checkPermissionAndLoad = async () => {
@@ -87,11 +100,12 @@ export default function AdminPage() {
 
             // Load Admin Data
             try {
-                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult] = await Promise.all([
+                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult, customShowsResult] = await Promise.all([
                     getAllOpenMissions(),
                     getMainMissionId(),
                     getShowStatuses(),
-                    getShowVisibility()
+                    getShowVisibility(),
+                    getCustomShows()
                 ])
 
                 if (missionsResult.success) {
@@ -108,6 +122,10 @@ export default function AdminPage() {
 
                 if (showVisibilityResult.success) {
                     setShowVisibility(showVisibilityResult.visibility || {})
+                }
+
+                if (customShowsResult.success) {
+                    setCustomShows(customShowsResult.shows || [])
                 }
             } catch (error) {
                 console.error("Failed to load admin data", error)
@@ -266,12 +284,15 @@ export default function AdminPage() {
         try {
             const result = await updateShowStatuses(newStatuses)
             if (result.success) {
-                // localStorage를 사용하여 여러 탭 간 통신
+                // localStorage를 사용하여 여러 탭 간 통신 (강제 업데이트를 위해 먼저 제거)
                 const timestamp = Date.now()
-                localStorage.setItem('show-statuses-update', JSON.stringify({
-                    statuses: newStatuses,
-                    timestamp
-                }))
+                localStorage.removeItem('show-statuses-update')
+                setTimeout(() => {
+                    localStorage.setItem('show-statuses-update', JSON.stringify({
+                        statuses: newStatuses,
+                        timestamp
+                    }))
+                }, 10)
                 
                 // 현재 페이지에서도 이벤트 발생
                 window.dispatchEvent(new CustomEvent('show-statuses-updated', {
@@ -303,12 +324,15 @@ export default function AdminPage() {
         try {
             const result = await updateShowVisibility(newVisibility)
             if (result.success) {
-                // localStorage를 사용하여 여러 탭 간 통신
+                // localStorage를 사용하여 여러 탭 간 통신 (강제 업데이트를 위해 먼저 제거)
                 const timestamp = Date.now()
-                localStorage.setItem('show-visibility-update', JSON.stringify({
-                    visibility: newVisibility,
-                    timestamp
-                }))
+                localStorage.removeItem('show-visibility-update')
+                setTimeout(() => {
+                    localStorage.setItem('show-visibility-update', JSON.stringify({
+                        visibility: newVisibility,
+                        timestamp
+                    }))
+                }, 10)
                 
                 // 현재 페이지에서도 이벤트 발생
                 window.dispatchEvent(new CustomEvent('show-visibility-updated', {
@@ -333,10 +357,86 @@ export default function AdminPage() {
         }
     }
 
+    const handleAddShow = async () => {
+        if (!newShow.id || !newShow.name || !newShow.displayName) {
+            toast({
+                title: "입력 오류",
+                description: "모든 필수 항목을 입력해주세요.",
+                variant: "destructive"
+            })
+            return
+        }
+
+        try {
+            const result = await addCustomShow(newShow)
+            if (result.success) {
+                toast({
+                    title: "프로그램 추가 성공",
+                    description: `${newShow.displayName}이(가) 추가되었습니다.`
+                })
+                
+                // 목록 새로고침
+                const customShowsResult = await getCustomShows()
+                if (customShowsResult.success) {
+                    setCustomShows(customShowsResult.shows || [])
+                }
+                
+                // 폼 초기화
+                setNewShow({
+                    id: "",
+                    name: "",
+                    displayName: "",
+                    category: "LOVE",
+                    officialUrl: ""
+                })
+                setIsAddShowDialogOpen(false)
+            } else {
+                throw new Error(result.error || "추가 실패")
+            }
+        } catch (error: any) {
+            toast({
+                title: "프로그램 추가 실패",
+                description: error.message || "프로그램 추가 중 오류가 발생했습니다.",
+                variant: "destructive"
+            })
+        }
+    }
+
+    const handleDeleteShow = async (showId: string, showName: string) => {
+        if (!confirm(`"${showName}"을(를) 정말 삭제하시겠습니까?`)) {
+            return
+        }
+
+        try {
+            const result = await deleteCustomShow(showId)
+            if (result.success) {
+                toast({
+                    title: "프로그램 삭제 성공",
+                    description: `${showName}이(가) 삭제되었습니다.`
+                })
+                
+                // 목록 새로고침
+                const customShowsResult = await getCustomShows()
+                if (customShowsResult.success) {
+                    setCustomShows(customShowsResult.shows || [])
+                }
+            } else {
+                throw new Error("삭제 실패")
+            }
+        } catch (error) {
+            toast({
+                title: "프로그램 삭제 실패",
+                description: "프로그램 삭제 중 오류가 발생했습니다.",
+                variant: "destructive"
+            })
+        }
+    }
+
+    // 기본 프로그램 + 커스텀 프로그램 통합
     const groupedShows = {
-        LOVE: SHOWS.LOVE,
-        VICTORY: SHOWS.VICTORY,
-        STAR: SHOWS.STAR
+        LOVE: [...SHOWS.LOVE, ...customShows.filter((s: any) => s.category === 'LOVE')],
+        VICTORY: [...SHOWS.VICTORY, ...customShows.filter((s: any) => s.category === 'VICTORY')],
+        STAR: [...SHOWS.STAR, ...customShows.filter((s: any) => s.category === 'STAR')]
     }
 
     const totalPages = Math.ceil(totalUsers / usersPerPage)
@@ -483,6 +583,13 @@ export default function AdminPage() {
                     </TabsContent>
 
                     <TabsContent value="programs" className="space-y-6">
+                        <div className="flex justify-end mb-4">
+                            <Button onClick={() => setIsAddShowDialogOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700">
+                                <Plus className="w-4 h-4" />
+                                프로그램 추가
+                            </Button>
+                        </div>
+                        
                         <div className="space-y-8">
                             {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
                                 <section key={category} className="space-y-4">
@@ -510,6 +617,17 @@ export default function AdminPage() {
                                                             >
                                                                 {isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
                                                             </Button>
+                                                            {customShows.some((s: any) => s.id === show.id) && (
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    onClick={() => handleDeleteShow(show.id, show.displayName)}
+                                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                    title="프로그램 삭제"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </Button>
+                                                            )}
                                                         </div>
                                                         <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
                                                             {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
@@ -640,6 +758,74 @@ export default function AdminPage() {
                 </Tabs>
             </main>
             <BottomNavigation />
+            
+            {/* 프로그램 추가 다이얼로그 */}
+            <Dialog open={isAddShowDialogOpen} onOpenChange={setIsAddShowDialogOpen}>
+                <DialogContent className="max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>새 프로그램 추가</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">프로그램 ID *</label>
+                            <Input
+                                placeholder="예: new-show-1"
+                                value={newShow.id}
+                                onChange={(e) => setNewShow({ ...newShow, id: e.target.value })}
+                            />
+                            <p className="text-xs text-gray-500">영문 소문자, 숫자, 하이픈만 사용</p>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">프로그램 이름 *</label>
+                            <Input
+                                placeholder="예: 새프로그램"
+                                value={newShow.name}
+                                onChange={(e) => setNewShow({ ...newShow, name: e.target.value })}
+                            />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">표시 이름 *</label>
+                            <Input
+                                placeholder="예: 새 프로그램"
+                                value={newShow.displayName}
+                                onChange={(e) => setNewShow({ ...newShow, displayName: e.target.value })}
+                            />
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">카테고리 *</label>
+                            <Select
+                                value={newShow.category}
+                                onValueChange={(value) => setNewShow({ ...newShow, category: value as TShowCategory })}
+                            >
+                                <SelectTrigger>
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="LOVE">❤️ Romance (로맨스)</SelectItem>
+                                    <SelectItem value="VICTORY">🏆 Survival (서바이벌)</SelectItem>
+                                    <SelectItem value="STAR">🌟 Audition (오디션)</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium">공식 URL (선택)</label>
+                            <Input
+                                placeholder="https://..."
+                                value={newShow.officialUrl}
+                                onChange={(e) => setNewShow({ ...newShow, officialUrl: e.target.value })}
+                            />
+                        </div>
+                        
+                        <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleAddShow}>
+                            추가하기
+                        </Button>
+                    </div>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }

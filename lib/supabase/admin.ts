@@ -194,3 +194,107 @@ export async function updateShowVisibility(visibility: Record<string, boolean>) 
         return { success: false, error }
     }
 }
+
+// 커스텀 프로그램 관리
+export async function getCustomShows() {
+    try {
+        const { data, error } = await supabase
+            .from("t_admin_settings")
+            .select("value")
+            .eq("key", "CUSTOM_SHOWS")
+            .single()
+
+        if (error) {
+            if (error.code === "PGRST116") return { success: true, shows: [] }
+            console.error("Error getting custom shows:", error)
+            return { success: false, error }
+        }
+
+        let shows = data?.value
+        if (typeof shows === 'string') {
+            try {
+                shows = JSON.parse(shows)
+            } catch (e) {
+                shows = []
+            }
+        }
+
+        return { success: true, shows: Array.isArray(shows) ? shows : [] }
+    } catch (error) {
+        console.error("Error in getCustomShows:", error)
+        return { success: false, error }
+    }
+}
+
+export async function addCustomShow(show: {
+    id: string
+    name: string
+    displayName: string
+    category: string
+    officialUrl?: string
+}) {
+    try {
+        // 기존 커스텀 프로그램 가져오기
+        const { success, shows } = await getCustomShows()
+        if (!success) {
+            return { success: false, error: "Failed to fetch existing shows" }
+        }
+
+        // 중복 체크
+        if (shows.some((s: any) => s.id === show.id)) {
+            return { success: false, error: "프로그램 ID가 이미 존재합니다." }
+        }
+
+        // 새 프로그램 추가
+        const updatedShows = [...shows, show]
+
+        const { error } = await supabase
+            .from("t_admin_settings")
+            .upsert({
+                key: "CUSTOM_SHOWS",
+                value: JSON.stringify(updatedShows),
+                updated_at: new Date().toISOString()
+            })
+
+        if (error) {
+            console.error("Error adding custom show:", error)
+            return { success: false, error }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error("Error in addCustomShow:", error)
+        return { success: false, error }
+    }
+}
+
+export async function deleteCustomShow(showId: string) {
+    try {
+        // 기존 커스텀 프로그램 가져오기
+        const { success, shows } = await getCustomShows()
+        if (!success) {
+            return { success: false, error: "Failed to fetch existing shows" }
+        }
+
+        // 프로그램 제거
+        const updatedShows = shows.filter((s: any) => s.id !== showId)
+
+        const { error } = await supabase
+            .from("t_admin_settings")
+            .upsert({
+                key: "CUSTOM_SHOWS",
+                value: JSON.stringify(updatedShows),
+                updated_at: new Date().toISOString()
+            })
+
+        if (error) {
+            console.error("Error deleting custom show:", error)
+            return { success: false, error }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error("Error in deleteCustomShow:", error)
+        return { success: false, error }
+    }
+}
