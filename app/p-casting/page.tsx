@@ -10,7 +10,7 @@ import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
 import { Card, CardContent } from "@/components/c-ui/card"
 import { RECRUITS, TRecruit, TRecruitType } from "@/lib/constants/recruits"
-import { SHOWS, getShowById, getShowByName, TShowCategory } from "@/lib/constants/shows"
+import { SHOWS, CATEGORIES, getShowById, getShowByName, TShowCategory } from "@/lib/constants/shows"
 import { getDDay, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { Calendar, User, Users, ExternalLink, Mic2, Ticket } from "lucide-react"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
@@ -191,19 +191,26 @@ export default function CastingPage() {
                         {/* 장르 필터 */}
                         <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
                             {[
-                                { id: "ALL", label: "전체" },
-                                { id: "LOVE", label: "❤️ 로맨스" },
-                                { id: "VICTORY", label: "🏆 승부/생존" },
-                                { id: "STAR", label: "🌟 오디션" },
+                                { id: "ALL", label: "전체", icon: null },
+                                { id: "LOVE", label: "로맨스", icon: CATEGORIES.LOVE.iconPath },
+                                { id: "VICTORY", label: "서바이벌", icon: CATEGORIES.VICTORY.iconPath },
+                                { id: "STAR", label: "오디션", icon: CATEGORIES.STAR.iconPath },
                             ].map((cat) => (
                                 <button
                                     key={cat.id}
                                     onClick={() => setSelectedCategory(cat.id as any)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors ${selectedCategory === cat.id
+                                    className={`px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap border transition-colors flex items-center gap-1.5 ${selectedCategory === cat.id
                                         ? "bg-gray-900 text-white border-gray-900"
                                         : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
                                         }`}
                                 >
+                                    {cat.icon && (
+                                        <img
+                                            src={cat.icon}
+                                            alt={cat.label}
+                                            className="w-4 h-4 object-contain"
+                                        />
+                                    )}
                                     {cat.label}
                                 </button>
                             ))}

@@ -527,7 +527,11 @@ export default function AdminPage() {
                             {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
                                 <section key={category} className="space-y-4">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <span className="text-2xl">{CATEGORIES[category].emoji}</span>
+                                        <img
+                                            src={CATEGORIES[category].iconPath}
+                                            alt={CATEGORIES[category].label}
+                                            className="w-8 h-8 object-contain"
+                                        />
                                         <h2 className="text-xl font-bold text-gray-800">{CATEGORIES[category].label}</h2>
                                     </div>
 
@@ -594,7 +598,11 @@ export default function AdminPage() {
                             {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
                                 <section key={category} className="space-y-4">
                                     <div className="flex items-center gap-2 mb-4">
-                                        <span className="text-2xl">{CATEGORIES[category].emoji}</span>
+                                        <img
+                                            src={CATEGORIES[category].iconPath}
+                                            alt={CATEGORIES[category].label}
+                                            className="w-8 h-8 object-contain"
+                                        />
                                         <h2 className="text-xl font-bold text-gray-800">{CATEGORIES[category].label}</h2>
                                     </div>
 
