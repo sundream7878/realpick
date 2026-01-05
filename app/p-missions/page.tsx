@@ -220,10 +220,9 @@ export default function MissionsPage() {
   }, [])
 
   useEffect(() => {
-    fetch('/api/public/shows')
-      .then(res => res.json())
-      .then(data => setShowStatuses(data.statuses || {}))
-      .catch(err => console.error("Failed to fetch show statuses", err))
+    const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
+    const cleanup = setupShowStatusSync(setShowStatuses)
+    return cleanup
   }, [])
 
   // 활성화된 프로그램 ID 목록 (미션이 있는 프로그램)

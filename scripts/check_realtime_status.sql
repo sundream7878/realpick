@@ -33,3 +33,4 @@ SELECT
     ELSE '❌ t_missions2: Realtime 비활성화됨'
   END as missions2_status;
 
+

@@ -140,14 +140,6 @@ export function BottomNavigation({
       onClick: () => setShowPointHistoryModal(true),
       active: false,
     },
-    // 6. 프로필이미지
-    {
-      icon: User,
-      label: "프로필",
-      custom: "profile",
-      href: "/p-profile",
-      active: pathname === "/p-profile",
-    },
   ]
 
   return (
@@ -170,37 +162,6 @@ export function BottomNavigation({
                     {isAuthenticated() && userPoints ? `${userPoints.toLocaleString()}P` : "포인트"}
                   </span>
                 </button>
-              )
-            }
-            
-            // 프로필 이미지 - 커스텀 렌더링
-            if (item.custom === "profile") {
-              return (
-                <Link
-                  key={index}
-                  href={item.href!}
-                  className={`flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-colors flex-1 min-w-0 ${
-                    item.active ? "text-pink-600 bg-pink-50" : "text-gray-700 hover:bg-gray-50"
-                  }`}
-                >
-                  {isAuthenticated() && userTier ? (
-                    <>
-                      <img 
-                        src={userTier.characterImage} 
-                        alt={userTier.name}
-                        className="w-6 h-6 flex-shrink-0 object-contain rounded-full"
-                      />
-                      <span className="text-[10px] font-medium text-gray-600 whitespace-nowrap overflow-hidden text-ellipsis w-full text-center">
-                        {userNickname || "프로필"}
-                      </span>
-                    </>
-                  ) : (
-                    <>
-                      <User className="w-5 h-5 flex-shrink-0" />
-                      <span className="text-[10px] font-medium">프로필</span>
-                    </>
-                  )}
-                </Link>
               )
             }
             

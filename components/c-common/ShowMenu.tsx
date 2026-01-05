@@ -18,12 +18,64 @@ interface TShowMenuProps {
     missions?: TMission[]
 }
 
-export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses, hasUnreadMissions, unreadMissionIds, missions }: TShowMenuProps) {
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses: initialShowStatuses, hasUnreadMissions, unreadMissionIds, missions }: TShowMenuProps) {
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const categoryInfo = CATEGORIES[category]
     const shows = SHOWS[category] || []
+    
+    // 실시간 업데이트를 위한 상태
+    const [showStatuses, setShowStatuses] = useState<Record<string, string>>(initialShowStatuses || {})
+    const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+
+    // 초기 showStatuses가 변경되면 동기화
+    useEffect(() => {
+        if (initialShowStatuses) {
+            setShowStatuses(initialShowStatuses)
+        }
+    }, [initialShowStatuses])
+
+    // 프로그램 가시성 로드
+    useEffect(() => {
+        const loadVisibility = async () => {
+            try {
+                const response = await fetch('/api/public/shows/visibility')
+                if (response.ok) {
+                    const data = await response.json()
+                    setShowVisibility(data.visibility || {})
+                }
+            } catch (error) {
+                console.error("Failed to load show visibility:", error)
+            }
+        }
+        loadVisibility()
+    }, [])
+
+    // 실시간 업데이트 이벤트 리스너
+    useEffect(() => {
+        const handleStatusUpdate = (event: any) => {
+            const { statuses } = event.detail || {}
+            if (statuses) {
+                setShowStatuses(statuses)
+            }
+        }
+
+        const handleVisibilityUpdate = (event: any) => {
+            const { visibility } = event.detail || {}
+            if (visibility) {
+                setShowVisibility(visibility)
+            }
+        }
+
+        window.addEventListener('show-statuses-updated', handleStatusUpdate)
+        window.addEventListener('show-visibility-updated', handleVisibilityUpdate)
+
+        return () => {
+            window.removeEventListener('show-statuses-updated', handleStatusUpdate)
+            window.removeEventListener('show-visibility-updated', handleVisibilityUpdate)
+        }
+    }, [])
 
     // 현재 카테고리에 선택된 쇼가 있는지 확인
     const selectedShow = shows.find(s => s.id === selectedShowId)
@@ -135,7 +187,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     {/* 프로그램 목록 (헤더 제거) */}
                     {/* 프로그램 목록 (헤더 제거) */}
                     <div className="py-1 sm:py-1.5">
-                        {shows.slice().sort((a, b) => {
+                        {shows.filter(show => showVisibility[show.id] !== false).slice().sort((a, b) => {
                             // Status Priority: ACTIVE (0) > UNDECIDED (1) > UPCOMING (2)
                             const getStatus = (id: string) => showStatuses?.[id] || 'ACTIVE'
                             const getPriority = (status: string) => {

@@ -141,3 +141,56 @@ export async function updateShowStatuses(statuses: Record<string, string>) {
         return { success: false, error }
     }
 }
+
+// 프로그램 활성화 여부 관리
+export async function getShowVisibility() {
+    try {
+        const { data, error } = await supabase
+            .from("t_admin_settings")
+            .select("value")
+            .eq("key", "SHOW_VISIBILITY")
+            .single()
+
+        if (error) {
+            if (error.code === "PGRST116") return { success: true, visibility: {} }
+            console.error("Error getting show visibility:", error)
+            return { success: false, error }
+        }
+
+        let visibility = data?.value
+        if (typeof visibility === 'string') {
+            try {
+                visibility = JSON.parse(visibility)
+            } catch (e) {
+                visibility = {}
+            }
+        }
+
+        return { success: true, visibility: visibility || {} }
+    } catch (error) {
+        console.error("Error in getShowVisibility:", error)
+        return { success: false, error }
+    }
+}
+
+export async function updateShowVisibility(visibility: Record<string, boolean>) {
+    try {
+        const { error } = await supabase
+            .from("t_admin_settings")
+            .upsert({
+                key: "SHOW_VISIBILITY",
+                value: JSON.stringify(visibility),
+                updated_at: new Date().toISOString()
+            })
+
+        if (error) {
+            console.error("Error updating show visibility:", error)
+            return { success: false, error }
+        }
+
+        return { success: true }
+    } catch (error) {
+        console.error("Error in updateShowVisibility:", error)
+        return { success: false, error }
+    }
+}

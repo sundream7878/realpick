@@ -76,10 +76,9 @@ export default function CastingPage() {
     }, [])
 
     useEffect(() => {
-        fetch('/api/public/shows')
-            .then(res => res.json())
-            .then(data => setShowStatuses(data.statuses || {}))
-            .catch(err => console.error("Failed to fetch show statuses", err))
+        const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
+        const cleanup = setupShowStatusSync(setShowStatuses)
+        return cleanup
     }, [])
 
     // 필터링 및 정렬 로직

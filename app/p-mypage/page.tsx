@@ -106,10 +106,9 @@ export default function MyPage() {
   }, [searchParams])
 
   useEffect(() => {
-    fetch('/api/public/shows')
-      .then(res => res.json())
-      .then(data => setShowStatuses(data.statuses || {}))
-      .catch(err => console.error("Failed to fetch show statuses", err))
+    const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
+    const cleanup = setupShowStatusSync(setShowStatuses)
+    return cleanup
   }, [])
 
   const loadMissions = useCallback(async () => {

@@ -79,9 +79,9 @@ export function AppHeader({
       className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 shadow-sm ${className}`}
     >
       <div className="mx-auto px-2 sm:px-3 md:px-4 lg:px-6 h-full max-w-full">
-        <div className="grid grid-cols-3 items-center h-full gap-2">
+        <div className="flex items-center justify-between h-full">
           {/* 좌측 - 로고 */}
-          <div className="flex items-center justify-start">
+          <div className="flex items-center justify-start flex-shrink-0">
             <img 
               src="/realpick-logo-new.png" 
               alt="리얼픽" 
@@ -94,7 +94,7 @@ export function AppHeader({
           </div>
 
           {/* 중앙 - 3대 메인 메뉴 */}
-          <div className="flex items-center justify-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4">
+          <div className="flex items-center justify-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 flex-1 min-w-0 mx-2">
             <ShowMenu 
               category="LOVE" 
               selectedShowId={selectedShowId} 
@@ -127,26 +127,42 @@ export function AppHeader({
             />
           </div>
 
-          {/* 우측 - 로그인 상태에 따라 다르게 표시 (모바일에서는 숨김) */}
-          <div className="hidden md:flex items-center justify-end">
+          {/* 우측 - 프로필/로그인 (모바일에서도 표시) */}
+          <div className="flex items-center justify-end flex-shrink-0 ml-2">
             {isLoggedIn ? (
-              <UserInfo
-                nickname={userNickname}
-                points={userPoints}
-                tier={userTier}
-                onAvatarClick={onAvatarClick}
-                onPointsClick={() => setShowPointHistoryModal(true)}
-                showFullInfo={true}
-              />
+              <>
+                {/* 데스크톱: 전체 UserInfo */}
+                <div className="hidden md:block">
+                  <UserInfo
+                    nickname={userNickname}
+                    points={userPoints}
+                    tier={userTier}
+                    onAvatarClick={onAvatarClick}
+                    onPointsClick={() => setShowPointHistoryModal(true)}
+                    showFullInfo={true}
+                  />
+                </div>
+                {/* 모바일: 프로필 이미지만 */}
+                <button
+                  onClick={onAvatarClick}
+                  className="md:hidden flex items-center justify-center p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <img 
+                    src={userTier.characterImage || "/placeholder.svg"} 
+                    alt={userNickname || userTier.name}
+                    className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-contain border border-gray-200"
+                  />
+                </button>
+              </>
             ) : (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setShowLoginModal(true)}
-                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white text-xs sm:text-sm md:text-base px-3 sm:px-4 md:px-5 h-9 sm:h-10 md:h-11 whitespace-nowrap"
+                className="border-[#3E757B]/30 text-[#3E757B] hover:bg-[#3E757B]/10 bg-white text-xs sm:text-sm md:text-base px-2 sm:px-3 md:px-4 lg:px-5 h-8 sm:h-9 md:h-10 lg:h-11 whitespace-nowrap"
               >
                 <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 md:w-4.5 md:h-4.5 mr-1 sm:mr-1.5 md:mr-2" />
-                로그인
+                <span className="hidden sm:inline">로그인</span>
               </Button>
             )}
           </div>

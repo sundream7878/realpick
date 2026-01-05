@@ -14,7 +14,6 @@ import type { TMission, TMatchPairs } from "@/types/t-vote/vote.types"
 import { findFirstCorrectEpisode } from "@/lib/utils/u-vote/vote.util"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { submitVote2, getAllVotes2, getVote2, getAggregatedVotes2, getAggregatedVotesMultipleEpisodes } from "@/lib/supabase/votes"
-import { incrementMissionParticipants2 } from "@/lib/supabase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -676,8 +675,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         throw new Error("투표 제출 실패")
       }
 
-      // t_missions2의 참여자 수 증가
-      await incrementMissionParticipants2(mission.id)
+      // 참여자 수 증가는 submitVote2 내부에서 처리됨 (처음 투표하는 경우에만)
+      // incrementMissionParticipants2는 submitMatchMissionAnswer에서 이미 호출됨
 
       // DB에서 제출한 투표 데이터 다시 불러오기
       const savedVote = await getVote2(currentUserId, mission.id, currentEpisode)

@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses } from "@/lib/supabase/admin"
+import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility } from "@/lib/supabase/admin"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/supabase/users"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
@@ -21,7 +21,7 @@ import { createClient } from "@/lib/supabase/client"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search, Lock, KeyRound } from "lucide-react"
+import { Search, Lock, KeyRound, Eye, EyeOff } from "lucide-react"
 import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 
 export default function AdminPage() {
@@ -48,6 +48,9 @@ export default function AdminPage() {
 
     // Show Status State
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+    
+    // Show Visibility State (프로그램 활성화/비활성화)
+    const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
 
     useEffect(() => {
         const checkPermissionAndLoad = async () => {
@@ -84,10 +87,11 @@ export default function AdminPage() {
 
             // Load Admin Data
             try {
-                const [missionsResult, mainMissionResult, showStatusesResult] = await Promise.all([
+                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult] = await Promise.all([
                     getAllOpenMissions(),
                     getMainMissionId(),
-                    getShowStatuses()
+                    getShowStatuses(),
+                    getShowVisibility()
                 ])
 
                 if (missionsResult.success) {
@@ -100,6 +104,10 @@ export default function AdminPage() {
 
                 if (showStatusesResult.success) {
                     setShowStatuses(showStatusesResult.statuses || {})
+                }
+
+                if (showVisibilityResult.success) {
+                    setShowVisibility(showVisibilityResult.visibility || {})
                 }
             } catch (error) {
                 console.error("Failed to load admin data", error)
@@ -258,6 +266,11 @@ export default function AdminPage() {
         try {
             const result = await updateShowStatuses(newStatuses)
             if (result.success) {
+                // 클라이언트에서 직접 이벤트 발생
+                window.dispatchEvent(new CustomEvent('show-statuses-updated', {
+                    detail: { statuses: newStatuses }
+                }))
+                
                 toast({
                     title: "상태 업데이트 성공",
                     description: "프로그램 상태가 변경되었습니다."
@@ -271,6 +284,36 @@ export default function AdminPage() {
             toast({
                 title: "업데이트 실패",
                 description: "상태 변경 중 오류가 발생했습니다.",
+                variant: "destructive"
+            })
+        }
+    }
+
+    const handleShowVisibilityToggle = async (showId: string, isVisible: boolean) => {
+        const newVisibility = { ...showVisibility, [showId]: isVisible }
+        setShowVisibility(newVisibility) // Optimistic update
+
+        try {
+            const result = await updateShowVisibility(newVisibility)
+            if (result.success) {
+                // 클라이언트에서 직접 이벤트 발생
+                window.dispatchEvent(new CustomEvent('show-visibility-updated', {
+                    detail: { visibility: newVisibility }
+                }))
+                
+                toast({
+                    title: "표시 상태 업데이트 성공",
+                    description: `프로그램이 ${isVisible ? '표시' : '숨김'} 처리되었습니다.`
+                })
+            } else {
+                throw new Error("Failed to update visibility")
+            }
+        } catch (error) {
+            console.error("[Admin] Visibility update failed:", error)
+            setShowVisibility(showVisibility) // Revert
+            toast({
+                title: "업데이트 실패",
+                description: "표시 상태 변경 중 오류가 발생했습니다.",
                 variant: "destructive"
             })
         }
@@ -435,34 +478,57 @@ export default function AdminPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {groupedShows[category].map((show) => (
-                                            <Card key={show.id} className="border-gray-200 shadow-sm">
-                                                <CardHeader className="py-3 px-4 bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between">
-                                                    <CardTitle className="text-base font-medium text-gray-900">
-                                                        {show.displayName}
-                                                    </CardTitle>
-                                                    <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
-                                                        {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
-                                                            showStatuses[show.id] === 'UPCOMING' ? '방영예정' : '방영미정'}
-                                                    </Badge>
-                                                </CardHeader>
-                                                <CardContent className="p-4">
-                                                    <Select
-                                                        value={showStatuses[show.id] || 'ACTIVE'}
-                                                        onValueChange={(value) => handleShowStatusUpdate(show.id, value)}
-                                                    >
-                                                        <SelectTrigger>
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="ACTIVE">방영중 (Active)</SelectItem>
-                                                            <SelectItem value="UPCOMING">방영예정 (Upcoming)</SelectItem>
-                                                            <SelectItem value="UNDECIDED">방영미정 (Undecided)</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
-                                                </CardContent>
-                                            </Card>
-                                        ))}
+                                        {groupedShows[category].map((show) => {
+                                            const isVisible = showVisibility[show.id] !== false // 기본값 true
+                                            return (
+                                                <Card key={show.id} className={`border-gray-200 shadow-sm ${!isVisible ? 'opacity-60' : ''}`}>
+                                                    <CardHeader className="py-3 px-4 bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <CardTitle className="text-base font-medium text-gray-900">
+                                                                {show.displayName}
+                                                            </CardTitle>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleShowVisibilityToggle(show.id, !isVisible)}
+                                                                className="h-7 w-7 p-0"
+                                                                title={isVisible ? "프로그램 숨기기" : "프로그램 표시"}
+                                                            >
+                                                                {isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
+                                                            </Button>
+                                                        </div>
+                                                        <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
+                                                            {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
+                                                                showStatuses[show.id] === 'UPCOMING' ? '방영예정' : '방영미정'}
+                                                        </Badge>
+                                                    </CardHeader>
+                                                    <CardContent className="p-4 space-y-3">
+                                                        <div className="space-y-2">
+                                                            <label className="text-sm font-medium text-gray-700">방영 상태</label>
+                                                            <Select
+                                                                value={showStatuses[show.id] || 'ACTIVE'}
+                                                                onValueChange={(value) => handleShowStatusUpdate(show.id, value)}
+                                                                disabled={!isVisible}
+                                                            >
+                                                                <SelectTrigger>
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    <SelectItem value="ACTIVE">방영중 (Active)</SelectItem>
+                                                                    <SelectItem value="UPCOMING">방영예정 (Upcoming)</SelectItem>
+                                                                    <SelectItem value="UNDECIDED">방영미정 (Undecided)</SelectItem>
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        {!isVisible && (
+                                                            <div className="text-xs text-gray-500 bg-gray-50 rounded p-2 border border-gray-200">
+                                                                ⚠️ 현재 헤더에서 숨겨진 상태입니다
+                                                            </div>
+                                                        )}
+                                                    </CardContent>
+                                                </Card>
+                                            )
+                                        })}
                                     </div>
                                 </section>
                             ))}
