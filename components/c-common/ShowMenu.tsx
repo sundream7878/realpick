@@ -68,12 +68,39 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             }
         }
 
+        // localStorage 변경 감지 (다른 탭에서의 변경)
+        const handleStorageChange = (event: StorageEvent) => {
+            if (event.key === 'show-statuses-update' && event.newValue) {
+                try {
+                    const data = JSON.parse(event.newValue)
+                    if (data.statuses) {
+                        setShowStatuses(data.statuses)
+                    }
+                } catch (err) {
+                    console.error("Failed to parse show statuses update", err)
+                }
+            }
+            
+            if (event.key === 'show-visibility-update' && event.newValue) {
+                try {
+                    const data = JSON.parse(event.newValue)
+                    if (data.visibility) {
+                        setShowVisibility(data.visibility)
+                    }
+                } catch (err) {
+                    console.error("Failed to parse show visibility update", err)
+                }
+            }
+        }
+
         window.addEventListener('show-statuses-updated', handleStatusUpdate)
         window.addEventListener('show-visibility-updated', handleVisibilityUpdate)
+        window.addEventListener('storage', handleStorageChange)
 
         return () => {
             window.removeEventListener('show-statuses-updated', handleStatusUpdate)
             window.removeEventListener('show-visibility-updated', handleVisibilityUpdate)
+            window.removeEventListener('storage', handleStorageChange)
         }
     }, [])
 

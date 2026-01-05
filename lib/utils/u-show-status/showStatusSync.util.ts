@@ -15,7 +15,7 @@ export function setupShowStatusSync(
   
   loadShowStatuses()
 
-  // 실시간 업데이트 이벤트 리스너
+  // 현재 탭에서의 커스텀 이벤트 리스너
   const handleStatusUpdate = (event: any) => {
     const { statuses } = event.detail || {}
     if (statuses) {
@@ -23,9 +23,27 @@ export function setupShowStatusSync(
     }
   }
 
+  // 다른 탭에서의 localStorage 변경 감지
+  const handleStorageChange = (event: StorageEvent) => {
+    if (event.key === 'show-statuses-update' && event.newValue) {
+      try {
+        const data = JSON.parse(event.newValue)
+        if (data.statuses) {
+          setShowStatuses(data.statuses)
+        }
+      } catch (err) {
+        console.error("Failed to parse show statuses update", err)
+      }
+    }
+  }
+
   window.addEventListener('show-statuses-updated', handleStatusUpdate)
+  window.addEventListener('storage', handleStorageChange)
   
   // cleanup 함수 반환
-  return () => window.removeEventListener('show-statuses-updated', handleStatusUpdate)
+  return () => {
+    window.removeEventListener('show-statuses-updated', handleStatusUpdate)
+    window.removeEventListener('storage', handleStorageChange)
+  }
 }
 

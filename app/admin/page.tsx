@@ -266,7 +266,14 @@ export default function AdminPage() {
         try {
             const result = await updateShowStatuses(newStatuses)
             if (result.success) {
-                // 클라이언트에서 직접 이벤트 발생
+                // localStorage를 사용하여 여러 탭 간 통신
+                const timestamp = Date.now()
+                localStorage.setItem('show-statuses-update', JSON.stringify({
+                    statuses: newStatuses,
+                    timestamp
+                }))
+                
+                // 현재 페이지에서도 이벤트 발생
                 window.dispatchEvent(new CustomEvent('show-statuses-updated', {
                     detail: { statuses: newStatuses }
                 }))
@@ -296,7 +303,14 @@ export default function AdminPage() {
         try {
             const result = await updateShowVisibility(newVisibility)
             if (result.success) {
-                // 클라이언트에서 직접 이벤트 발생
+                // localStorage를 사용하여 여러 탭 간 통신
+                const timestamp = Date.now()
+                localStorage.setItem('show-visibility-update', JSON.stringify({
+                    visibility: newVisibility,
+                    timestamp
+                }))
+                
+                // 현재 페이지에서도 이벤트 발생
                 window.dispatchEvent(new CustomEvent('show-visibility-updated', {
                     detail: { visibility: newVisibility }
                 }))
