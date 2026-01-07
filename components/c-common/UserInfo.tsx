@@ -36,7 +36,7 @@ export function UserInfo({
   return (
     <div className={`flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 flex-shrink-0 ${className}`}>
       {showFullInfo && (
-        <div className="hidden md:flex items-center gap-2 text-sm lg:text-base">
+        <div className="hidden md:flex items-center gap-2 text-sm lg:text-base whitespace-nowrap">
           <span className="font-medium text-gray-900">
             <span className="underline">{nickname}</span>님
           </span>

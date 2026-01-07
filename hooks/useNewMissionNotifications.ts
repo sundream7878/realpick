@@ -45,6 +45,19 @@ export function useNewMissionNotifications() {
         const initialUnread = getUnreadMissions()
         setUnreadMissionIds(initialUnread)
 
+        // 읽음 처리 이벤트 리스너
+        const handleMarkAsRead = (event: any) => {
+            const { missionIds } = event.detail || {}
+            if (missionIds && missionIds.length > 0) {
+                setUnreadMissionIds(prev => {
+                    const updated = prev.filter(id => !missionIds.includes(id))
+                    setUnreadMissions(updated)
+                    return updated
+                })
+            }
+        }
+        window.addEventListener('mark-missions-as-read', handleMarkAsRead)
+
         const supabase = createClient()
         
         // Realtime 연결 상태 확인
@@ -69,7 +82,8 @@ export function useNewMissionNotifications() {
                     const newMission = payload.new as any
 
                     // 읽지 않은 미션 목록에 추가
-                    const updated = [...getUnreadMissions(), newMission.f_id]
+                    const currentUnread = getUnreadMissions()
+                    const updated = [...currentUnread, newMission.f_id]
                     const uniqueIds = Array.from(new Set(updated))
                     setUnreadMissions(uniqueIds)
                     setUnreadMissionIds(uniqueIds)
@@ -105,7 +119,8 @@ export function useNewMissionNotifications() {
                     const newMission = payload.new as any
 
                     // 읽지 않은 미션 목록에 추가
-                    const updated = [...getUnreadMissions(), newMission.f_id]
+                    const currentUnread = getUnreadMissions()
+                    const updated = [...currentUnread, newMission.f_id]
                     const uniqueIds = Array.from(new Set(updated))
                     setUnreadMissions(uniqueIds)
                     setUnreadMissionIds(uniqueIds)
@@ -130,6 +145,7 @@ export function useNewMissionNotifications() {
         return () => {
             supabase.removeChannel(channel1)
             supabase.removeChannel(channel2)
+            window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
         }
     }, [])
 
@@ -158,6 +174,16 @@ export function useNewMissionNotifications() {
         setUnreadMissions([])
         setUnreadMissionIds([])
     }
+
+    // 초기화 시 너무 오래된 미션 아이디 삭제 (선택사항)
+    // 여기서는 단순히 50개까지만 유지하도록 제한하여 무한히 늘어나는 것을 방지
+    useEffect(() => {
+        if (unreadMissionIds.length > 50) {
+            const limited = unreadMissionIds.slice(-50)
+            setUnreadMissions(limited)
+            setUnreadMissionIds(limited)
+        }
+    }, [unreadMissionIds])
 
     return {
         unreadMissionIds,

@@ -6,7 +6,7 @@ import { Button } from "@/components/c-ui/button"
 import { Input } from "@/components/c-ui/input"
 import { Label } from "@/components/c-ui/label"
 import { Switch } from "@/components/c-ui/switch"
-import { Edit2, LogOut, UserX, Bell, Mail } from "lucide-react"
+import { Edit2, LogOut, UserX, Bell, Mail, Clock } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -41,6 +41,7 @@ export default function ProfilePage() {
 
   // 알림 설정
   const [emailNotification, setEmailNotification] = useState(true)
+  const [deadlineEmailNotification, setDeadlineEmailNotification] = useState(true)
   const [selectedCategories, setSelectedCategories] = useState<string[]>(['LOVE', 'VICTORY', 'STAR'])
   const [isSavingNotification, setIsSavingNotification] = useState(false)
 
@@ -83,6 +84,7 @@ export default function ProfilePage() {
 
             if (prefs) {
               setEmailNotification(prefs.f_email_enabled)
+              setDeadlineEmailNotification(prefs.f_deadline_email_enabled ?? true)
               setSelectedCategories(prefs.f_categories || [])
             }
           } catch (error) {
@@ -246,6 +248,7 @@ export default function ProfilePage() {
       const payload = {
         f_user_id: currentUserId,
         f_email_enabled: emailNotification,
+        f_deadline_email_enabled: deadlineEmailNotification,
         f_categories: selectedCategories
       }
 
@@ -530,18 +533,35 @@ export default function ProfilePage() {
                     </div>
 
                     {/* 이메일 알림 ON/OFF */}
-                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-6 border border-[#3E757B]/20">
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-3 border border-[#3E757B]/20">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Mail className="w-4 h-4 text-[#3E757B]" />
                           <div>
-                            <p className="font-medium text-gray-900 text-sm">알림 받기</p>
+                            <p className="font-medium text-gray-900 text-sm">새 미션 알림</p>
                             <p className="text-xs text-gray-600 mt-0.5">새 미션 등록 시 이메일</p>
                           </div>
                         </div>
                         <Switch
                           checked={emailNotification}
                           onCheckedChange={setEmailNotification}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 미션 마감 알림 ON/OFF */}
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-6 border border-[#3E757B]/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Clock className="w-4 h-4 text-[#3E757B]" />
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">미션 마감 알림</p>
+                            <p className="text-xs text-gray-600 mt-0.5">참여한 미션 마감 시 이메일</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={deadlineEmailNotification}
+                          onCheckedChange={setDeadlineEmailNotification}
                         />
                       </div>
                     </div>

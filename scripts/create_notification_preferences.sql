@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS t_notification_preferences (
   f_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   f_user_id UUID NOT NULL REFERENCES t_users(f_id) ON DELETE CASCADE,
   f_email_enabled BOOLEAN DEFAULT true,
+  f_deadline_email_enabled BOOLEAN DEFAULT true, -- 추가: 미션 마감 알림 설정
   f_categories TEXT[] DEFAULT ARRAY['LOVE', 'VICTORY', 'STAR']::TEXT[],
   f_created_at TIMESTAMPTZ DEFAULT NOW(),
   f_updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -18,6 +19,10 @@ ON t_notification_preferences(f_user_id);
 CREATE INDEX IF NOT EXISTS idx_notification_prefs_email_enabled 
 ON t_notification_preferences(f_email_enabled) 
 WHERE f_email_enabled = true;
+
+CREATE INDEX IF NOT EXISTS idx_notification_prefs_deadline_enabled 
+ON t_notification_preferences(f_deadline_email_enabled) 
+WHERE f_deadline_email_enabled = true;
 
 -- RLS (Row Level Security) 정책 활성화
 ALTER TABLE t_notification_preferences ENABLE ROW LEVEL SECURITY;

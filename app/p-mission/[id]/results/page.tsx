@@ -113,6 +113,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
   const [ranking, setRanking] = useState<any[]>([])
 
+  useEffect(() => {
+    // 미션 읽음 처리
+    window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
+      detail: { missionIds: [params.id] }
+    }))
+  }, [params.id])
+
   // 유저 데이터 로드
   useEffect(() => {
     const loadUserData = async () => {
@@ -964,26 +971,6 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                 {/* 참여자 랭킹 (커플 매칭 미션인 경우) */}
 
 
-                <div className="space-y-2">
-                  <Button 
-                    size="lg" 
-                    className="w-full bg-purple-600 hover:bg-purple-700" 
-                    variant="default"
-                    onClick={() => setIsShareModalOpen(true)}
-                  >
-                    <Share2 className="w-4 h-4 mr-2" />
-                    결과 공유하기
-                  </Button>
-                  <Button 
-                    size="lg" 
-                    className="w-full bg-transparent" 
-                    variant="outline"
-                    onClick={() => router.back()}
-                  >
-                    다른 미션 보기
-                  </Button>
-                </div>
-
                 {/* 댓글 섹션 추가 */}
                 <div className="mt-8">
                   <CommentSection
@@ -993,12 +980,20 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                   />
                 </div>
 
-                {/* 다른 미션 보기 버튼 */}
-                <div className="flex justify-center pt-8 pb-4">
+                {/* 하단 액션 버튼 */}
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-10 max-w-xl mx-auto">
+                  <Button
+                    size="lg"
+                    className="flex-1 w-full px-6 py-4 text-base font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
+                    onClick={() => setIsShareModalOpen(true)}
+                  >
+                    <Share2 className="w-4 h-4 mr-2" />
+                    결과 공유하기
+                  </Button>
                   <Button
                     size="lg"
                     variant="outline"
-                    className="px-8 py-3 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
+                    className="flex-1 w-full px-6 py-4 text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
                     onClick={() => router.back()}
                   >
                     다른 미션 보기

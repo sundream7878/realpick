@@ -1392,23 +1392,12 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
               <Button
                 size="lg"
                 onClick={handleResultView}
-                className="px-16 py-4 text-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                className="px-16 py-4 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
               >
                 결과 보기
               </Button>
             </div>
           )}
-
-          <div className="mt-6 flex justify-center gap-4">
-            <Button
-              size="lg"
-              className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
-              aria-label="다른 미션 보기"
-              onClick={() => router.back()}
-            >
-              다른 미션 보기
-            </Button>
-          </div>
         </div>
       )}
 

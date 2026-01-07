@@ -151,22 +151,27 @@ function ResultChart({
       <div className="space-y-3">
         <h4 className="font-medium text-foreground">커플 랭킹</h4>
         {entries.map(([pair, percentage], index) => (
-          <div key={pair} className="flex items-center justify-between p-3 rounded-lg bg-muted">
+          <div key={pair} className="flex items-center justify-between p-4 rounded-lg bg-muted border border-gray-100 shadow-sm">
             <div className="flex items-center gap-3">
-              <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center">
+              <Badge variant="outline" className="w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold bg-white">
                 {index + 1}
               </Badge>
               <span
-                className={`font-medium ${
+                className={`font-semibold text-base ${
                   highlight && userPairs?.some((p) => `${p.left}-${p.right}` === pair)
-                    ? "text-blue-600"
-                    : "text-foreground"
+                    ? "text-purple-700"
+                    : "text-gray-900"
                 }`}
               >
                 {pair}
               </span>
+              {highlight && userPairs?.some((p) => `${p.left}-${p.right}` === pair) && (
+                <Badge className="bg-purple-500 text-white text-[10px] h-5 px-1.5">내 픽</Badge>
+              )}
             </div>
-            <span className="text-sm font-medium">{percentage}%</span>
+            <div className="text-right">
+              <span className="text-lg font-bold text-purple-600">{percentage}%</span>
+            </div>
           </div>
         ))}
       </div>

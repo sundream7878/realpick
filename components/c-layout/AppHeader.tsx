@@ -14,6 +14,7 @@ import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
 import { getShowById } from "@/lib/constants/shows"
 import type { TMission } from "@/types/t-vote/vote.types"
+import { NotificationBell } from "./NotificationBell"
 
 interface TAppHeaderProps {
   selectedShow: "나는솔로" | "돌싱글즈"
@@ -78,10 +79,10 @@ export function AppHeader({
     <header
       className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 shadow-sm ${className}`}
     >
-      <div className="mx-auto px-2 sm:px-3 md:px-4 lg:px-6 h-full max-w-full relative">
-        <div className="flex items-center justify-between h-full">
-          {/* 좌측 - 로고 */}
-          <div className="flex items-center justify-start flex-shrink-0 z-10">
+      <div className="mx-auto px-4 sm:px-6 h-full max-w-[1600px] relative">
+        <div className="flex items-center justify-between h-full gap-4">
+          {/* 좌측 - 로고 영역 (사이드바 너비와 맞추어 메뉴 시작점 정렬) */}
+          <div className="flex-shrink-0 w-[100px] md:w-[264px] flex items-center justify-start z-10">
             <img 
               src="/realpick-logo-new.png" 
               alt="리얼픽" 
@@ -93,8 +94,8 @@ export function AppHeader({
             />
           </div>
 
-          {/* 중앙 - 3대 메인 메뉴 (절대 중앙 배치) */}
-          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 z-0">
+          {/* 중앙 - 3대 메인 메뉴 (사이드바 끝나는 지점부터 시작되도록 배치) */}
+          <div className="flex-1 flex items-center justify-start gap-1.5 sm:gap-3 md:gap-4 lg:gap-6 z-0">
             <ShowMenu 
               category="LOVE" 
               selectedShowId={selectedShowId} 
@@ -127,12 +128,12 @@ export function AppHeader({
             />
           </div>
 
-          {/* 우측 - 프로필/로그인 (모바일에서도 표시) */}
-          <div className="flex items-center justify-end flex-shrink-0 z-10">
+          {/* 우측 - 알림/프로필/로그인 (줄바꿈 방지 및 충분한 공간 확보) */}
+          <div className="flex-shrink-0 flex items-center justify-end z-10 gap-2 sm:gap-3 ml-auto min-w-fit">
             {isLoggedIn ? (
               <>
-                {/* 데스크톱: 전체 UserInfo */}
-                <div className="hidden md:block">
+                <NotificationBell />
+                <div className="hidden md:block whitespace-nowrap">
                   <UserInfo
                     nickname={userNickname}
                     points={userPoints}
@@ -142,7 +143,6 @@ export function AppHeader({
                     showFullInfo={true}
                   />
                 </div>
-                {/* 모바일: 프로필 이미지만 */}
                 <button
                   onClick={onAvatarClick}
                   className="md:hidden flex items-center justify-center p-1 rounded-full hover:bg-gray-100 transition-colors"

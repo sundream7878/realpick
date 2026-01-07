@@ -466,17 +466,17 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       {hasVoted && (
         <div id="live-results" className="mt-8 space-y-4">
           {/* 픽 완료 메시지 */}
-          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 max-w-2xl mx-auto">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-purple-900 mb-1">픽 완료!</h3>
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 max-w-2xl mx-auto shadow-sm">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-purple-900">픽 완료!</h3>
                   <p className="text-sm text-gray-600">
                     마감까지 결과를 기다려주세요. 아래에서 내가 선택한 항목을 확인할 수 있습니다.
                   </p>
                 </div>
                 {currentMission.deadline && (
-                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                  <div className="flex items-center gap-2 text-sm font-medium text-purple-700 bg-purple-100/50 px-3 py-1.5 rounded-full flex-shrink-0">
                     <Clock className="w-4 h-4" />
                     <span>{getTimeRemaining(currentMission.deadline)}</span>
                   </div>
@@ -510,37 +510,37 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
                   return (
                     <div
                       key={option}
-                      className={`p-3 rounded-lg border-2 transition-all ${isUserChoice ? "border-purple-300 bg-purple-50" : "border-gray-200 bg-gray-50"
+                      className={`p-4 rounded-lg border-2 transition-all ${isUserChoice ? "border-purple-300 bg-purple-50 shadow-sm" : "border-gray-200 bg-gray-50"
                         }`}
                     >
-                      <div className="flex items-center justify-between mb-1.5">
-                        <div className="flex items-center gap-2 flex-1">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
                           <Badge
                             variant="outline"
-                            className={`w-6 h-6 rounded-full flex items-center justify-center text-xs ${isUserChoice ? "border-purple-500 bg-purple-100" : ""
+                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${isUserChoice ? "border-purple-500 bg-purple-100" : ""
                               }`}
                           >
                             {index + 1}
                           </Badge>
-                          <span className={`font-semibold text-sm ${isUserChoice ? "text-purple-700" : "text-gray-900"}`}>
+                          <span className={`font-semibold text-base truncate ${isUserChoice ? "text-purple-700" : "text-gray-900"}`}>
                             {option}
                           </span>
                           {isUserChoice && (
-                            <Badge className="bg-purple-500 text-white text-xs">내 픽</Badge>
+                            <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">내 픽</Badge>
                           )}
                         </div>
-                        <div className="text-right">
+                        <div className="text-right flex-shrink-0">
                           {shouldShowPercentage ? (
                             <span className="text-lg font-bold text-purple-600">{percentage}%</span>
                           ) : (
-                            <span className="text-xl text-gray-400">?</span>
+                            <span className="text-xl text-gray-400 font-bold">?</span>
                           )}
                         </div>
                       </div>
                       {shouldShowPercentage && (
-                        <div className="w-full bg-gray-200 rounded-full h-1.5">
+                        <div className="w-full bg-gray-200 rounded-full h-2">
                           <div
-                            className={`h-1.5 rounded-full transition-all duration-500 ${isUserChoice ? "bg-gradient-to-r from-purple-400 to-pink-400" : "bg-gray-400"
+                            className={`h-2 rounded-full transition-all duration-500 ${isUserChoice ? "bg-gradient-to-r from-purple-400 to-pink-400 shadow-sm" : "bg-gray-400"
                               }`}
                             style={{ width: `${percentage}%` }}
                           />
@@ -559,7 +559,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
               <Button
                 size="lg"
                 onClick={() => router.push(`/p-mission/${currentMission.id}/results`)}
-                className="px-16 py-4 text-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200"
+                className="px-16 py-4 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
               >
                 최종 결과 보기
               </Button>

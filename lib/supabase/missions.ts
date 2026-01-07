@@ -542,7 +542,7 @@ export async function settleMissionWithFinalAnswer(
     // 1. 미션 정보 조회
     const { data: mission, error: fetchError } = await supabase
       .from("t_missions1")
-      .select("f_kind, f_submission_type, f_title, f_form")
+      .select("f_kind, f_submission_type, f_title, f_form, f_category, f_show_id")
       .eq("f_id", missionId)
       .single()
 
@@ -561,6 +561,15 @@ export async function settleMissionWithFinalAnswer(
       .eq("f_id", missionId)
 
     if (missionError) throw missionError
+
+    // 미션 마감 알림 발송 (비동기, 에러 무시)
+    const { sendDeadlineNotification } = await import("./email-notification")
+    sendDeadlineNotification({
+      missionId: missionId,
+      missionTitle: mission.f_title,
+      category: mission.f_category,
+      showId: mission.f_show_id
+    }).catch(err => console.error("Deadline notification failed:", err))
 
     // 3. 참여자 투표 내역 조회
     const { data: votes, error: votesError } = await supabase
@@ -773,7 +782,7 @@ export async function settleMatchMission(
     // 1. 미션 정보 조회 (t_missions2)
     const { data: mission, error: fetchError } = await supabase
       .from("t_missions2")
-      .select("f_id, f_title, f_status, f_total_episodes")
+      .select("f_id, f_title, f_status, f_total_episodes, f_category, f_show_id")
       .eq("f_id", missionId)
       .single()
 
@@ -792,6 +801,15 @@ export async function settleMatchMission(
       .eq("f_id", missionId)
 
     if (missionError) throw missionError
+
+    // 미션 마감 알림 발송 (비동기, 에러 무시)
+    const { sendDeadlineNotification } = await import("./email-notification")
+    sendDeadlineNotification({
+      missionId: missionId,
+      missionTitle: mission.f_title,
+      category: mission.f_category,
+      showId: mission.f_show_id
+    }).catch(err => console.error("Match deadline notification failed:", err))
 
     // 3. 모든 참여자 투표 내역 조회 (t_pickresult2)
     // 이제 유저당 1개의 Row만 가져오면 됨

@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react"
 import { ChevronDown } from "lucide-react"
-import { CATEGORIES, SHOWS, type TShowCategory } from "@/lib/constants/shows"
+import { CATEGORIES, SHOWS, type TShowCategory, getShowById } from "@/lib/constants/shows"
 import { useRouter } from "next/navigation"
 import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
 import type { TMission } from "@/types/t-vote/vote.types"
@@ -133,6 +133,21 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
 
     const handleShowClick = (showId: string) => {
         setIsOpen(false)
+        
+        // 해당 프로그램의 모든 읽지 않은 미션들을 읽음 처리
+        if (unreadMissionIds && missions) {
+            const unreadIdsForShow = missions
+                .filter(m => m.showId === showId && unreadMissionIds.includes(m.id))
+                .map(m => m.id)
+            
+            if (unreadIdsForShow.length > 0) {
+                // 이벤트를 발생시켜 useNewMissionNotifications에서 상태 업데이트 유도
+                window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
+                    detail: { missionIds: unreadIdsForShow }
+                }))
+            }
+        }
+
         if (onShowSelect) {
             onShowSelect(showId)
         }
@@ -165,11 +180,29 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
 
     const theme = getThemeColors(category)
 
+    const toggleMenu = () => {
+        const nextState = !isOpen
+        setIsOpen(nextState)
+        
+        // 메뉴를 열 때 해당 카테고리의 모든 미션을 읽음 처리
+        if (nextState && hasUnreadMissions && unreadMissionIds && missions) {
+            const unreadIdsForCategory = missions
+                .filter(m => m.showId && getShowById(m.showId)?.category === category && unreadMissionIds.includes(m.id))
+                .map(m => m.id)
+            
+            if (unreadIdsForCategory.length > 0) {
+                window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
+                    detail: { missionIds: unreadIdsForCategory }
+                }))
+            }
+        }
+    }
+
     return (
         <div className="relative z-50" ref={menuRef}>
             {/* 메뉴 버튼 */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={toggleMenu}
                 className={`
           relative flex items-center gap-1.5 sm:gap-2 md:gap-2.5 px-2 sm:px-3 md:px-4 py-0.5 sm:py-0.5 md:py-1 rounded-lg font-medium
           transition-all duration-200

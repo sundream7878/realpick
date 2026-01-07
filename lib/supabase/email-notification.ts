@@ -67,3 +67,51 @@ export async function sendMissionNotification({
   }
 }
 
+/**
+ * 미션 마감 알림 발송
+ */
+export async function sendDeadlineNotification({
+  missionId,
+  missionTitle,
+  category,
+  showId,
+}: {
+  missionId: string
+  missionTitle: string
+  category?: string
+  showId?: string
+}): Promise<{ success: boolean; error?: string }> {
+  console.log('[Email] 🚀 Starting deadline notification process:', { missionId, missionTitle, category, showId })
+  
+  try {
+    const apiUrl = '/api/send-mission-notification'
+    
+    const payload = {
+      missionId,
+      missionTitle,
+      category,
+      showId,
+      type: 'deadline' // 마감 알림 타입 추가
+    }
+
+    const response = await fetch(apiUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload)
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('[Email] ❌ Deadline API Route error:', error)
+      return { success: false, error }
+    }
+
+    return { success: true }
+  } catch (error: any) {
+    console.error('[Email] 💥 Failed to send deadline notification:', error)
+    return { success: false, error: error.message }
+  }
+}
+
