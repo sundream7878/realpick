@@ -277,7 +277,7 @@ export async function POST(request: NextRequest) {
     // 3. 알림 수신 대상 조회
     // - 이메일 알림이 활성화되어 있고
     // - 해당 카테고리를 구독 중인 사용자
-    // - 미션 생성자는 제외
+    // - 미션 생성자 포함 (사용자 요청으로 수정)
     let supabaseClient;
     try {
       supabaseClient = createServiceClient();
@@ -334,7 +334,6 @@ export async function POST(request: NextRequest) {
 
     // 먼저 알림 설정만 조회 (RLS 우회를 위해 Service Role 사용)
     console.log('[Mission Notification] Querying preferences for category:', category);
-    console.log('[Mission Notification] Creator ID to exclude:', creatorId);
     
     // 1단계: 이메일 알림이 활성화된 모든 사용자 조회 (배열 필터링은 JavaScript에서)
     const { data: allPreferences, error: prefError } = await supabaseClient
@@ -344,8 +343,7 @@ export async function POST(request: NextRequest) {
         f_email_enabled,
         f_categories
       `)
-      .eq('f_email_enabled', true)
-      .neq('f_user_id', creatorId);
+      .eq('f_email_enabled', true);
     
     console.log('[Mission Notification] Raw query result:', {
       hasData: !!allPreferences,

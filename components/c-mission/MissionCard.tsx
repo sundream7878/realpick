@@ -1,17 +1,15 @@
 "use client"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/c-ui/card"
+import { Card, CardTitle } from "@/components/c-ui/card"
 import { Badge } from "@/components/c-ui/badge"
 import { Clock } from "lucide-react"
 import type { TMission } from "@/types/t-vote/vote.types"
-import { SeasonBadge, getSeasonBadgeText } from "./SeasonBadge"
 import { MissionActionButtons } from "./MissionActionButtons"
-import { getTimeRemaining, isDeadlinePassed, getDDay } from "@/lib/utils/u-time/timeUtils.util"
-import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import { getShowById } from "@/lib/constants/shows"
 import { TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
-import { LiveTimer } from "./LiveTimer"
-import { DeadlineTimer } from "./DeadlineTimer"
+import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
 
 interface TMissionCardProps {
   mission: TMission
@@ -22,8 +20,6 @@ interface TMissionCardProps {
   className?: string
 }
 
-import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
-
 export function MissionCard({
   mission,
   shouldShowResults,
@@ -32,336 +28,194 @@ export function MissionCard({
   timeLeft,
   className = "",
 }: TMissionCardProps) {
-  const seasonBadgeText = getSeasonBadgeText(mission)
-
-  // 프로그램 정보 조회 (showId로 검색) - 안전하게 처리
   let showInfo = undefined
   try {
     if (mission.showId) {
       showInfo = getShowById(mission.showId)
     } else {
-      // [Legacy Support] showId가 없는 기존 데이터는 '나는 SOLO'로 간주
       showInfo = getShowById('nasolo')
     }
   } catch (e) {
     console.error("getShowById error:", e)
   }
 
-  // 카테고리 기반 테마 색상 가져오기
   const category = showInfo?.category
   const theme = getThemeColors(category)
-
-  // 클릭 시 이동할 URL 결정 (유튜브 링크가 없으면 공식 홈페이지로)
   const targetUrl = mission.referenceUrl || showInfo?.officialUrl
-
-  // 표시할 썸네일 결정 (입력된 썸네일이 없으면 기본 포스터 사용)
   const displayThumbnailUrl = mission.thumbnailUrl || showInfo?.defaultThumbnail
 
-  // 실제 마감 여부 확인
   const isClosed = (() => {
-    // 커플 매칭 미션인 경우: 회차별 완료 상태로 판단
     if (mission.form === "match") {
-      // status가 settled이거나 closed이면 마감
       if (mission.status === "settled" || mission.status === "closed") return true
-
-      // 마감일이 지났으면 마감
       if (mission.deadline && isDeadlinePassed(mission.deadline)) return true
-
-      // 모든 회차가 settled인지 확인
       if (mission.episodeStatuses) {
         const totalEpisodes = mission.episodes || 8
         for (let i = 1; i <= totalEpisodes; i++) {
-          if (mission.episodeStatuses[i] !== "settled") {
-            return false // 하나라도 settled가 아니면 진행중
-          }
+          if (mission.episodeStatuses[i] !== "settled") return false
         }
-        return true // 모든 회차가 settled면 마감
+        return true
       }
       return false
     }
-
-    // 일반 미션인 경우: 기존 로직 사용
     return mission.deadline ? isDeadlinePassed(mission.deadline) : (mission.status === "settled" || mission.status === "closed")
   })()
 
-  const statusText = (() => {
-    if (isClosed) return "마감됨"
-
-    // 커플 매칭 미션인 경우: 마감되지 않았으면 진행중
-    if (mission.form === "match") {
-      return "진행중"
-    }
-
-    // 일반 미션인 경우: 마감일 표시
-    return mission.deadline ? getTimeRemaining(mission.deadline) : "진행중"
-  })()
-
-  const isLiveActive = mission.isLive && !isClosed
-
   const kindText = mission.kind === "predict" ? "예측픽" : "공감픽"
 
-  const cardClassName =
-    variant === "hot"
-      ? `${theme.border} bg-gradient-to-br ${theme.bgGradient} shadow-sm hover:shadow-lg transition-all duration-200`
-      : `hover:shadow-lg transition-all duration-200 bg-gradient-to-br ${theme.bgGradient} ${theme.border}`
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString)
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      const hours = String(date.getHours()).padStart(2, '0')
+      const minutes = String(date.getMinutes()).padStart(2, '0')
+      return `${month}.${day} ${hours}:${minutes}`
+    } catch {
+      return dateString
+    }
+  }
 
-  // 마감된 미션은 투명도 적용
+  const getPointLabel = () => {
+    let type: 'binary' | 'multi' | 'match' = 'binary';
+    let optionsCount = 2;
+    if (mission.form === 'match') type = 'match';
+    else if (mission.submissionType === 'text') type = 'multi';
+    else if (Array.isArray(mission.options)) {
+      optionsCount = mission.options.length;
+      if (optionsCount >= 3) type = 'multi';
+    }
+    return calculatePotentialPoints(mission.kind, type, optionsCount).label;
+  }
+
   const closedOpacity = isClosed ? "opacity-80" : ""
 
   return (
-    <Card className={`${cardClassName} ${closedOpacity} ${className} flex flex-col py-0 gap-0 overflow-hidden relative`}>
+    <Card className={`bg-gradient-to-br ${theme.bgGradient} ${theme.border} rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 ${closedOpacity} ${className} flex flex-col overflow-hidden relative aspect-[2/1] min-h-[170px] p-0`}>
+      <div className="px-4 py-3 sm:px-5 sm:py-4 flex flex-col h-full justify-between">
+        
+        {/* 1. 상단 영역: 배지 & 날짜 */}
+        <div className="flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 bg-yellow-100 text-yellow-700 border border-yellow-200 rounded px-1.5 py-0.5">
+              <span className="text-[10px] font-bold">{getPointLabel()}</span>
+            </div>
+            <Badge className={`font-semibold h-5 px-2 text-[10px] rounded ${mission.kind === "predict" ? "bg-blue-100 text-blue-700 border-blue-200" : "bg-green-100 text-green-700 border-green-200"}`}>
+              {kindText}
+            </Badge>
+          </div>
+          <div className="text-[11px] sm:text-xs text-gray-400 font-medium flex gap-2.5">
+            <span>게시: {formatDate(mission.createdAt)}</span>
+            {mission.deadline && (
+              <span className="flex items-center gap-1">
+                <Clock className="w-3 h-3 text-rose-500" />
+                <span className="text-gray-600 font-bold">마감:</span>
+                <span className="text-gray-900">{formatDate(mission.deadline)}</span>
+              </span>
+            )}
+          </div>
+        </div>
 
+        {/* 2. 중앙 영역: 제목과 썸네일 (살짝 위로 배치) */}
+        <div className="flex justify-between items-start gap-4 flex-1 pt-1 pb-2">
+          <CardTitle className="text-base sm:text-lg md:text-xl text-gray-900 font-bold leading-tight line-clamp-2">
+            {(showInfo?.id === 'nasolo' || showInfo?.id === 'nasolsagye') && mission.seasonNumber 
+              ? `[${mission.seasonNumber}기] ${mission.title}` 
+              : mission.title}
+          </CardTitle>
 
-      <CardHeader className="p-3 pb-1">
-        <div className="flex justify-between items-start gap-3">
-          {/* 좌측: 배지 + 제목 */}
-          <div className="flex flex-col gap-1.5 flex-1 min-w-0">
-            {/* 배지 그룹 */}
-            <div className="flex items-center gap-1.5 flex-wrap">
-              {variant === "hot" && (
-                <Badge className={`${theme.badge} hover:opacity-90 ${theme.badgeText} h-5 px-1.5 text-[10px]`}>HOT</Badge>
-              )}
-
-
-              {isLiveActive && (
-                <div className="bg-red-600 text-white rounded-full px-2.5 py-0.5 text-[10px] font-bold shadow-sm flex items-center gap-1.5 animate-pulse">
-                  <span className="relative flex h-1.5 w-1.5">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-white"></span>
-                  </span>
-                  LIVE ON AIR
+          <div className="flex flex-col items-end gap-1 shrink-0">
+            {displayThumbnailUrl && (
+              <div 
+                className="w-28 h-18 sm:w-32 sm:h-20 rounded-lg overflow-hidden border border-gray-100 shadow-sm cursor-pointer"
+                onClick={(e) => { if (targetUrl) { e.stopPropagation(); window.open(targetUrl, "_blank"); } }}
+              >
+                <img src={displayThumbnailUrl} alt="thumb" className="w-full h-full object-cover" />
+              </div>
+            )}
+            {mission.creatorNickname && (
+              <div className="flex items-center gap-1 pr-1">
+                <div className="w-4 h-4 rounded-full overflow-hidden border border-gray-200">
+                  <img src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"} className="w-full h-full object-cover" />
                 </div>
-              )}
+                <span className={`text-[11px] sm:text-xs font-bold ${theme.iconText}`}>{mission.creatorNickname}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-              {isLiveActive && mission.deadline && (
-                <div className="bg-white/80 px-1.5 py-0.5 rounded text-[10px] font-bold border border-red-200 shadow-sm">
-                  <LiveTimer deadline={mission.deadline} />
-                </div>
-              )}
+        {/* 3. 하단 영역: 그래프와 버튼 */}
+        <div className="flex items-end gap-4 shrink-0 mt-auto">
+          {/* 그래프 영역: 4개 막대 기준 고정 너비 부여하여 버튼 시작점 고정 */}
+          <div className="flex items-end gap-2 h-12 sm:h-14 w-[104px] sm:w-[120px] shrink-0">
+            {(() => {
+              const distribution = mission.result?.distribution || {};
+              const options = Array.isArray(mission.options) ? mission.options : [];
+              
+              // 1. 표시할 막대 개수 결정 (최대 4개)
+              let barCount = 3; 
+              if (mission.form === 'binary') barCount = 2;
+              else if (mission.form === 'match') barCount = 3;
+              else if (options.length > 0) {
+                barCount = Math.min(options.length, 4);
+              }
+              
+              // 2. 실제 투표 데이터 추출 및 높이 계산
+              const counts: number[] = [];
+              for (let i = 0; i < barCount; i++) {
+                let count = 0;
+                if (mission.form === 'match') {
+                  // 매치 미션은 시각적 재미를 위해 임의의 비율 사용 (또는 stats 기반)
+                  count = [40, 70, 90][i] || 0;
+                } else {
+                  const optionText = options[i];
+                  // f_option_vote_counts는 옵션 텍스트를 키로 가짐
+                  count = (optionText ? (distribution[optionText] || 0) : 0) as number;
+                }
+                counts.push(count);
+              }
 
-              {!isLiveActive && !isClosed && mission.deadline && (
-                <div className={`${theme.subBadge} px-1.5 py-0.5 rounded text-[10px] font-bold ${theme.subBadgeBorder} shadow-sm ${theme.subBadgeText}`}>
-                  <DeadlineTimer deadline={mission.deadline} />
-                </div>
-              )}
-
-
-              {/* 포인트 배지 */}
-              <Badge className="bg-yellow-100 text-yellow-700 border-yellow-200 h-5 px-1.5 text-[10px] font-bold border">
-                💰 {(() => {
-                  let type: 'binary' | 'multi' | 'match' = 'binary';
-                  let optionsCount = 2;
-
-                  if (mission.form === 'match') {
-                    type = 'match';
-                  } else if (mission.submissionType === 'text') {
-                    type = 'multi';
-                  } else if (Array.isArray(mission.options)) {
-                    optionsCount = mission.options.length;
-                    if (optionsCount >= 3) type = 'multi';
-                  }
-
-                  return calculatePotentialPoints(mission.kind, type, optionsCount).label;
-                })()}
-              </Badge>
-
-              {variant !== "hot" && (
-                <Badge
-                  className={`font-medium h-5 px-1.5 text-[10px] ${mission.kind === "predict"
-                    ? "bg-blue-100 text-blue-700 border-blue-200"
-                    : "bg-green-100 text-green-700 border-green-200"
-                    }`}
-                >
-                  {kindText}
-                </Badge>
-              )}
-              {seasonBadgeText && (
-                <SeasonBadge
-                  seasonType={mission.seasonType}
-                  seasonNumber={mission.seasonNumber}
-                  variant="default"
-                  className="h-5 px-1.5 text-[10px]"
+              const maxCount = Math.max(...counts, 0);
+              
+              let heights: number[] = [];
+              if (maxCount === 0) {
+                // 투표가 없으면 시각적 생동감을 위해 기본 랜덤 느낌의 높이 제공
+                heights = [40, 65, 90, 75].slice(0, barCount);
+              } else {
+                // 투표 비율 계산 (가장 높은 것을 100% 기준으로, 최소 15% 높이 보장)
+                heights = counts.map(count => Math.max(15, (count / maxCount) * 100));
+              }
+              
+              // 3. 색상 및 투명도: 첫 번째가 가장 진하고 뒤로 갈수록 연해짐
+              // 테마의 첫 번째 색상을 사용하여 통일감을 주고 투명도로 변화를 줌
+              const opacities = ['opacity-100', 'opacity-80', 'opacity-60', 'opacity-40'];
+              
+              return heights.map((h, i) => (
+                <div 
+                  key={i} 
+                  className={`w-5 sm:w-6 rounded-t-md bg-gradient-to-t ${theme.progressBar[0]} ${opacities[i] || 'opacity-30'}`} 
+                  style={{ height: `${h}%` }} 
                 />
-              )}
+              ));
+            })()}
+          </div>
+
+          <div className="flex flex-col items-start gap-1 flex-1 min-w-0">
+            {/* items-start로 변경하여 참여자 수 문구를 버튼 왼쪽 끝에 정렬 */}
+            <div className="text-[11px] sm:text-[13px] text-gray-500 font-medium pl-1 leading-none truncate w-full">
+              <span className="text-gray-900 font-bold">{mission.stats?.participants || 0}</span>명 참여
             </div>
-
-            {/* 제목 */}
-            <CardTitle className="text-sm text-gray-900 font-semibold line-clamp-2 leading-snug">
-              {mission.title}
-            </CardTitle>
-          </div>
-
-          {/* 우측: 딜러 정보 + 썸네일 */}
-          {(mission.creatorNickname || displayThumbnailUrl) && (
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              {/* 캐릭터 + 닉네임 */}
-              {mission.creatorNickname && (
-                <div className="flex items-center gap-1">
-                  <div className={`w-8 h-8 rounded-full ${theme.iconBg} ${theme.iconBorder} flex items-center justify-center overflow-hidden`}>
-                    <img
-                      src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"}
-                      alt="딜러 캐릭터"
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-                  <span className={`text-[10px] font-bold ${theme.iconText}`}>{mission.creatorNickname}</span>
-                </div>
-              )}
-
-              {/* 썸네일 - 명시적 렌더링 */}
-              {displayThumbnailUrl ? (
-                <div
-                  key="thumbnail-container"
-                  className={`w-24 h-[54px] rounded-md overflow-hidden border border-gray-200 shadow-sm ${targetUrl ? "cursor-pointer hover:opacity-80 transition-opacity" : ""}`}
-                  onClick={(e) => {
-                    if (targetUrl) {
-                      e.stopPropagation()
-                      window.open(targetUrl, "_blank")
-                    }
-                  }}
-                >
-                  <img
-                    src={displayThumbnailUrl}
-                    alt="썸네일"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      console.error("Image load error:", displayThumbnailUrl);
-                      e.currentTarget.style.display = 'none';
-                    }}
-                  />
-                </div>
-              ) : null}
-            </div>
-          )}
-        </div>
-      </CardHeader>
-
-      <CardContent className="p-3 pt-1 flex flex-col flex-1">
-        {/* 도표/상태(좌측) + 참여자 수(우측) */}
-        <div className="flex items-center justify-between h-10 mb-2">
-
-          {/* 좌측: 차트 및 상태 표시 */}
-          <div className="flex items-center h-full">
-            {/* 실시간 공개: 투표 그래프 표시 (커플 매칭 제외) */}
-            {mission.revealPolicy === "realtime" && mission.form !== "match" && (
-              <div className="flex items-end gap-1 h-full">
-                {mission.result?.distribution && Object.keys(mission.result.distribution).length > 0 ? (
-                  Object.entries(mission.result.distribution)
-                    .sort(([, a], [, b]) => (b as number) - (a as number))
-                    .slice(0, 5)
-                    .map(([option, percentage], index) => {
-                      const height = Math.max(30, percentage as number)
-                      const colorClass = `bg-gradient-to-t ${theme.progressBar[index % 3]} ${!isClosed ? " animate-pulse" : ""}`
-
-                      return (
-                        <div
-                          key={option}
-                          className={`w-5 rounded-t-md transition-all duration-700 ease-in-out ${colorClass}`}
-                          style={{
-                            height: `${height}%`,
-                            animationDuration: isClosed ? undefined : `${1.5 + index * 0.3}s`
-                          }}
-                        />
-                      )
-                    })
-                ) : (
-                  // 데이터가 없으면 기본 도표 표시
-                  (mission.options && Array.isArray(mission.options) ? mission.options.slice(0, 5) : Array.from({ length: 5 })).map((_, index) => (
-                    <div
-                      key={index}
-                      className={`w-5 rounded-t-md bg-gradient-to-t ${theme.progressBar[2]} opacity-60`}
-                      style={{ height: `${30 + index * 15}%` }}
-                    />
-                  ))
-                )}
-              </div>
-            )}
-
-            {/* 마감 후 공개: 미스터리 박스 표시 (일반 미션만) */}
-            {mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && !isClosed && (
-              <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border border-dashed ${theme.mysteryBox.border} relative overflow-hidden`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-
-                <div className="relative flex items-center gap-1.5">
-                  <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md animate-bounce`}>
-                    <span className="text-white text-sm font-bold">?</span>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
-                      {getDDay(mission.deadline)}
-                    </div>
-                    <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
-                      마감 후 공개
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 커플 매칭 미션 진행중: 회차별 진행 상태 표시 */}
-            {mission.form === "match" && !isClosed && (
-              <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border border-dashed ${theme.mysteryBox.border} relative overflow-hidden`}>
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent animate-pulse" />
-
-                <div className="relative flex items-center gap-1.5">
-                  <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md`}>
-                    <span className="text-white text-xs font-bold">💕</span>
-                  </div>
-
-                  <div className="flex flex-col">
-                    <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
-                      회차별 진행
-                    </div>
-                    <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
-                      모든 회차 완료시 마감
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* 마감된 경우: 체크 아이콘 박스 (보라/핑크 색상) */}
-            {((mission.revealPolicy === "onClose" && mission.form !== "match" && mission.deadline && isClosed) ||
-              (mission.form === "match" && isClosed)) && (
-                <div className={`bg-gradient-to-br ${theme.mysteryBox.bg} rounded-md px-2 py-1 border ${theme.mysteryBox.border}`}>
-                  <div className="flex items-center gap-1.5">
-                    <div className={`flex items-center justify-center w-6 h-6 rounded-full bg-gradient-to-br ${theme.mysteryBox.iconBg} shadow-md`}>
-                      <span className="text-white text-sm font-bold">✓</span>
-                    </div>
-
-                    <div className="flex flex-col">
-                      <div className={`${theme.mysteryBox.text} font-bold text-xs leading-tight`}>
-                        마감됨
-                      </div>
-                      <div className={`text-[9px] ${theme.mysteryBox.subText} font-medium whitespace-nowrap leading-tight`}>
-                        결과 공개
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-          </div>
-
-          {/* 우측: 참여자 수 */}
-          <div className="text-sm text-gray-600 text-right">
-            <span className="text-gray-900 font-semibold">
-              {mission.stats?.participants?.toLocaleString() || 0}
-            </span>
-            명 참여
+            <MissionActionButtons
+              missionId={mission.id}
+              shouldShowResults={shouldShowResults}
+              onViewPick={onViewPick}
+              mission={mission}
+              category={category}
+              className="w-full h-9 sm:h-10 rounded-xl text-xs sm:text-sm font-bold shadow-sm"
+            />
           </div>
         </div>
 
-        <div className="mt-auto">
-          <MissionActionButtons
-            missionId={mission.id}
-            shouldShowResults={shouldShowResults}
-            onViewPick={onViewPick}
-            mission={mission}
-            category={category}
-          />
-        </div>
-      </CardContent>
+      </div>
     </Card>
   )
 }

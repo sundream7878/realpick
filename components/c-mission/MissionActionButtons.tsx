@@ -65,11 +65,11 @@ export function MissionActionButtons({
     const buttonText = isClosed ? "(마감) 결과보기" : "(진행중) 결과보기"
 
     return (
-      <Link href={resultUrl} className={className}>
+      <Link href={resultUrl} className="w-full flex">
         <Button
           size="sm"
           variant="outline"
-          className={buttonStyle}
+          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${buttonStyle} ${className}` : buttonStyle}`}
         >
           {buttonText}
         </Button>
@@ -95,12 +95,13 @@ export function MissionActionButtons({
   })()
 
   if (isClosed) {
+    const closedButtonStyle = `w-full ${theme.subBadgeBorder} ${theme.subBadgeText} ${theme.subBadge} hover:opacity-90 font-medium shadow-sm`
     return (
-      <Link href={`/p-mission/${missionId}/results`} className={className}>
+      <Link href={`/p-mission/${missionId}/results`} className="w-full flex">
         <Button
           size="sm"
           variant="outline"
-          className={`w-full ${theme.subBadgeBorder} ${theme.subBadgeText} ${theme.subBadge} hover:opacity-90 font-medium shadow-sm`}
+          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${closedButtonStyle} ${className}` : closedButtonStyle}`}
         >
           (마감) 결과보기
         </Button>
@@ -108,9 +109,13 @@ export function MissionActionButtons({
     )
   }
 
+  const pickButtonStyle = `w-full ${theme.button} ${theme.buttonHover} text-white font-medium`
   return (
-    <Link href={`/p-mission/${missionId}/vote`} className={className}>
-      <Button size="sm" className={`w-full ${theme.button} ${theme.buttonHover} text-white font-medium`}>
+    <Link href={`/p-mission/${missionId}/vote`} className="w-full flex">
+      <Button 
+        size="sm" 
+        className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${pickButtonStyle} ${className}` : pickButtonStyle}`}
+      >
         (진행중) PICK하기
       </Button>
     </Link>

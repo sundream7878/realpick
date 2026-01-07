@@ -508,7 +508,9 @@ export default function HomePage() {
                       </div>
 
                       <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
-                        {mainMission.title}
+                        {(mainMission.showId === 'nasolo' || mainMission.showId === 'nasolsagye') && mainMission.seasonNumber 
+                          ? `[${mainMission.seasonNumber}기] ${mainMission.title}` 
+                          : mainMission.title}
                       </h1>
 
                       {!isMainMissionClosed ? (
@@ -601,7 +603,7 @@ export default function HomePage() {
               </div>
 
               {/* 미션 목록 */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {displayMissions.length > 0 ? (
                   displayMissions.map((mission, index) => (
                     <div key={mission.id} id={`mission-${mission.id}`}>
@@ -806,7 +808,9 @@ export default function HomePage() {
                   </div>
 
                   <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
-                    {mainMission.title}
+                    {(mainMission.showId === 'nasolo' || mainMission.showId === 'nasolsagye') && mainMission.seasonNumber 
+                      ? `[${mainMission.seasonNumber}기] ${mainMission.title}` 
+                      : mainMission.title}
                   </h1>
 
                   {!isMainMissionClosed ? (

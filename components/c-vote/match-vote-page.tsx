@@ -136,9 +136,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
   // EpisodeSelector에 전달할 status 객체 생성
   const effectiveEpisodeStatuses = (() => {
-    const statuses: Record<number, string> = {}
+    const statuses: Record<number, "open" | "settled" | "locked" | "preview"> = {}
     for (let i = 1; i <= totalEpisodes; i++) {
-      statuses[i] = getEpisodeStatus(i)
+      statuses[i] = getEpisodeStatus(i) as any
     }
     return statuses
   })()
@@ -685,7 +685,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         // episodePicks 업데이트 (useEffect가 자동으로 connections를 업데이트함)
         setEpisodePicks((prev) => ({
           ...prev,
-          [currentEpisode]: savedVote.pairs,
+          [currentEpisode]: savedVote.pairs || [],
         }))
       }
 
@@ -882,16 +882,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   // Return JSX
   return (
     <div className="space-y-8">
-      <div className="flex items-center justify-between">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => router.back()}
-          className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
-        >
-          <ArrowLeft className="w-4 h-4" />
-        </Button>
-
+      <div className="flex items-center justify-end">
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
@@ -927,45 +918,20 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
       </div>
 
       <div className="space-y-4">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <Badge className="bg-rose-500 hover:bg-rose-600 text-white">{getTypeBadge()}</Badge>
-
-          {/* 상태 배지 */}
-          <Badge variant="secondary" className={mission.status === 'open' ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700"}>
-            {mission.status === 'open' ? '진행중' : '마감됨'}
-          </Badge>
-
-          {/* 결과 공개 정책 배지 (실시간일 때만 표시) */}
-          {mission.revealPolicy === "realtime" && (
-            <Badge variant="secondary" className="bg-purple-100 text-purple-700">
-              실시간 결과
-            </Badge>
-          )}
-
-          {/* 마감 시간 표시 (커플매칭도 마감일이 있으면 표시) */}
-          {mission.status === "open" && mission.deadline && !isDeadlinePassed(mission.deadline) && (
-            <Badge variant="outline" className="border-rose-300 text-rose-600">
-              <Clock className="w-3 h-3 mr-1" />
-              {getTimeRemaining(mission.deadline)}
-            </Badge>
-          )}
-        </div>
-        <h1 className="text-3xl font-bold text-gray-900 text-balance">{mission.title}</h1>
-
         {/* 이미지 표시 */}
         {mission.imageUrl && (
-          <div className="rounded-lg overflow-hidden border border-gray-200">
+          <div className="rounded-lg overflow-hidden border border-gray-200 max-w-2xl mx-auto">
             <img
               src={mission.imageUrl}
               alt="미션 이미지"
-              className="w-full h-auto object-cover max-h-[400px]"
+              className="w-full h-auto object-cover max-h-[350px]"
             />
           </div>
         )}
 
         {/* 설명 및 더보기 */}
-        <div className="relative">
-          <p className={`text-lg text-gray-600 ${!isExpanded ? "line-clamp-3" : ""}`}>
+        <div className="relative max-w-2xl mx-auto">
+          <p className={`text-base text-gray-600 ${!isExpanded ? "line-clamp-3" : ""}`}>
             {mission.description}
           </p>
           {mission.description && mission.description.length > 100 && (
@@ -1088,9 +1054,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
             </div>
           )}
 
-          <Card className="border-rose-200 bg-gradient-to-br from-rose-50 to-pink-50 shadow-lg overflow-hidden">
-            <CardHeader className="text-center">
-              <CardTitle className="text-2xl font-bold text-gray-900">
+          <Card className="border-rose-200 bg-gradient-to-br from-rose-50 to-pink-50 shadow-lg overflow-hidden max-w-3xl mx-auto">
+            <CardHeader className="text-center py-4 px-4">
+              <CardTitle className="text-xl font-bold text-gray-900">
                 {isMultiEpisode && selectedEpisodes.size === 1
                   ? `${Array.from(selectedEpisodes)[0]}차 커플 매칭하기`
                   : isMultiEpisode && selectedEpisodes.size > 1
@@ -1101,7 +1067,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                       ? "에피소드를 선택해주세요"
                       : "커플 매칭하기"}
               </CardTitle>
-              <p className="text-gray-600">
+              <p className="text-sm text-gray-600">
                 {selectedEpisodes.size === 1 && isCurrentEpisodeSettled()
                   ? "마감된 에피소드입니다(수정 불가)"
                   : selectedEpisodes.size === 1 && submittedEpisodes.has(Array.from(selectedEpisodes)[0])
@@ -1115,7 +1081,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                           : "에피소드 아이콘을 클릭하여 에피소드를 선택하세요"}
               </p>
             </CardHeader>
-            <CardContent className="p-8">
+            <CardContent className="p-4">
               <div ref={canvasRef} className="relative w-full mx-auto" style={{ minHeight: "400px" }}>
                 <svg
                   className="absolute inset-0 w-full h-full pointer-events-none z-30"
@@ -1183,15 +1149,15 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                   )}
                 </svg>
 
-                <div className="grid grid-cols-2 gap-8 relative z-20 w-full mx-auto">
-                  <div className="space-y-4">
+                <div className="grid grid-cols-2 gap-4 relative z-20 w-full mx-auto">
+                  <div className="space-y-2">
                     <div className="text-center">
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
+                      <h3 className="text-lg font-bold text-gray-900 mb-3 bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent">
                         남성
                       </h3>
                     </div>
                     <div
-                      className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 space-y-3 min-h-[400px]"
+                      className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-3 space-y-2 min-h-[350px]"
                       style={{ backgroundColor: "#E6F0FF" }}
                       data-column-area="left"
                     >
@@ -1214,7 +1180,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             data-item={person}
                             data-column="left"
                             className={`
-                              relative p-4 rounded-xl border-2 transition-all duration-200 select-none
+                              relative p-2.5 rounded-lg border-2 transition-all duration-200 select-none
                               ${isSettled || isSubmitted || isLocked ? "cursor-not-allowed opacity-60" : "cursor-grab"}
                               ${connected
                                 ? "border-blue-400 bg-gradient-to-r from-blue-100 to-blue-200 text-blue-700 shadow-md"
@@ -1224,7 +1190,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                               ${isHovered ? "border-purple-400 bg-purple-50 shadow-lg" : ""}
                               ${dragState.isDragging && dragState.draggedColumn === "right" && !isConnected(person) && !isSettled && !isSubmitted && !isLocked ? "hover:border-purple-400 hover:bg-purple-50" : ""}
                             `}
-                            style={{ width: "60%", margin: "0 auto" }}
+                            style={{ width: "75%", margin: "0 auto" }}
                             onMouseDown={(e) => handleMouseDown(e, person, "left")}
                             onMouseEnter={() => {
                               if (
@@ -1241,7 +1207,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             onMouseLeave={() => setHoveredTarget(null)}
                           >
                             <div className="flex items-center justify-center text-center">
-                              <span className="font-semibold text-lg">{person}</span>
+                              <span className="font-semibold text-base">{person}</span>
                             </div>
                           </div>
                         )
@@ -1249,14 +1215,14 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                     </div>
                   </div>
 
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     <div className="text-center">
-                      <h3 className="text-xl font-bold text-gray-900 mb-6 bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
+                      <h3 className="text-lg font-bold text-gray-900 mb-3 bg-gradient-to-r from-pink-500 to-rose-500 bg-clip-text text-transparent">
                         여성
                       </h3>
                     </div>
                     <div
-                      className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-2xl p-6 space-y-3 min-h-[400px]"
+                      className="bg-gradient-to-br from-pink-50 to-rose-50 rounded-xl p-3 space-y-2 min-h-[350px]"
                       data-column-area="right"
                     >
                       {rightItems.map((person) => {
@@ -1278,7 +1244,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             data-item={person}
                             data-column="right"
                             className={`
-                              relative p-4 rounded-xl border-2 transition-all duration-200 select-none
+                              relative p-2.5 rounded-lg border-2 transition-all duration-200 select-none
                               ${isSettled || isSubmitted || isLocked ? "cursor-not-allowed opacity-60" : "cursor-grab"}
                               ${connected
                                 ? "border-rose-400 bg-gradient-to-r from-rose-100 to-pink-100 text-rose-700 shadow-md"
@@ -1288,7 +1254,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                               ${isHovered ? "border-purple-400 bg-purple-50 shadow-lg" : ""}
                               ${dragState.isDragging && dragState.draggedColumn === "left" && !isConnected(person) && !isSettled && !isSubmitted && !isLocked ? "hover:border-purple-400 hover:bg-purple-50" : ""}
                             `}
-                            style={{ width: "60%", margin: "0 auto" }}
+                            style={{ width: "75%", margin: "0 auto" }}
                             onMouseDown={(e) => handleMouseDown(e, person, "right")}
                             onMouseEnter={() => {
                               if (
@@ -1305,7 +1271,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             onMouseLeave={() => setHoveredTarget(null)}
                           >
                             <div className="flex items-center justify-center text-center">
-                              <span className="font-semibold text-lg">{person}</span>
+                              <span className="font-semibold text-base">{person}</span>
                             </div>
                           </div>
                         )
@@ -1330,8 +1296,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                 const uniqueConnections = Array.from(uniqueConnectionsMap.values())
 
                 return (
-                  <div className="mt-8 p-6 bg-white rounded-xl border border-rose-200">
-                    <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                  <div className="mt-4 p-3 bg-white rounded-xl border border-rose-200">
+                    <h4 className="text-base font-semibold text-gray-900 mb-3">
                       현재 매칭 ({uniqueConnections.length}개
                       {selectedEpisodes.size > 1 &&
                         ` - ${Array.from(selectedEpisodes)

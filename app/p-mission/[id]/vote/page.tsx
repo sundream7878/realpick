@@ -9,16 +9,19 @@ import { getUser } from "@/lib/supabase/users"
 import { getTierFromDbOrPoints, getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { MultiVotePage } from "@/components/c-vote/multi-vote-page"
 import { MatchVotePage } from "@/components/c-vote/match-vote-page"
+import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 
 import { CommentSection } from "@/components/c-comment/CommentSection"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
-import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import { isDeadlinePassed, getTimeRemaining } from "@/lib/utils/u-time/timeUtils.util"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
 import { Button } from "@/components/c-ui/button"
-import { Share2, Trash2 } from "lucide-react"
+import { Badge } from "@/components/c-ui/badge"
+import { ArrowLeft, Share2, Trash2, Clock, Users, TrendingUp } from "lucide-react"
 import { ShareModal } from "@/components/c-share-modal/share-modal"
 import { isAdmin } from "@/lib/utils/permissions"
 import {
@@ -47,6 +50,8 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [userRole, setUserRole] = useState<string>("")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
+  const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const userId = getUserId()
 
   useEffect(() => {
@@ -231,104 +236,163 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      <MissionCreationModal
+        isOpen={isMissionModalOpen}
+        onClose={() => setIsMissionModalOpen(false)}
+        onMissionCreated={() => router.push('/')}
+        initialShowId={selectedShowId}
+        category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+      />
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
-        <AppHeader
-          selectedShow={getShowById(selectedShowId)?.name as any || "나는솔로"}
-          selectedShowId={selectedShowId}
-          onShowChange={(show) => {
-            const showObj = getShowByName(show)
-            if (showObj) setSelectedShowId(showObj.id)
-          }}
-          onShowSelect={(showId) => {
-            if (showId) {
-              router.push(`/?show=${showId}`)
-            } else {
-              router.push("/")
-            }
-          }}
-          userNickname={userNickname}
-          userPoints={userPoints}
-          userTier={userTier}
-          onAvatarClick={() => {
-            const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
-            router.push(profileUrl)
-          }}
-          showStatuses={showStatuses}
-        />
+        <div className="flex-1 flex flex-col">
+          <AppHeader
+            selectedShow={getShowById(selectedShowId)?.name as any || "나는솔로"}
+            selectedShowId={selectedShowId}
+            onShowChange={(show) => {
+              const showObj = getShowByName(show)
+              if (showObj) setSelectedShowId(showObj.id)
+            }}
+            onShowSelect={(showId) => {
+              if (showId) {
+                router.push(`/?show=${showId}`)
+              } else {
+                router.push("/")
+              }
+            }}
+            userNickname={userNickname}
+            userPoints={userPoints}
+            userTier={userTier}
+            onAvatarClick={() => {
+              const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+              router.push(profileUrl)
+            }}
+            showStatuses={showStatuses}
+          />
 
-        <main className="w-full max-w-4xl mx-auto px-4 md:px-6 py-4">
-          {/* 공유 버튼 및 삭제 버튼 (관리자만) */}
-          <div className="flex justify-end gap-2 mb-4">
-            {isAdminUser && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={async () => {
-                  // 권한 재확인
-                  if (userId) {
-                    const user = await getUser(userId)
-                    if (user && isAdmin(user.role)) {
-                      setIsDeleteDialogOpen(true)
-                    } else {
-                      alert("관리자 권한이 필요합니다.")
-                    }
-                  }
-                }}
-                className="flex items-center gap-2"
-              >
-                <Trash2 className="w-4 h-4" />
-                삭제
-              </Button>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setIsShareModalOpen(true)}
-              className="flex items-center gap-2"
-            >
-              <Share2 className="w-4 h-4" />
-              공유하기
-            </Button>
-          </div>
-          {/* 디버깅용: role 정보 표시 (개발 중에만) */}
-          {process.env.NODE_ENV === 'development' && userRole && (
-            <div className="text-xs text-gray-500 mb-2">
-              현재 역할: {userRole} | 관리자 여부: {isAdminUser ? '예' : '아니오'}
+          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+            <div className="max-w-4xl mx-auto">
+              <div className="mb-6">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </Button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate flex-1">
+                      {(mission.showId === 'nasolo' || mission.showId === 'nasolsagye') && mission.seasonNumber
+                        ? `[${mission.seasonNumber}기] ${mission.title}`
+                        : mission.title}
+                    </h1>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {isAdminUser && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={async () => {
+                            // 권한 재확인
+                            if (userId) {
+                              const user = await getUser(userId)
+                              if (user && isAdmin(user.role)) {
+                                setIsDeleteDialogOpen(true)
+                              } else {
+                                alert("관리자 권한이 필요합니다.")
+                              }
+                            }
+                          }}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">삭제</span>
+                        </Button>
+                      )}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setIsShareModalOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <Share2 className="w-4 h-4" />
+                        <span className="hidden sm:inline">공유하기</span>
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* 디버깅용: role 정보 표시 (개발 중에만) */}
+                  {process.env.NODE_ENV === 'development' && userRole && (
+                    <div className="text-xs text-gray-500 mb-2">
+                      현재 역할: {userRole} | 관리자 여부: {isAdminUser ? '예' : '아니오'}
+                    </div>
+                  )}
+
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Badge variant={mission.status === "open" ? "default" : "secondary"} className="text-sm">
+                      {mission.status === "open" ? "진행중" : "마감됨"}
+                    </Badge>
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <Users className="w-4 h-4" />
+                      <span className="font-semibold text-gray-900">
+                        {mission.stats?.participants?.toLocaleString() || 0}
+                      </span>
+                      명 참여
+                    </div>
+                    {mission.revealPolicy === "realtime" && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <TrendingUp className="w-4 h-4" />
+                        <span>실시간 집계</span>
+                      </div>
+                    )}
+                    {mission.status === "open" && mission.deadline && (
+                      <div className="flex items-center gap-1 text-sm text-gray-600">
+                        <Clock className="w-4 h-4" />
+                        <span>{getTimeRemaining(mission.deadline)}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="max-w-2xl mx-auto w-full">
+                  {mission.form === "binary" && (
+                    <MultiVotePage mission={mission} />
+                  )}
+                  {mission.form === "multi" && (
+                    <MultiVotePage mission={mission} />
+                  )}
+                  {mission.form === "match" && (
+                    <MatchVotePage mission={mission} />
+                  )}
+                </div>
+              </div>
+
+              {/* 댓글 섹션 추가 */}
+              <div className="mt-8">
+                <CommentSection
+                  missionId={mission.id}
+                  missionType={mission.form === "match" ? "mission2" : "mission1"}
+                  currentUserId={userId || undefined}
+                />
+              </div>
+
+              {/* 다른 미션 보기 버튼 */}
+              <div className="flex justify-center pt-8 pb-4">
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="px-8 py-3 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
+                  onClick={() => router.back()}
+                >
+                  다른 미션 보기
+                </Button>
+              </div>
             </div>
-          )}
-
-          {mission.form === "binary" && (
-            <MultiVotePage mission={mission} />
-          )}
-          {mission.form === "multi" && (
-            <MultiVotePage mission={mission} />
-          )}
-          {mission.form === "match" && (
-            <MatchVotePage mission={mission} />
-          )}
-
-
-          {/* 댓글 섹션 추가 */}
-          <div className="mt-8">
-            <CommentSection
-              missionId={mission.id}
-              missionType={mission.form === "match" ? "mission2" : "mission1"}
-              currentUserId={userId || undefined}
-            />
-          </div>
-
-          {/* 다른 미션 보기 버튼 */}
-          <div className="flex justify-center pt-8 pb-4">
-            <Button
-              size="lg"
-              variant="outline"
-              className="px-8 py-3 text-lg font-semibold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-lg hover:shadow-xl transition-all duration-200"
-              onClick={() => router.back()}
-            >
-              다른 미션 보기
-            </Button>
-          </div>
-        </main>
+          </main>
+        </div>
 
         {/* 공유 모달 */}
         {mission && (
@@ -366,7 +430,21 @@ export default function VotePage({ params }: { params: { id: string } }) {
           </AlertDialogContent>
         </AlertDialog>
 
-        <BottomNavigation />
+        <BottomNavigation
+          onMissionClick={() => setIsMissionModalOpen(true)}
+          onStatusClick={() => setIsMissionStatusOpen(true)}
+        />
+
+        <SidebarNavigation
+          selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}
+          selectedSeason="전체"
+          isMissionStatusOpen={isMissionStatusOpen}
+          onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
+          onSeasonSelect={() => { }}
+          onMissionModalOpen={() => setIsMissionModalOpen(true)}
+          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          selectedShowId={selectedShowId}
+        />
       </div>
     </div>
   )

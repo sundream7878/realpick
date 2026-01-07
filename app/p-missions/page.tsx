@@ -371,7 +371,7 @@ export default function MissionsPage() {
                 <div className="text-gray-500 text-sm">다른 기수를 선택해보세요</div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 {filteredMissions.map((mission) => (
                   <MissionCard
                     key={mission.id}
