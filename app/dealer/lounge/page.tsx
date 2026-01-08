@@ -153,12 +153,12 @@ export default function DealerLoungePage() {
                 <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
                     <div className="max-w-7xl mx-auto">
                 {/* Header */}
-                <div className="mb-8">
-                    <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                        <Crown className="w-8 h-8 text-yellow-500" />
+                <div className="mb-6 sm:mb-8">
+                    <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3">
+                        <Crown className="w-5 h-5 sm:w-6 sm:h-6 md:w-8 md:h-8 text-yellow-500" />
                         딜러 라운지
                     </h1>
-                    <p className="text-gray-600 mt-2">
+                    <p className="text-sm sm:text-base text-gray-600 mt-2">
                         딜러님들의 미션 현황과 성과를 한눈에 확인하세요.
                     </p>
                 </div>

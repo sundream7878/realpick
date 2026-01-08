@@ -1023,9 +1023,9 @@ export default function MyPage() {
 
         <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
           <div className="max-w-7xl mx-auto">
-            <div className="flex items-center gap-3 mb-6">
-              <Heart className="w-8 h-8 text-pink-600 fill-pink-600" />
-              <h1 className="text-3xl font-bold text-gray-900">마이페이지</h1>
+            <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
+              <Heart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-pink-600 fill-pink-600" />
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">마이페이지</h1>
             </div>
 
             <Tabs defaultValue="participated" className="w-full">
@@ -1047,13 +1047,13 @@ export default function MyPage() {
                 <div className="flex flex-col gap-3 p-4 bg-white rounded-2xl border border-gray-100 shadow-sm max-w-md">
                   <div className="flex items-center gap-2">
                     <span className="text-xs font-semibold text-gray-400 w-12 shrink-0">분류</span>
-                    <div className="flex flex-wrap items-center gap-1.5">
+                    <div className="flex items-center gap-1.5 overflow-x-auto scrollbar-hide">
                       <button
                         onClick={() => {
                           setFilterCategory("ALL")
                           setFilterShowId("ALL")
                         }}
-                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all ${filterCategory === "ALL" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                        className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all whitespace-nowrap flex-shrink-0 ${filterCategory === "ALL" ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
                       >
                         전체
                       </button>
@@ -1064,9 +1064,9 @@ export default function MyPage() {
                             setFilterCategory(id as TShowCategory)
                             setFilterShowId("ALL")
                           }}
-                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all flex items-center gap-1.5 ${filterCategory === id ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
+                          className={`px-3 py-1.5 text-xs font-medium rounded-full border transition-all flex items-center gap-1.5 whitespace-nowrap flex-shrink-0 ${filterCategory === id ? "bg-gray-900 text-white border-gray-900" : "bg-white text-gray-600 border-gray-200 hover:border-gray-300"}`}
                         >
-                          <img src={info.iconPath} alt={info.description} className="w-3.5 h-3.5 object-contain" />
+                          <img src={info.iconPath} alt={info.description} className="w-3.5 h-3.5 object-contain flex-shrink-0" />
                           {info.description}
                         </button>
                       ))}

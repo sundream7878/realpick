@@ -470,6 +470,37 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
     [dragState.isDragging, dragState.draggedItem, dragState.draggedColumn],
   )
 
+  const handleTouchMove = useCallback(
+    (e: TouchEvent) => {
+      if (!dragState.isDragging || !dragState.draggedItem || !canvasRef.current) return
+
+      e.preventDefault() // 스크롤 방지
+
+      const touch = e.touches[0]
+      if (!touch) return
+
+      const rect = canvasRef.current.getBoundingClientRect()
+      const itemRef =
+        dragState.draggedColumn === "left"
+          ? leftItemRefs.current[dragState.draggedItem]
+          : rightItemRefs.current[dragState.draggedItem]
+
+      if (!itemRef) return
+
+      const itemRect = itemRef.getBoundingClientRect()
+      const startX = itemRect.left + itemRect.width / 2 - rect.left
+      const startY = itemRect.top + itemRect.height / 2 - rect.top
+      const endX = touch.clientX - rect.left
+      const endY = touch.clientY - rect.top
+
+      setDragState((prev) => ({
+        ...prev,
+        ghostLine: { startX, startY, endX, endY },
+      }))
+    },
+    [dragState.isDragging, dragState.draggedItem, dragState.draggedColumn],
+  )
+
   const handleMouseUp = useCallback(
     (e: MouseEvent) => {
       // 드래그 종료 시 canVote 체크 로직 제거: handleMouseDown에서 이미 체크하고 있고,
@@ -536,16 +567,109 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
     [dragState, canVote, leftItems, rightItems, createConnection],
   )
 
+  const handleTouchEnd = useCallback(
+    (e: TouchEvent) => {
+      if (!dragState.isDragging || !dragState.draggedItem) {
+        setDragState({ isDragging: false, draggedItem: null, draggedColumn: null, ghostLine: null })
+        setHoveredTarget(null)
+        return
+      }
+
+      const touch = e.changedTouches[0]
+      if (!touch) return
+
+      const target = document.elementFromPoint(touch.clientX, touch.clientY)
+      let targetItem = target?.getAttribute("data-item")
+      let targetColumn = target?.getAttribute("data-column") as "left" | "right" | null
+
+      if (!targetItem || !targetColumn) {
+        let currentElement = target
+        while (currentElement && currentElement !== document.body) {
+          targetItem = targetItem || currentElement.getAttribute("data-item")
+          targetColumn = targetColumn || (currentElement.getAttribute("data-column") as "left" | "right" | null)
+          if (targetItem && targetColumn) break
+          currentElement = currentElement.parentElement
+        }
+      }
+
+      if (!targetItem || !targetColumn) {
+        const columnArea = target?.closest("[data-column-area]")
+        if (columnArea) {
+          targetColumn = columnArea.getAttribute("data-column-area") as "left" | "right"
+
+          const items = targetColumn === "left" ? leftItems : rightItems
+          const itemRefs = targetColumn === "left" ? leftItemRefs.current : rightItemRefs.current
+
+          let closestItem = null
+          let closestDistance = Number.POSITIVE_INFINITY
+
+          items.forEach((item) => {
+            const itemRef = itemRefs[item]
+            if (itemRef && !isConnected(item)) {
+              const rect = itemRef.getBoundingClientRect()
+              const centerX = rect.left + rect.width / 2
+              const centerY = rect.top + rect.height / 2
+              const distance = Math.sqrt(Math.pow(touch.clientX - centerX, 2) + Math.pow(touch.clientY - centerY, 2))
+
+              if (distance < closestDistance) {
+                closestDistance = distance
+                closestItem = item
+              }
+            }
+          })
+
+          if (closestItem) {
+            targetItem = closestItem
+          }
+        }
+      }
+
+      if (targetItem && targetColumn && targetColumn !== dragState.draggedColumn) {
+        createConnection(dragState.draggedItem, targetItem, dragState.draggedColumn!, targetColumn)
+      }
+
+      setDragState({ isDragging: false, draggedItem: null, draggedColumn: null, ghostLine: null })
+      setHoveredTarget(null)
+    },
+    [dragState, canVote, leftItems, rightItems, createConnection],
+  )
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent, item: string, column: "left" | "right") => {
+      const currentEpisode = selectedEpisodes.size === 1 ? Array.from(selectedEpisodes)[0] : null
+      const isSubmitted = currentEpisode ? submittedEpisodes.has(currentEpisode) : false
+
+      if (selectedEpisodes.size !== 1) return
+      if (isSubmitted) return
+
+      const episodeStatus = getEpisodeStatus(currentEpisode || 1)
+      if (episodeStatus === "settled" || episodeStatus === "locked") return
+
+      e.preventDefault()
+      setDragState({
+        isDragging: true,
+        draggedItem: item,
+        draggedColumn: column,
+        ghostLine: null,
+      })
+    },
+    [selectedEpisodes, submittedEpisodes, getEpisodeStatus],
+  )
+
   useEffect(() => {
     if (dragState.isDragging) {
       document.addEventListener("mousemove", handleMouseMove)
       document.addEventListener("mouseup", handleMouseUp)
+      document.addEventListener("touchmove", handleTouchMove, { passive: false })
+      document.addEventListener("touchend", handleTouchEnd, { passive: false })
       return () => {
         document.removeEventListener("mousemove", handleMouseMove)
         document.removeEventListener("mouseup", handleMouseUp)
+        document.removeEventListener("touchmove", handleTouchMove)
+        document.removeEventListener("touchend", handleTouchEnd)
       }
     }
-  }, [dragState.isDragging, handleMouseMove, handleMouseUp])
+  }, [dragState.isDragging, handleMouseMove, handleMouseUp, handleTouchMove, handleTouchEnd])
 
   const removeConnection = (connectionId: string) => {
     if (!canVote || selectedEpisodes.size !== 1 || !isCurrentEpisodeOpen()) return
@@ -1192,6 +1316,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             `}
                             style={{ width: "75%", margin: "0 auto" }}
                             onMouseDown={(e) => handleMouseDown(e, person, "left")}
+                            onTouchStart={(e) => handleTouchStart(e, person, "left")}
                             onMouseEnter={() => {
                               if (
                                 dragState.isDragging &&
@@ -1256,6 +1381,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                             `}
                             style={{ width: "75%", margin: "0 auto" }}
                             onMouseDown={(e) => handleMouseDown(e, person, "right")}
+                            onTouchStart={(e) => handleTouchStart(e, person, "right")}
                             onMouseEnter={() => {
                               if (
                                 dragState.isDragging &&

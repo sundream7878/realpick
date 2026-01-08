@@ -105,7 +105,7 @@ export function MissionCard({
               {kindText}
             </Badge>
           </div>
-          <div className="text-[9px] sm:text-xs text-gray-400 font-medium flex flex-col items-end sm:flex-row sm:items-center gap-x-2.5 gap-y-0.5 ml-auto">
+          <div className="text-[9px] sm:text-xs text-gray-400 font-medium flex items-center gap-x-2 gap-y-0.5 ml-auto">
             <span className="whitespace-nowrap">게시: {formatDate(mission.createdAt)}</span>
             {mission.deadline && (
               <span className="flex items-center gap-1 whitespace-nowrap">

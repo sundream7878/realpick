@@ -42,6 +42,7 @@ import {
 
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
 import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { isYoutubeUrl, getYoutubeEmbedUrl } from "@/lib/utils/u-media/youtube.util"
 
 function calculateEarnedPoints(mission: TMission, userVote: any): number {
   if (mission.kind === 'majority' || (mission as any).kind === 'poll') return 10;
@@ -682,6 +683,30 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     )}
                   </div>
                 </div >
+
+                {/* 참조 URL - 유튜브 임베드 플레이어 */}
+                {mission.referenceUrl && isYoutubeUrl(mission.referenceUrl) ? (
+                  <div className="mt-6 flex justify-center">
+                    <div className="w-full max-w-2xl">
+                      <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full"
+                          src={getYoutubeEmbedUrl(mission.referenceUrl) || ''}
+                          title="YouTube video player"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : mission.referenceUrl ? (
+                  <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
+                    <Link href={mission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                      🔗 참고 링크 확인하기
+                    </Link>
+                  </div>
+                ) : null}
 
                 {userVote && successComment && mission.deadline && isDeadlinePassed(mission.deadline) && (
                   <Card
