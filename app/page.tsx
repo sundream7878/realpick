@@ -42,6 +42,7 @@ export default function HomePage() {
   const [missions, setMissions] = useState<TMission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
+  const [userChoices, setUserChoices] = useState<Record<string, any>>({})
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
   const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
   const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
@@ -57,8 +58,8 @@ export default function HomePage() {
   useEffect(() => {
     const showParam = searchParams.get('show')
     
-    // 로그인된 사용자이고 쿼리 파라미터가 없으면 기본으로 nasolo 설정
-    if (isLoggedIn && !showParam) {
+    // 쿼리 파라미터가 없으면 기본으로 nasolo 설정
+    if (!showParam) {
       router.push('/?show=nasolo')
       return
     }
@@ -182,27 +183,31 @@ export default function HomePage() {
 
         // 투표 여부 확인을 백그라운드에서 처리
         if (isAuthenticated()) {
-          // 병렬로 모든 투표 확인 (Promise.all 사용)
-          const voteChecks = combinedMissions.map(mission => 
-            checkUserVoted(userId, mission.id).then(hasVoted => ({ id: mission.id, hasVoted }))
-          )
+          const { getUserVotesMap } = await import("@/lib/supabase/votes")
+          const missionIds = combinedMissions.map(m => m.id)
+          const choicesMap = await getUserVotesMap(userId, missionIds)
           
-          const results = await Promise.all(voteChecks)
-          const voted = new Set<string>()
-          results.forEach(({ id, hasVoted }) => {
-            if (hasVoted) voted.add(id)
-          })
-          setVotedMissions(voted)
+          setUserChoices(choicesMap)
+          setVotedMissions(new Set(Object.keys(choicesMap)))
         } else {
           // 비인증 사용자는 localStorage 확인 (동기적, 빠름)
           const voted = new Set<string>()
+          const choices: Record<string, any> = {}
+          
           combinedMissions.forEach((mission) => {
             const localVote = localStorage.getItem(`rp_picked_${mission.id}`)
             if (localVote) {
               voted.add(mission.id)
+              try {
+                const parsed = JSON.parse(localVote)
+                choices[mission.id] = parsed.choice || parsed
+              } catch {
+                choices[mission.id] = localVote
+              }
             }
           })
           setVotedMissions(voted)
+          setUserChoices(choices)
         }
       } catch (error) {
         console.error("미션 로딩 실패:", error)
@@ -436,14 +441,9 @@ export default function HomePage() {
             onAvatarClick={() => {}}
             selectedShowId={selectedShowId}
             onShowSelect={(showId) => {
-              const newShowId = showId === selectedShowId ? null : showId
-              setSelectedShowId(newShowId)
+              setSelectedShowId(showId)
               // URL 업데이트
-              if (newShowId) {
-                router.push(`/?show=${newShowId}`)
-              } else {
-                router.push('/')
-              }
+              router.push(`/?show=${showId}`)
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
             activeShowIds={activeShowIds}
@@ -482,6 +482,7 @@ export default function HomePage() {
                           shouldShowResults={false}
                           onViewPick={() => { }}
                           variant="hot"
+                          userChoice={userChoices[mainMission.id]}
                         />
                       </div>
                     </div>
@@ -616,6 +617,7 @@ export default function HomePage() {
                           setShowLoginModal(true)
                         }}
                         variant={index === 0 && !mainMission && currentPage === 1 ? "hot" : "default"}
+                        userChoice={userChoices[mission.id]}
                       />
                     </div>
                   ))
@@ -742,14 +744,9 @@ export default function HomePage() {
           }}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
-            const newShowId = showId === selectedShowId ? null : showId
-            setSelectedShowId(newShowId) // Toggle
+            setSelectedShowId(showId)
             // URL 업데이트
-            if (newShowId) {
-              router.push(`/?show=${newShowId}`)
-            } else {
-              router.push('/')
-            }
+            router.push(`/?show=${showId}`)
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
           activeShowIds={activeShowIds}
@@ -782,6 +779,7 @@ export default function HomePage() {
                       shouldShowResults={false}
                       onViewPick={() => { }}
                       variant="hot"
+                      userChoice={userChoices[mainMission.id]}
                     />
                   </div>
                 </div>
@@ -949,6 +947,7 @@ export default function HomePage() {
                       setIsPickViewModalOpen(true)
                     }}
                     variant={index === 0 && !mainMission && currentPage === 1 ? "hot" : "default"} // 메인 미션이 있으면 리스트 첫번째는 hot 아님
+                    userChoice={userChoices[mission.id]}
                   />
                 </div>
               ))

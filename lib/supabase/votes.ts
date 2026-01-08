@@ -369,6 +369,54 @@ export async function hasUserVoted(userId: string, missionId: string): Promise<b
 }
  
  
+// 특정 유저의 여러 미션에 대한 투표 내역을 한꺼번에 조회
+export async function getUserVotesMap(userId: string, missionIds: string[]): Promise<Record<string, any>> {
+  if (!userId || !missionIds.length) return {}
+
+  const supabase = createClient()
+  const votesMap: Record<string, any> = {}
+
+  // 1. t_pickresult1 (일반 미션) 조회
+  const { data: votes1, error: error1 } = await supabase
+    .from("t_pickresult1")
+    .select("f_mission_id, f_selected_option")
+    .eq("f_user_id", userId)
+    .in("f_mission_id", missionIds)
+
+  if (!error1 && votes1) {
+    votes1.forEach(v => {
+      const selectedOption = typeof v.f_selected_option === 'string'
+        ? v.f_selected_option
+        : v.f_selected_option?.option || v.f_selected_option
+      votesMap[v.f_mission_id] = selectedOption
+    })
+  }
+
+  // 2. t_pickresult2 (커플 매칭) 조회
+  const { data: votes2, error: error2 } = await supabase
+    .from("t_pickresult2")
+    .select("f_mission_id, f_votes")
+    .eq("f_user_id", userId)
+    .in("f_mission_id", missionIds)
+
+  if (!error2 && votes2) {
+    votes2.forEach(v => {
+      // 커플매칭은 여러 에피소드가 있을 수 있으므로, 참여 여부만 저장하거나 
+      // 가장 최근 또는 첫 번째 에피소드 정보를 저장
+      const episodes = Object.keys(v.f_votes || {})
+      if (episodes.length > 0) {
+        votesMap[v.f_mission_id] = { 
+          type: 'match', 
+          episodeCount: episodes.length,
+          lastEpisode: Math.max(...episodes.map(Number))
+        }
+      }
+    })
+  }
+
+  return votesMap
+}
+
 // 특정 미션의 상위 투표자 조회 (포인트 기준)
 export async function getTopVotersByMission(missionId: string, limit: number = 3): Promise<Array<{
   nickname: string

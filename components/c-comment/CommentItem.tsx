@@ -126,7 +126,7 @@ export function CommentItem({
                         <div className="mt-3">
                             <CommentInput
                                 onSubmit={handleReplySubmit}
-                                placeholder={`@${comment.userNickname}님에게 답글...`}
+                                placeholder={`@${comment.userNickname}에게 답글...`}
                                 buttonLabel="게시"
                                 isLoading={isSubmitting}
                                 autoFocus

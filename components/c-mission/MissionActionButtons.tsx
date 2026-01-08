@@ -14,6 +14,7 @@ interface TMissionActionButtonsProps {
   className?: string
   mission?: TMission
   category?: TShowCategory
+  userChoice?: any
 }
 
 export function MissionActionButtons({
@@ -23,6 +24,7 @@ export function MissionActionButtons({
   className = "",
   mission,
   category,
+  userChoice,
 }: TMissionActionButtonsProps) {
   const theme = getThemeColors(category)
 
@@ -62,7 +64,7 @@ export function MissionActionButtons({
       ? `w-full ${theme.subBadgeBorder} ${theme.subBadgeText} ${theme.subBadge} hover:opacity-90 font-medium shadow-sm`
       : `w-full ${theme.iconBorder} ${theme.iconText} ${theme.iconBg} hover:opacity-90 font-medium shadow-sm`
 
-    const buttonText = isClosed ? "(마감) 결과보기" : "(진행중) 결과보기"
+    const buttonText = isClosed ? "결과보기" : "결과보기"
 
     return (
       <Link href={resultUrl} className="w-full flex">
@@ -71,6 +73,11 @@ export function MissionActionButtons({
           variant="outline"
           className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${buttonStyle} ${className}` : buttonStyle}`}
         >
+          {userChoice ? (
+            <span className="text-green-600 font-bold mr-1">✓ 참여함</span>
+          ) : (
+            isClosed ? "(마감) " : "(진행중) "
+          )}
           {buttonText}
         </Button>
       </Link>
@@ -103,7 +110,12 @@ export function MissionActionButtons({
           variant="outline"
           className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${closedButtonStyle} ${className}` : closedButtonStyle}`}
         >
-          (마감) 결과보기
+          {userChoice ? (
+            <span className="text-green-600 font-bold mr-1">✓ 참여함</span>
+          ) : (
+            "(마감) "
+          )}
+          결과보기
         </Button>
       </Link>
     )
@@ -116,7 +128,7 @@ export function MissionActionButtons({
         size="sm" 
         className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${pickButtonStyle} ${className}` : pickButtonStyle}`}
       >
-        (진행중) PICK하기
+        PICK하기
       </Button>
     </Link>
   )

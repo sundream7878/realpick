@@ -158,7 +158,7 @@ export function BottomNavigation({
                   className="flex flex-col items-center justify-center gap-0.5 py-2 px-1 rounded-lg transition-colors flex-1 min-w-0 text-gray-700 hover:bg-gray-50"
                 >
                   <Coins className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-[10px] font-bold text-yellow-600 whitespace-nowrap">
+                  <span className="text-[10px] font-bold text-yellow-600 whitespace-nowrap overflow-hidden text-ellipsis max-w-[60px]">
                     {isAuthenticated() && userPoints ? `${userPoints.toLocaleString()}P` : "포인트"}
                   </span>
                 </button>

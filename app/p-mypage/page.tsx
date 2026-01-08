@@ -49,6 +49,7 @@ export default function MyPage() {
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
+  const [userChoices, setUserChoices] = useState<Record<string, any>>({})
   const [createdMissions, setCreatedMissions] = useState<TMission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null)
@@ -192,6 +193,11 @@ export default function MyPage() {
       }
 
       if (participatedResult.success && participatedResult.missions) {
+        const participatedIds = participatedResult.missions.map((m: any) => m.f_id)
+        const { getUserVotesMap } = await import("@/lib/supabase/votes")
+        const choicesMap = await getUserVotesMap(userId, participatedIds)
+        setUserChoices(choicesMap)
+
         const participated: TMission[] = participatedResult.missions.map((mission: any) => ({
           id: mission.f_id,
           showId: mission.f_show_id,
@@ -1149,6 +1155,7 @@ export default function MyPage() {
                         shouldShowResults={shouldShowResults(mission)}
                         onViewPick={() => handleViewPick(mission)}
                         variant="default"
+                        userChoice={userChoices[mission.id]}
                       />
                     ))}
                   </div>

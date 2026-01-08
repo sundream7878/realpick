@@ -7,8 +7,13 @@ import { useNotifications } from "@/hooks/useNotifications"
 
 export function NotificationBell() {
     const [isOpen, setIsOpen] = useState(false)
-    const { unreadCount } = useNotifications()
+    const { unreadCount, markAllAsRead } = useNotifications()
     const containerRef = useRef<HTMLDivElement>(null)
+
+    // 알림창 토글
+    const handleToggle = () => {
+        setIsOpen(!isOpen)
+    }
 
     // 외부 클릭 시 닫기
     useEffect(() => {
@@ -30,7 +35,7 @@ export function NotificationBell() {
         <div className="relative" ref={containerRef}>
             {/* 종 아이콘 버튼 */}
             <button
-                onClick={() => setIsOpen(!isOpen)}
+                onClick={handleToggle}
                 className={`
                     relative p-2 rounded-full transition-all duration-200
                     ${isOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}

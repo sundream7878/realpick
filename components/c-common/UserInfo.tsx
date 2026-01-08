@@ -38,7 +38,7 @@ export function UserInfo({
       {showFullInfo && (
         <div className="hidden md:flex items-center gap-2 text-sm lg:text-base whitespace-nowrap">
           <span className="font-medium text-gray-900">
-            <span className="underline">{nickname}</span>님
+            <span className="underline">{nickname}</span>
           </span>
           <span
             className={`font-medium text-gray-900 flex items-center gap-0.5 ${onPointsClick ? "cursor-pointer hover:bg-amber-50 rounded-lg px-1.5 py-0.5 -mx-1.5 transition-colors" : ""}`}

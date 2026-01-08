@@ -323,7 +323,13 @@ export default function ProfilePage() {
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
           selectedShowId={selectedShowId}
-          onShowSelect={(showId) => setSelectedShowId(showId)}
+          onShowSelect={(showId) => {
+            if (showId) {
+              router.push(`/?show=${showId}`)
+            } else {
+              router.push("/")
+            }
+          }}
           showStatuses={showStatuses}
         />
 
@@ -446,7 +452,7 @@ export default function ProfilePage() {
                       </div>
 
                       <div className="space-y-2">
-                        <h2 className="text-2xl font-bold text-gray-800">{userNickname}님</h2>
+                        <h2 className="text-2xl font-bold text-gray-800">{userNickname}</h2>
                         <p className="text-gray-600">{userEmail}</p>
                         <div className="flex items-center justify-center gap-4 mt-4">
                           <div className="bg-gradient-to-r from-[#2C2745]/10 to-[#3E757B]/10 px-4 py-2 rounded-full">
@@ -532,25 +538,8 @@ export default function ProfilePage() {
                       <h3 className="text-lg font-semibold text-gray-800">이메일 알림</h3>
                     </div>
 
-                    {/* 이메일 알림 ON/OFF */}
-                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-3 border border-[#3E757B]/20">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Mail className="w-4 h-4 text-[#3E757B]" />
-                          <div>
-                            <p className="font-medium text-gray-900 text-sm">새 미션 알림</p>
-                            <p className="text-xs text-gray-600 mt-0.5">새 미션 등록 시 이메일</p>
-                          </div>
-                        </div>
-                        <Switch
-                          checked={emailNotification}
-                          onCheckedChange={setEmailNotification}
-                        />
-                      </div>
-                    </div>
-
                     {/* 미션 마감 알림 ON/OFF */}
-                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-6 border border-[#3E757B]/20">
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-3 border border-[#3E757B]/20">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Clock className="w-4 h-4 text-[#3E757B]" />
@@ -562,6 +551,23 @@ export default function ProfilePage() {
                         <Switch
                           checked={deadlineEmailNotification}
                           onCheckedChange={setDeadlineEmailNotification}
+                        />
+                      </div>
+                    </div>
+
+                    {/* 새 미션 알림 ON/OFF */}
+                    <div className="bg-gradient-to-r from-[#2C2745]/5 to-[#3E757B]/5 rounded-xl p-4 mb-6 border border-[#3E757B]/20">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Mail className="w-4 h-4 text-[#3E757B]" />
+                          <div>
+                            <p className="font-medium text-gray-900 text-sm">새 미션 알림</p>
+                            <p className="text-xs text-gray-600 mt-0.5">관심 카테고리의 새 미션 등록 시 이메일</p>
+                          </div>
+                        </div>
+                        <Switch
+                          checked={emailNotification}
+                          onCheckedChange={setEmailNotification}
                         />
                       </div>
                     </div>
@@ -639,7 +645,7 @@ export default function ProfilePage() {
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={handleSeasonSelect}
           onMissionModalOpen={() => { }}
-          activeNavItem="mypage"
+          activeNavItem={undefined}
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
           selectedShowId={selectedShowId}
         />

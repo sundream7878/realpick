@@ -83,7 +83,7 @@ export default function ProfileModal({ isOpen, onClose, nickname, onNicknameChan
               </div>
             ) : (
               <div className="flex items-center justify-between">
-                <span className="text-lg font-semibold text-gray-900">{nickname}님</span>
+                <span className="text-lg font-semibold text-gray-900">{nickname}</span>
                 <Button
                   size="sm"
                   variant="outline"

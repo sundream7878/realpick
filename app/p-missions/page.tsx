@@ -32,6 +32,7 @@ export default function MissionsPage() {
   const [missions, setMissions] = useState<TMission[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [votedMissions, setVotedMissions] = useState<Set<string>>(new Set())
+  const [userChoices, setUserChoices] = useState<Record<string, any>>({})
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const searchParams = useSearchParams()
@@ -132,26 +133,33 @@ export default function MissionsPage() {
 
         setMissions(combinedMissions)
 
-        // 5. 인증된 사용자의 경우 투표 여부 확인
+        // 5. 인증된 사용자의 경우 투표 여부 및 선택지 확인
         if (isAuthenticated()) {
-          const voted = new Set<string>()
-          for (const mission of combinedMissions) {
-            const hasVoted = await checkUserVoted(userId, mission.id)
-            if (hasVoted) {
-              voted.add(mission.id)
-            }
-          }
-          setVotedMissions(voted)
+          const { getUserVotesMap } = await import("@/lib/supabase/votes")
+          const missionIds = combinedMissions.map(m => m.id)
+          const choicesMap = await getUserVotesMap(userId, missionIds)
+          
+          setUserChoices(choicesMap)
+          setVotedMissions(new Set(Object.keys(choicesMap)))
         } else {
           // 비인증 사용자는 localStorage 확인
           const voted = new Set<string>()
+          const choices: Record<string, any> = {}
+          
           combinedMissions.forEach((mission) => {
             const localVote = localStorage.getItem(`rp_picked_${mission.id}`)
             if (localVote) {
               voted.add(mission.id)
+              try {
+                const parsed = JSON.parse(localVote)
+                choices[mission.id] = parsed.choice || parsed
+              } catch {
+                choices[mission.id] = localVote
+              }
             }
           })
           setVotedMissions(voted)
+          setUserChoices(choices)
         }
       } catch (error) {
         console.error("미션 로딩 실패:", error)
@@ -378,6 +386,7 @@ export default function MissionsPage() {
                     mission={mission}
                     shouldShowResults={shouldShowResults(mission.id)}
                     variant="default"
+                    userChoice={userChoices[mission.id]}
                   />
                 ))}
               </div>
