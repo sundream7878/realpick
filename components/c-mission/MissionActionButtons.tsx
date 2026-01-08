@@ -6,6 +6,7 @@ import { TMission } from "@/types/t-vote/vote.types"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
 import { TShowCategory } from "@/lib/constants/shows"
+import { Check } from "lucide-react"
 
 interface TMissionActionButtonsProps {
   missionId: string
@@ -71,14 +72,20 @@ export function MissionActionButtons({
         <Button
           size="sm"
           variant="outline"
-          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${buttonStyle} ${className}` : buttonStyle}`}
+          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${buttonStyle} ${className}` : buttonStyle} flex items-center gap-2`}
         >
-          {userChoice ? (
-            <span className="text-green-600 font-bold mr-1">✓ 참여함</span>
-          ) : (
-            isClosed ? "(마감) " : "(진행중) "
-          )}
-          {buttonText}
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] text-gray-600 font-medium">MY PICK</span>
+            <div className="relative">
+              <div className="w-3 h-3 border-2 border-gray-400 bg-white"></div>
+              {userChoice && (
+                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-green-500 font-bold stroke-[3] transform rotate-[-8deg]" />
+                </div>
+              )}
+            </div>
+          </div>
+          <span className="ml-2">{isClosed ? "(마감) " : "(진행중) "}{buttonText}</span>
         </Button>
       </Link>
     )
@@ -108,14 +115,20 @@ export function MissionActionButtons({
         <Button
           size="sm"
           variant="outline"
-          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${closedButtonStyle} ${className}` : closedButtonStyle}`}
+          className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${closedButtonStyle} ${className}` : closedButtonStyle} flex items-center gap-2`}
         >
-          {userChoice ? (
-            <span className="text-green-600 font-bold mr-1">✓ 참여함</span>
-          ) : (
-            "(마감) "
-          )}
-          결과보기
+          <div className="flex items-center gap-1">
+            <span className="text-[9px] text-gray-600 font-medium">MY PICK</span>
+            <div className="relative">
+              <div className="w-3 h-3 border-2 border-gray-400 bg-white"></div>
+              {userChoice && (
+                <div className="absolute -top-1.5 -right-1.5 w-5 h-5 flex items-center justify-center">
+                  <Check className="w-4 h-4 text-green-500 font-bold stroke-[3] transform rotate-[-8deg]" />
+                </div>
+              )}
+            </div>
+          </div>
+          <span className="ml-2">(마감) 결과보기</span>
         </Button>
       </Link>
     )

@@ -164,92 +164,79 @@ export default function DealerLoungePage() {
                 </div>
 
                 {/* My Stats Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-purple-100 rounded-lg text-purple-600">
-                                <Trophy className="w-6 h-6" />
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 mb-6">
+                    <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 sm:p-3 bg-purple-100 rounded-lg text-purple-600">
+                                <Trophy className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">내 랭킹</p>
-                                <p className="text-2xl font-bold text-gray-900">{rank}위</p>
+                                <p className="text-xs sm:text-sm text-gray-500">내 랭킹</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900">{rank}위</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-blue-100 rounded-lg text-blue-600">
-                                <Layout className="w-6 h-6" />
+                    <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 sm:p-3 bg-blue-100 rounded-lg text-blue-600">
+                                <Layout className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">생성한 미션</p>
-                                <p className="text-2xl font-bold text-gray-900">{myStat?.missionCount || 0}개</p>
+                                <p className="text-xs sm:text-sm text-gray-500">생성한 미션</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900">{myStat?.missionCount || 0}개</p>
                             </div>
                         </div>
                     </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <div className="flex items-center gap-4">
-                            <div className="p-3 bg-green-100 rounded-lg text-green-600">
-                                <Users className="w-6 h-6" />
+                    <div className="bg-white p-4 sm:p-5 rounded-xl shadow-sm border border-gray-100">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 sm:p-3 bg-green-100 rounded-lg text-green-600">
+                                <Users className="w-5 h-5 sm:w-6 sm:h-6" />
                             </div>
                             <div>
-                                <p className="text-sm text-gray-500">총 참여자 수</p>
-                                <p className="text-2xl font-bold text-gray-900">{myStat?.totalParticipants?.toLocaleString() || 0}명</p>
+                                <p className="text-xs sm:text-sm text-gray-500">총 참여자 수</p>
+                                <p className="text-xl sm:text-2xl font-bold text-gray-900">{myStat?.totalParticipants?.toLocaleString() || 0}명</p>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                {/* Charts Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                    {/* Participants Chart */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-900 mb-6">딜러별 총 참여자 수</h3>
-                        <div className="h-[400px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="nickname" tick={{ fontSize: 12 }} interval={0} />
-                                    <YAxis />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                                    />
-                                    <Bar dataKey="totalParticipants" name="참여자 수" radius={[10, 10, 0, 0]} barSize={40}>
-                                        {stats.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#3b82f6' : '#cbd5e1'} />
-                                        ))}
-                                        <LabelList dataKey="totalParticipants" position="top" fill="#64748b" fontSize={12} formatter={(value: number) => value.toLocaleString()} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
-                    </div>
-
-                    {/* Missions Chart */}
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                        <h3 className="text-lg font-bold text-gray-900 mb-6">딜러별 생성 미션 수</h3>
-                        <div className="h-[400px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                    <XAxis dataKey="nickname" tick={{ fontSize: 12 }} interval={0} />
-                                    <YAxis />
-                                    <Tooltip
-                                        contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
-                                        cursor={{ fill: 'rgba(0,0,0,0.05)' }}
-                                    />
-                                    <Bar dataKey="missionCount" name="미션 수" radius={[10, 10, 0, 0]} barSize={40}>
-                                        {stats.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={entry.id === currentUser?.id ? '#8b5cf6' : '#cbd5e1'} />
-                                        ))}
-                                        <LabelList dataKey="missionCount" position="top" fill="#64748b" fontSize={12} />
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
-                        </div>
+                {/* Combined Chart Section */}
+                <div className="bg-white p-4 sm:p-6 rounded-xl shadow-sm border border-gray-100">
+                    <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 sm:mb-6">딜러별 통계</h3>
+                    <div className="h-[300px] sm:h-[400px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={stats} margin={{ top: 20, right: 30, left: 20, bottom: 60 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                                <XAxis 
+                                    dataKey="nickname" 
+                                    tick={{ fontSize: 10 }} 
+                                    interval={0}
+                                    angle={-45}
+                                    textAnchor="end"
+                                    height={80}
+                                />
+                                <YAxis yAxisId="left" />
+                                <YAxis yAxisId="right" orientation="right" />
+                                <Tooltip
+                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}
+                                    cursor={{ fill: 'rgba(0,0,0,0.05)' }}
+                                />
+                                <Bar yAxisId="left" dataKey="totalParticipants" name="총 참여자 수" radius={[10, 10, 0, 0]} barSize={30} fill="#3b82f6">
+                                    {stats.map((entry, index) => (
+                                        <Cell key={`cell-participants-${index}`} fill={entry.id === currentUser?.id ? '#3b82f6' : '#93c5fd'} />
+                                    ))}
+                                    <LabelList dataKey="totalParticipants" position="top" fill="#64748b" fontSize={10} formatter={(value: number) => value.toLocaleString()} />
+                                </Bar>
+                                <Bar yAxisId="right" dataKey="missionCount" name="생성 미션 수" radius={[10, 10, 0, 0]} barSize={30} fill="#8b5cf6">
+                                    {stats.map((entry, index) => (
+                                        <Cell key={`cell-missions-${index}`} fill={entry.id === currentUser?.id ? '#8b5cf6' : '#c4b5fd'} />
+                                    ))}
+                                    <LabelList dataKey="missionCount" position="top" fill="#64748b" fontSize={10} />
+                                </Bar>
+                            </BarChart>
+                        </ResponsiveContainer>
                     </div>
                 </div>
                     </div>

@@ -387,22 +387,22 @@ export default function VotePage({ params }: { params: { id: string } }) {
               </div>
 
               {/* 하단 액션 버튼 */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-6 pb-10 max-w-xl mx-auto">
+              <div className="flex flex-row items-center justify-center gap-1.5 sm:gap-3 pt-6 pb-10 max-w-xl mx-auto px-2 sm:px-4">
                 <Button
-                  size="lg"
-                  className="flex-1 w-full px-6 py-4 text-base font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
+                  size="sm"
+                  className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
                   onClick={() => setIsShareModalOpen(true)}
                 >
-                  <Share2 className="w-4 h-4 mr-2" />
-                  결과 공유하기
+                  <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                  <span className="truncate">결과 공유하기</span>
                 </Button>
                 <Button
-                  size="lg"
+                  size="sm"
                   variant="outline"
-                  className="flex-1 w-full px-6 py-4 text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
+                  className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
                   onClick={() => router.back()}
                 >
-                  다른 미션 보기
+                  <span className="truncate">다른 미션 보기</span>
                 </Button>
               </div>
             </div>

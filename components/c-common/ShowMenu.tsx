@@ -204,9 +204,10 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={toggleMenu}
                 className={`
-          relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-1.5 sm:px-2 md:px-3 py-0.5 sm:py-0.5 md:py-1 rounded-lg font-medium
+          relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-1.5 sm:px-2 md:px-3 py-1 sm:py-0.5 md:py-1 rounded-lg font-medium
           transition-all duration-200
           min-w-[50px] sm:min-w-[60px] md:min-w-[75px] lg:min-w-[85px]
+          h-9 sm:h-auto
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md"
