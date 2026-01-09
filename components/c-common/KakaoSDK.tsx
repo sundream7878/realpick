@@ -31,7 +31,6 @@ export function KakaoSDK() {
   return (
     <Script
       src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
-      integrity="sha384-TiCUE00h+VjkzKvGLjnbqhxM5z/LShKc+gHuBjkVt7WHKSAeDmN5a2GJ8oGMZvD/"
       crossOrigin="anonymous"
       strategy="afterInteractive"
       onLoad={() => {

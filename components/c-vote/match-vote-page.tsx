@@ -41,22 +41,7 @@ interface DragState {
   ghostLine: { startX: number; startY: number; endX: number; endY: number } | null
 }
 
-const previousSeasonResults = [
-  { season: "26기", couples: ["민수-영숙", "광수-영순", "준호-영자"] },
-  { season: "25기", couples: ["민수-지은", "영현-혜린", "준호-영연"] },
-  { season: "24기", couples: ["영철-영숙", "영철-미정", "영식-영순"] },
-]
-
-const mockAggregatedResults = [
-  { left: "민수", right: "영순", count: 245, percentage: 42 },
-  { left: "준호", right: "영숙", count: 198, percentage: 34 },
-  { left: "영철", right: "영자", count: 156, percentage: 27 },
-  { left: "광수", right: "영자", count: 134, percentage: 23 },
-  { left: "영식", right: "영순", count: 89, percentage: 15 },
-  { left: "영철", right: "영숙", count: 67, percentage: 12 },
-]
-
-// 목업데이터 제거 - 실제 DB 데이터 사용
+// 실제 DB 데이터 사용
 
 export function MatchVotePage({ mission }: MatchVotePageProps) {
   const [selectedEpisodes, setSelectedEpisodes] = useState<Set<number>>(new Set())
@@ -786,14 +771,26 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         pairs: pairs
       })
 
-      // DB에 커플매칭 투표 제출
-      const voteSuccess = await submitVote2({
+      // DB에 커플매칭 투표 제출 (타임아웃 15초로 단축)
+      console.log("🚀 투표 제출 시작...")
+      
+      const votePromise = submitVote2({
         missionId: mission.id,
         userId: currentUserId,
         pairs,
         episodeNo: currentEpisode,
         submittedAt: new Date().toISOString(),
       })
+      
+      const timeoutPromise = new Promise<boolean>((_, reject) => 
+        setTimeout(() => {
+          console.log("⏰ 투표 제출 타임아웃 (15초)")
+          reject(new Error("투표 제출 시간 초과 (15초). 네트워크 연결을 확인해주세요."))
+        }, 15000)
+      )
+      
+      const voteSuccess = await Promise.race([votePromise, timeoutPromise])
+      console.log("✅ 투표 제출 결과:", voteSuccess)
 
       if (!voteSuccess) {
         throw new Error("투표 제출 실패")
@@ -863,13 +860,24 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       setShowSubmissionSheet(false)
     } catch (error) {
-      console.error("제출 에러:", error)
+      console.error("❌ 제출 에러:", error)
+      
+      let errorMessage = "제출 중 오류가 발생했습니다."
+      if (error instanceof Error) {
+        if (error.message.includes("시간 초과")) {
+          errorMessage = "네트워크 연결이 불안정합니다. 잠시 후 다시 시도해주세요."
+        } else {
+          errorMessage = error.message
+        }
+      }
+      
       toast({
         title: "제출 실패",
-        description: error instanceof Error ? error.message : "제출 중 오류가 발생했습니다.",
+        description: errorMessage,
         variant: "destructive",
       })
     } finally {
+      console.log("🔄 투표 제출 완료 - isSubmitting을 false로 설정")
       setIsSubmitting(false)
     }
   }
@@ -1017,27 +1025,6 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
             <BarChart3 className="w-4 h-4" />
             실시간 결과
           </Button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" size="sm" className="gap-2 bg-transparent">
-                이전 기수 결과
-                <ChevronDown className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-64">
-              {previousSeasonResults.map((season) => (
-                <DropdownMenuItem key={season.season} className="flex flex-col items-start py-3">
-                  <div className="font-semibold text-sm mb-1">{season.season}</div>
-                  <div className="text-xs text-muted-foreground space-y-1">
-                    {season.couples.map((couple, idx) => (
-                      <div key={idx}>- {couple}</div>
-                    ))}
-                  </div>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
         </div>
       </div>
 

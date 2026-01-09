@@ -60,40 +60,24 @@ export function useNotifications() {
 
         const supabase = createClient()
         
-        // Realtime 구독
+        // Realtime 구독 임시 비활성화 (성능 최적화)
+        console.log("[Notifications] Realtime 구독 임시 비활성화됨")
+        
+        // 빈 클린업 함수 반환
+        return () => {
+            // 클린업 없음
+        }
+        
+        /* 기존 Realtime 구독 코드 임시 주석 처리
         const channel = supabase
             .channel(`user-notifications-${userId}`)
-            .on(
-                'postgres_changes',
-                {
-                    event: '*',
-                    schema: 'public',
-                    table: 't_notifications',
-                    filter: `f_user_id=eq.${userId}`
-                },
-                (payload) => {
-                    console.log('Notification change detected:', payload)
-                    if (payload.eventType === 'INSERT') {
-                        // 새로운 알림이 오면 목록 새로고침
-                        fetchNotifications()
-                        // 브라우저 기본 알림 (선택사항)
-                        if (Notification.permission === 'granted') {
-                            new Notification(payload.new.f_title, {
-                                body: payload.new.f_content,
-                                icon: '/realpick-logo-new.png'
-                            })
-                        }
-                    } else {
-                        // 수정/삭제 시에도 목록 새로고침
-                        fetchNotifications()
-                    }
-                }
-            )
+            .on('postgres_changes', ...)
             .subscribe()
 
         return () => {
             supabase.removeChannel(channel)
         }
+        */
     }, [userId])
 
     const markAsRead = async (notificationId: string) => {

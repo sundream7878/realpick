@@ -58,95 +58,34 @@ export function useNewMissionNotifications() {
         }
         window.addEventListener('mark-missions-as-read', handleMarkAsRead)
 
+        // 임시로 Realtime 구독 비활성화 (성능 문제 해결을 위해)
+        console.log("[Realtime] 임시로 비활성화됨 - 성능 최적화를 위해")
+        
+        // 클린업만 반환
+        return () => {
+            window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
+        }
+        
+        /* 기존 Realtime 코드 임시 주석 처리
         const supabase = createClient()
         
         // Realtime 연결 상태 확인
         console.log("[Realtime] Supabase 클라이언트 초기화 완료")
 
-        // 고유한 채널 이름 생성 (타임스탬프 기반으로 충돌 방지)
+        // 기존 Realtime 구독 코드 임시 주석 처리
+        /*
         const channelId1 = `mission1-inserts-${Date.now()}`
         const channelId2 = `mission2-inserts-${Date.now()}`
 
-        // t_missions1 INSERT 이벤트 구독
-        const channel1 = supabase
-            .channel(channelId1)
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "t_missions1"
-                },
-                (payload) => {
-                    console.log("[Realtime] 새 미션 생성 감지 (t_missions1):", payload.new)
-                    const newMission = payload.new as any
-
-                    // 읽지 않은 미션 목록에 추가
-                    const currentUnread = getUnreadMissions()
-                    const updated = [...currentUnread, newMission.f_id]
-                    const uniqueIds = Array.from(new Set(updated))
-                    setUnreadMissions(uniqueIds)
-                    setUnreadMissionIds(uniqueIds)
-
-                    // 토스트 알림 (선택사항)
-                    console.log(`🔔 새 미션: ${newMission.f_title}`)
-                }
-            )
-            .subscribe((status, err) => {
-                console.log("[Realtime] t_missions1 구독 상태:", status, "채널:", channelId1)
-                if (err) {
-                    console.error("[Realtime] t_missions1 구독 에러:", err)
-                }
-                if (status === "SUBSCRIBED") {
-                    console.log("✅ t_missions1 구독 성공!")
-                } else if (status === "TIMED_OUT" || status === "CLOSED") {
-                    console.warn("[Realtime] t_missions1 구독이 종료되었습니다. 상태:", status)
-                }
-            })
-
-        // t_missions2 INSERT 이벤트 구독
-        const channel2 = supabase
-            .channel(channelId2)
-            .on(
-                "postgres_changes",
-                {
-                    event: "INSERT",
-                    schema: "public",
-                    table: "t_missions2"
-                },
-                (payload) => {
-                    console.log("[Realtime] 새 미션 생성 감지 (t_missions2):", payload.new)
-                    const newMission = payload.new as any
-
-                    // 읽지 않은 미션 목록에 추가
-                    const currentUnread = getUnreadMissions()
-                    const updated = [...currentUnread, newMission.f_id]
-                    const uniqueIds = Array.from(new Set(updated))
-                    setUnreadMissions(uniqueIds)
-                    setUnreadMissionIds(uniqueIds)
-
-                    // 토스트 알림 (선택사항)
-                    console.log(`🔔 새 미션: ${newMission.f_title}`)
-                }
-            )
-            .subscribe((status, err) => {
-                console.log("[Realtime] t_missions2 구독 상태:", status, "채널:", channelId2)
-                if (err) {
-                    console.error("[Realtime] t_missions2 구독 에러:", err)
-                }
-                if (status === "SUBSCRIBED") {
-                    console.log("✅ t_missions2 구독 성공!")
-                } else if (status === "TIMED_OUT" || status === "CLOSED") {
-                    console.warn("[Realtime] t_missions2 구독이 종료되었습니다. 상태:", status)
-                }
-            })
-
-        // 클린업
+        const channel1 = supabase.channel(channelId1)...
+        const channel2 = supabase.channel(channelId2)...
+        
         return () => {
             supabase.removeChannel(channel1)
             supabase.removeChannel(channel2)
             window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
         }
+        */
     }, [])
 
     /**

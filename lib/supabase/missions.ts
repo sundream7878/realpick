@@ -724,26 +724,38 @@ export async function submitMatchMissionAnswer(
   connections: any[]
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log("🚀 커플매칭 투표 시작:", { userId, missionId, episodeNo, connections })
     const supabase = createClient()
 
     // 1. 기존 투표 내역 조회
+    console.log("📊 기존 투표 조회 중...")
+    const startTime = Date.now()
     const { data: existing, error: fetchError } = await supabase
       .from("t_pickresult2")
       .select("f_votes")
       .eq("f_user_id", userId)
       .eq("f_mission_id", missionId)
       .maybeSingle()
+    
+    console.log(`⏱️ 기존 투표 조회 완료: ${Date.now() - startTime}ms`)
 
-    if (fetchError) throw fetchError
+    if (fetchError) {
+      console.error("❌ 기존 투표 조회 실패:", fetchError)
+      throw fetchError
+    }
 
     // 2. votes JSON 업데이트
+    console.log("🔄 JSON 데이터 업데이트 중...")
     const currentVotes = existing?.f_votes || {}
     currentVotes[episodeNo.toString()] = {
       connections: connections,
       submittedAt: new Date().toISOString()
     }
+    console.log("📝 업데이트된 투표 데이터:", currentVotes)
 
     // 3. UPSERT 실행
+    console.log("💾 데이터베이스 저장 중...")
+    const upsertStartTime = Date.now()
     const { error: upsertError } = await supabase
       .from("t_pickresult2")
       .upsert({
@@ -752,17 +764,28 @@ export async function submitMatchMissionAnswer(
         f_votes: currentVotes,
         f_updated_at: new Date().toISOString()
       }, { onConflict: 'f_user_id, f_mission_id' })
+    
+    console.log(`⏱️ 데이터베이스 저장 완료: ${Date.now() - upsertStartTime}ms`)
 
-    if (upsertError) throw upsertError
+    if (upsertError) {
+      console.error("❌ 데이터베이스 저장 실패:", upsertError)
+      throw upsertError
+    }
 
     // 4. 참여자 수 증가 (처음 투표하는 경우에만)
     if (!existing) {
+      console.log("👥 참여자 수 증가 중...")
+      const participantStartTime = Date.now()
       await incrementMissionParticipants2(missionId)
+      console.log(`⏱️ 참여자 수 증가 완료: ${Date.now() - participantStartTime}ms`)
+    } else {
+      console.log("✅ 기존 투표 업데이트 (참여자 수 증가 생략)")
     }
 
+    console.log("🎉 커플매칭 투표 완료!")
     return { success: true }
   } catch (error) {
-    console.error("커플 매칭 투표 제출 실패:", error)
+    console.error("❌ 커플 매칭 투표 제출 실패:", error)
     return { success: false, error: "투표 제출에 실패했습니다." }
   }
 }
