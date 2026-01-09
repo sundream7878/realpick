@@ -43,150 +43,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [selectedShowId, setSelectedShowId] = useState<string>("nasolo")
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
-  const [userVote, setUserVote] = useState<TVoteSubmission | null>(null)
-  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  const [isAdminUser, setIsAdminUser] = useState(false)
-  const [userRole, setUserRole] = useState<string>("")
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
-  const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
-  const userId = getUserId()
-
-  useEffect(() => {
-    // 미션 읽음 처리
-    window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
-      detail: { missionIds: [params.id] }
-    }))
-  }, [params.id])
-
-  useEffect(() => {
-    const loadData = async () => {
-      setIsLoading(true)
-      try {
-        // 1. 유저 정보 로드
-        if (userId) {
-          const user = await getUser(userId)
-          if (user) {
-            setUserNickname(user.nickname)
-            setUserPoints(user.points)
-            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-            setUserRole(user.role || "")
-            const adminCheck = isAdmin(user.role)
-            console.log("User role:", user.role, "Is admin:", adminCheck, "User object:", user)
-            setIsAdminUser(adminCheck)
-          } else {
-            console.log("User not found for userId:", userId)
-          }
-        } else {
-          console.log("No userId found")
-        }
-
-        // 2. 미션 정보 로드 (순차적 시도)
-        // 먼저 일반 미션(mission1)에서 찾기
-        let missionData: any = null
-        let missionType = "mission1"
-
-        const result1 = await getMission(params.id)
-        if (result1.success && result1.mission) {
-          missionData = result1.mission
-        } else {
-          // 없으면 커플 매칭(mission2)에서 찾기
-          const result2 = await getMission2(params.id)
-          if (result2.success && result2.mission) {
-            missionData = result2.mission
-            missionType = "mission2"
-          }
-        }
-
-        if (!missionData) {
-          console.error("미션을 찾을 수 없습니다.")
-          // router.push("/p-missions") // 에러 페이지로 이동하거나 목록으로 이동
-          return
-        }
-
-        // 3. TMission 타입으로 변환
-        const mappedMission: TMission = {
-          id: missionData.f_id,
-          title: missionData.f_title,
-          description: missionData.f_description,
-          kind: missionData.f_kind,
-          form: missionType === "mission2" ? "match" : (missionData.f_form === "subjective" ? "multi" : missionData.f_form),
-          submissionType: missionData.f_form === "subjective" ? "text" : (missionData.f_submission_type || "selection"),
-          requiredAnswerCount: missionData.f_required_answer_count || 1,
-          seasonType: missionData.f_season_type || "전체",
-          seasonNumber: missionData.f_season_number,
-          options: missionData.f_options || missionData.f_match_pairs,
-          deadline: missionData.f_deadline,
-          revealPolicy: missionData.f_reveal_policy,
-          status: missionData.f_status,
-          episodes: missionData.f_total_episodes,
-          episodeStatuses: missionData.f_episode_statuses,
-          finalAnswer: missionData.f_final_answer,
-          stats: {
-            participants: missionData.f_stats_participants || 0,
-            totalVotes: missionData.f_stats_total_votes || 0
-          },
-          result: {
-            distribution: missionData.f_option_vote_counts || {},
-            correctAnswer: missionData.f_correct_answer,
-            majorityOption: missionData.f_majority_option,
-            finalAnswer: missionData.f_final_answer,
-            totalVotes: missionData.f_stats_total_votes || 0
-          },
-          creatorNickname: missionData.creator?.f_nickname,
-          creatorTier: missionData.creator?.f_tier,
-          createdAt: missionData.f_created_at,
-
-          thumbnailUrl: missionData.f_thumbnail_url,
-          referenceUrl: missionData.f_reference_url,
-          imageUrl: missionData.f_image_url,
-          subjectivePlaceholder: missionData.f_subjective_placeholder,
-          showId: missionData.f_show_id,
-          category: missionData.f_category
-        }
-
-        setMission(mappedMission)
-        if (mappedMission.showId) {
-          setSelectedShowId(mappedMission.showId)
-        }
-
-        // 마감된 미션이면 결과 페이지로 이동
-        const isClosed = mappedMission.deadline ? isDeadlinePassed(mappedMission.deadline) : mappedMission.status === "settled"
-        if (isClosed) {
-          router.replace(`/p-mission/${params.id}/results`)
-          return
-        }
-
-        // 4. 투표 정보 로드 (로그인한 경우)
-        if (userId) {
-          if (mappedMission.form === "match") {
-            const votes = await getAllVotes2(userId, params.id)
-            if (votes.length > 0) {
-              setUserVote(votes[0])
-            }
-          } else {
-            const vote = await getVote1(userId, params.id)
-            if (vote) {
-              setUserVote(vote)
-            }
-          }
-        }
-
-      } catch (error) {
-        console.error("데이터 로딩 실패:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    loadData()
-  }, [params.id, userId])
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
     return cleanup
   }, [])
 

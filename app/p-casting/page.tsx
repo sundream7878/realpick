@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
@@ -29,55 +30,18 @@ export default function CastingPage() {
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
     const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+    // Show Statuses, Visibility, Custom Shows Fetching & Sync
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
-
-    // URL의 show 파라미터 동기화
-    useEffect(() => {
-        const showParam = searchParams.get('show')
-        setSelectedShowId(showParam)
-    }, [searchParams])
-
-    // 유저 정보
-    const [userNickname, setUserNickname] = useState("")
-    const [userPoints, setUserPoints] = useState(0)
-    const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-
-    // 유저 데이터 로드
-    useEffect(() => {
-        const loadUserData = async () => {
-            if (isAuthenticated()) {
-                const currentUserId = getUserId()
-                if (currentUserId) {
-                    try {
-                        const user = await getUser(currentUserId)
-                        if (user) {
-                            setUserNickname(user.nickname)
-                            setUserPoints(user.points)
-                            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-                        }
-                    } catch (error) {
-                        console.error("유저 데이터 로딩 실패:", error)
-                    }
-                }
-            } else {
-                setUserNickname("")
-                setUserPoints(0)
-                setUserTier(getTierFromPoints(0))
-            }
-        }
-
-        loadUserData()
-
-        const handleAuthChange = () => {
-            loadUserData()
-        }
-        window.addEventListener('auth-change', handleAuthChange)
-        return () => window.removeEventListener('auth-change', handleAuthChange)
-    }, [])
+    const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+    const [customShows, setCustomShows] = useState<any[]>([])
 
     useEffect(() => {
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-        const cleanup = setupShowStatusSync(setShowStatuses)
+        const cleanup = setupShowStatusSync(
+            setShowStatuses,
+            setShowVisibility,
+            setCustomShows
+        )
         return cleanup
     }, [])
 
@@ -154,7 +118,7 @@ export default function CastingPage() {
                     showStatuses={showStatuses}
                 />
 
-                <main className="flex-1 p-4 md:pl-72">
+                <main className="flex-1 p-4 md:pl-72 pb-32 md:pb-16">
                     {/* 타이틀 섹션 */}
                     <div className="mb-6">
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
@@ -313,10 +277,13 @@ export default function CastingPage() {
                     </div>
                 </main>
 
-                <BottomNavigation
-                    onMissionClick={() => setIsMissionModalOpen(true)}
-                    onStatusClick={() => setIsMissionStatusOpen(true)}
-                />
+                <div className="fixed bottom-0 left-0 right-0 z-50">
+                    <BottomNavigation
+                        onMissionClick={() => setIsMissionModalOpen(true)}
+                        onStatusClick={() => setIsMissionStatusOpen(true)}
+                    />
+                    <BannerAd />
+                </div>
 
                 <SidebarNavigation
                     selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}

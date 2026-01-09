@@ -9,6 +9,7 @@ import { Switch } from "@/components/c-ui/switch"
 import { Edit2, LogOut, UserX, Bell, Mail, Clock } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { isAuthenticated, getUserId } from "@/lib/auth-utils"
 import { logout } from "@/lib/auth-api"
@@ -27,105 +28,18 @@ export default function ProfilePage() {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
-
-  const [userNickname, setUserNickname] = useState("")
-  const [userEmail, setUserEmail] = useState("")
-  const [userPoints, setUserPoints] = useState(0)
-  const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
-
-  const [isEditing, setIsEditing] = useState(false)
-  const [editedNickname, setEditedNickname] = useState(userNickname)
-  const [isSaving, setIsSaving] = useState(false)
-  const [isLoading, setIsLoading] = useState(true)
-
-  // 알림 설정
-  const [emailNotification, setEmailNotification] = useState(true)
-  const [deadlineEmailNotification, setDeadlineEmailNotification] = useState(true)
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(['LOVE', 'VICTORY', 'STAR'])
-  const [isSavingNotification, setIsSavingNotification] = useState(false)
-
-  // URL 쿼리 파라미터 동기화
-  useEffect(() => {
-    const showParam = searchParams.get('show')
-    setSelectedShowId(showParam)
-  }, [searchParams])
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/")
-    } else {
-      setIsLoading(false)
-    }
-  }, [router])
-
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (isAuthenticated()) {
-        const currentUserId = getUserId()
-        if (currentUserId) {
-          try {
-            const user = await getUser(currentUserId)
-            if (user) {
-              setUserNickname(user.nickname)
-              setUserEmail(user.email)
-              setUserPoints(user.points)
-              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-              setEditedNickname(user.nickname)
-            }
-
-            // 알림 설정 로드
-            const supabase = createClient()
-            const { data: prefs } = await supabase
-              .from('t_notification_preferences')
-              .select('*')
-              .eq('f_user_id', currentUserId)
-              .single()
-
-            if (prefs) {
-              setEmailNotification(prefs.f_email_enabled)
-              setDeadlineEmailNotification(prefs.f_deadline_email_enabled ?? true)
-              setSelectedCategories(prefs.f_categories || [])
-            }
-          } catch (error) {
-            console.error("유저 데이터 로딩 실패:", error)
-            if (typeof window !== "undefined") {
-              const email = localStorage.getItem("rp_user_email")
-              const nickname = localStorage.getItem("rp_user_nickname")
-              if (email) setUserEmail(email)
-              if (nickname) {
-                setUserNickname(nickname)
-                setEditedNickname(nickname)
-              }
-            }
-          }
-        }
-      } else {
-        setUserNickname("")
-        setUserEmail("")
-        setUserPoints(0)
-        setUserTier(getTierFromPoints(0))
-      }
-    }
-
-    loadUserData()
-
-    const handleAuthChange = () => {
-      loadUserData()
-    }
-
-    window.addEventListener("auth-change", handleAuthChange)
-    window.addEventListener("storage", handleAuthChange)
-
-    return () => {
-      window.removeEventListener("auth-change", handleAuthChange)
-      window.removeEventListener("storage", handleAuthChange)
-    }
-  }, [])
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
     return cleanup
   }, [])
 
@@ -333,7 +247,7 @@ export default function ProfilePage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col-reverse lg:flex-row gap-8">
               <div className="flex-1 space-y-6">
@@ -636,7 +550,10 @@ export default function ProfilePage() {
           </div>
         </main>
 
-        <BottomNavigation />
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation />
+          <BannerAd />
+        </div>
 
         <SidebarNavigation
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}

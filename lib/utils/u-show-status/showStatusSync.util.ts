@@ -4,45 +4,68 @@
  */
 
 export function setupShowStatusSync(
-  setShowStatuses: (statuses: Record<string, string>) => void
+  setShowStatuses: (statuses: Record<string, string>) => void,
+  setShowVisibility?: (visibility: Record<string, boolean>) => void,
+  setCustomShows?: (shows: any[]) => void
 ): () => void {
-  const loadShowStatuses = () => {
+  const loadData = () => {
     fetch('/api/public/shows')
       .then(res => res.json())
-      .then(data => setShowStatuses(data.statuses || {}))
-      .catch(err => console.error("Failed to fetch show statuses", err))
+      .then(data => {
+        if (data.statuses) setShowStatuses(data.statuses)
+        if (data.visibility && setShowVisibility) setShowVisibility(data.visibility)
+        if (data.customShows && setCustomShows) setCustomShows(data.customShows)
+      })
+      .catch(err => console.error("Failed to fetch show data", err))
   }
   
-  loadShowStatuses()
+  loadData()
 
-  // 현재 탭에서의 커스텀 이벤트 리스너
+  // 상태 업데이트 핸들러
   const handleStatusUpdate = (event: any) => {
     const { statuses } = event.detail || {}
-    if (statuses) {
-      setShowStatuses(statuses)
-    }
+    if (statuses) setShowStatuses(statuses)
   }
 
-  // 다른 탭에서의 localStorage 변경 감지
+  // 가시성 업데이트 핸들러
+  const handleVisibilityUpdate = (event: any) => {
+    const { visibility } = event.detail || {}
+    if (visibility && setShowVisibility) setShowVisibility(visibility)
+  }
+
+  // 커스텀 프로그램 업데이트 핸들러
+  const handleCustomShowsUpdate = (event: any) => {
+    const { shows } = event.detail || {}
+    if (shows && setCustomShows) setCustomShows(shows)
+  }
+
+  // localStorage 변경 감지 (다른 탭)
   const handleStorageChange = (event: StorageEvent) => {
-    if (event.key === 'show-statuses-update' && event.newValue) {
-      try {
-        const data = JSON.parse(event.newValue)
-        if (data.statuses) {
-          setShowStatuses(data.statuses)
-        }
-      } catch (err) {
-        console.error("Failed to parse show statuses update", err)
+    if (!event.newValue) return
+
+    try {
+      const data = JSON.parse(event.newValue)
+      if (event.key === 'show-statuses-update' && data.statuses) {
+        setShowStatuses(data.statuses)
+      } else if (event.key === 'show-visibility-update' && data.visibility && setShowVisibility) {
+        setShowVisibility(data.visibility)
+      } else if (event.key === 'custom-shows-update' && data.shows && setCustomShows) {
+        setCustomShows(data.shows)
       }
+    } catch (err) {
+      console.error("Failed to parse storage update", err)
     }
   }
 
   window.addEventListener('show-statuses-updated', handleStatusUpdate)
+  window.addEventListener('show-visibility-updated', handleVisibilityUpdate)
+  window.addEventListener('custom-shows-updated', handleCustomShowsUpdate)
   window.addEventListener('storage', handleStorageChange)
   
-  // cleanup 함수 반환
   return () => {
     window.removeEventListener('show-statuses-updated', handleStatusUpdate)
+    window.removeEventListener('show-visibility-updated', handleVisibilityUpdate)
+    window.removeEventListener('custom-shows-updated', handleCustomShowsUpdate)
     window.removeEventListener('storage', handleStorageChange)
   }
 }

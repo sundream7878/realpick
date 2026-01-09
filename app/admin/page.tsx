@@ -378,7 +378,23 @@ export default function AdminPage() {
                 // 목록 새로고침
                 const customShowsResult = await getCustomShows()
                 if (customShowsResult.success) {
-                    setCustomShows(customShowsResult.shows || [])
+                    const updatedShowsList = customShowsResult.shows || []
+                    setCustomShows(updatedShowsList)
+                    
+                    // 이벤트 발생 (다른 탭 동기화용)
+                    const timestamp = Date.now()
+                    localStorage.removeItem('custom-shows-update')
+                    setTimeout(() => {
+                        localStorage.setItem('custom-shows-update', JSON.stringify({
+                            shows: updatedShowsList,
+                            timestamp
+                        }))
+                    }, 10)
+                    
+                    // 현재 탭 동기화
+                    window.dispatchEvent(new CustomEvent('custom-shows-updated', {
+                        detail: { shows: updatedShowsList }
+                    }))
                 }
                 
                 // 폼 초기화
@@ -418,7 +434,23 @@ export default function AdminPage() {
                 // 목록 새로고침
                 const customShowsResult = await getCustomShows()
                 if (customShowsResult.success) {
-                    setCustomShows(customShowsResult.shows || [])
+                    const updatedShowsList = customShowsResult.shows || []
+                    setCustomShows(updatedShowsList)
+                    
+                    // 이벤트 발생 (다른 탭 동기화용)
+                    const timestamp = Date.now()
+                    localStorage.removeItem('custom-shows-update')
+                    setTimeout(() => {
+                        localStorage.setItem('custom-shows-update', JSON.stringify({
+                            shows: updatedShowsList,
+                            timestamp
+                        }))
+                    }, 10)
+                    
+                    // 현재 탭 동기화
+                    window.dispatchEvent(new CustomEvent('custom-shows-updated', {
+                        detail: { shows: updatedShowsList }
+                    }))
                 }
             } else {
                 throw new Error("삭제 실패")

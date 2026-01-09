@@ -4,6 +4,7 @@ import { ReactNode } from "react"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { SidebarNavigation } from "./SidebarNavigation"
 import { AppHeader } from "./AppHeader"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { getShowByName, TShowCategory } from "@/lib/constants/shows"
 
@@ -91,13 +92,18 @@ export function AppLayout({
         )}
 
         <main
-          className={`flex-1 px-4 lg:px-8 py-6 ${showSidebar ? "md:ml-64" : ""} max-w-full overflow-hidden pb-20 md:pb-6 ${mainClassName}`}
+          className={`flex-1 px-4 lg:px-8 py-6 ${showSidebar ? "md:ml-64" : ""} max-w-full overflow-hidden pb-32 md:pb-16 ${mainClassName}`}
         >
           {children}
         </main>
       </div>
 
-      {showBottomNav && <BottomNavigation />}
+      {showBottomNav && (
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation />
+          <BannerAd />
+        </div>
+      )}
     </div>
   )
 }

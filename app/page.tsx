@@ -7,6 +7,7 @@ import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-naviga
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import Onboarding from "@/components/c-onboarding/onboarding"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
@@ -407,11 +408,18 @@ export default function HomePage() {
   // 활성화된 프로그램 ID 목록 (미션이 있는 프로그램)
   const activeShowIds = new Set(missions.map(m => m.showId).filter(Boolean) as string[])
 
-  // Show Statuses Fetching
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
+  
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
     return cleanup
   }, [])
 
@@ -453,7 +461,7 @@ export default function HomePage() {
           
           {/* 카테고리 선택 시 미션 목록 표시 */}
           {selectedShowId && !isLoading ? (
-            <main className="flex-1 p-4 space-y-4 md:pl-72">
+            <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
               {/* 메인 미션 배너 */}
               {mainMission && (
                 <div
@@ -756,7 +764,7 @@ export default function HomePage() {
 
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 p-4 space-y-4 md:pl-72">
+        <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
           {/* 메인 미션 배너 */}
           {mainMission && (
             <div
@@ -1007,11 +1015,14 @@ export default function HomePage() {
           )}
         </main >
 
-        {/* 하단 네비게이션 */}
-        < BottomNavigation
-          onMissionClick={() => setIsMissionModalOpen(true)}
-          onStatusClick={() => setIsMissionStatusOpen(true)}
-        />
+        {/* 하단 네비게이션 및 배너 광고 */}
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation
+            onMissionClick={() => setIsMissionModalOpen(true)}
+            onStatusClick={() => setIsMissionStatusOpen(true)}
+          />
+          <BannerAd />
+        </div>
 
         {/* 사이드바 (햄버거 메뉴) */}
         <SidebarNavigation

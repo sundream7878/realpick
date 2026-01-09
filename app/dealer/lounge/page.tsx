@@ -9,6 +9,7 @@ import { Loader2, Trophy, Users, Layout, Crown } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import { getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getShowById } from "@/lib/constants/shows"
@@ -36,60 +37,18 @@ export default function DealerLoungePage() {
     const [selectedSeason, setSelectedSeason] = useState<string>("전체")
     const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
+    // Show Statuses, Visibility, Custom Shows Fetching & Sync
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
-
-    useEffect(() => {
-        const checkPermissionAndLoadData = async () => {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
-
-            if (!user) {
-                router.push("/login")
-                return
-            }
-
-            // Check role
-            const { data: userData } = await supabase
-                .from("t_users")
-                .select("f_role, f_nickname, f_points, f_tier")
-                .eq("f_id", user.id)
-                .single()
-
-            if (!userData || (userData.f_role !== 'DEALER' && userData.f_role !== 'MAIN_DEALER' && userData.f_role !== 'ADMIN')) {
-                router.push("/")
-                return
-            }
-
-            setCurrentUser({ ...user, ...userData })
-
-            // Fetch stats
-            try {
-                const res = await fetch('/api/dealer/stats')
-                const data = await res.json()
-
-                if (!res.ok) throw new Error(data.error || 'Failed to fetch stats')
-
-                setStats(data.stats)
-            } catch (err: any) {
-                console.error("Error loading dealer stats:", err)
-                setError(err.message)
-            } finally {
-                setLoading(false)
-            }
-        }
-
-        checkPermissionAndLoadData()
-    }, [router])
-
-    // URL 쿼리 파라미터 동기화
-    useEffect(() => {
-        const showParam = searchParams.get('show')
-        setSelectedShowId(showParam)
-    }, [searchParams])
+    const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+    const [customShows, setCustomShows] = useState<any[]>([])
 
     useEffect(() => {
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-        const cleanup = setupShowStatusSync(setShowStatuses)
+        const cleanup = setupShowStatusSync(
+            setShowStatuses,
+            setShowVisibility,
+            setCustomShows
+        )
         return cleanup
     }, [])
 
@@ -150,7 +109,7 @@ export default function DealerLoungePage() {
                     showStatuses={showStatuses}
                 />
 
-                <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+                <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
                     <div className="max-w-7xl mx-auto">
                 {/* Header */}
                 <div className="mb-6 sm:mb-8">
@@ -242,7 +201,10 @@ export default function DealerLoungePage() {
                     </div>
                 </main>
 
-                <BottomNavigation />
+                <div className="fixed bottom-0 left-0 right-0 z-50">
+                    <BottomNavigation />
+                    <BannerAd />
+                </div>
 
                 <SidebarNavigation
                     selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}

@@ -21,6 +21,7 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import { ResultCharacterPopup } from "@/components/c-result-character-popup/result-character-popup"
 import { getRandomComment } from "@/lib/utils/u-comment-generator/commentGenerator.util"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { CommentSection } from "@/components/c-comment/CommentSection"
@@ -98,128 +99,55 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isMyPicksModalOpen, setIsMyPicksModalOpen] = useState(false)
-  const userId = getUserId()
-  const [loading, setLoading] = useState(true)
-  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
-  const [isAdminUser, setIsAdminUser] = useState(false)
-  const [userRole, setUserRole] = useState<string>("")
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [isAdminUser, setIsAdminUser] = useState(false)
+  const [ranking, setRanking] = useState<any[]>([])
+  const userId = getUserId()
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
 
+  useEffect(() => {
+    const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
+    return cleanup
+  }, [])
+
+  // 시즌 선택 핸들러
   const handleSeasonSelect = (season: string) => {
     setSelectedSeason(season)
   }
 
-  const [ranking, setRanking] = useState<any[]>([])
-
+  // 사용자 정보 및 권한 확인
   useEffect(() => {
-    // 미션 읽음 처리
-    window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
-      detail: { missionIds: [params.id] }
-    }))
-  }, [params.id])
-
-  // 유저 데이터 로드
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (isAuthenticated()) {
-        const currentUserId = getUserId()
-        if (currentUserId) {
-          try {
-            const user = await getUser(currentUserId)
-            if (user) {
-              setUserNickname(user.nickname)
-              setUserPoints(user.points)
-              setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-              setUserRole(user.role || "")
-              const adminCheck = isAdmin(user.role)
-              console.log("User role:", user.role, "Is admin:", adminCheck, "User object:", user)
-              setIsAdminUser(adminCheck)
-            } else {
-              console.log("User not found for userId:", currentUserId)
-            }
-          } catch (error) {
-            console.error("유저 데이터 로딩 실패:", error)
+    const fetchUserInfo = async () => {
+      const currentUserId = getUserId()
+      if (currentUserId && isAuthenticated()) {
+        try {
+          const user = await getUser(currentUserId)
+          if (user) {
+            setUserNickname(user.nickname || "")
+            setUserPoints(user.points || 0)
+            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
+            setUserRole(user.role || null)
+            setIsAdminUser(isAdmin(user.role))
           }
+        } catch (error) {
+          console.error("사용자 정보 조회 실패:", error)
         }
-      } else {
-        // 비로그인 상태일 때 기본값
-        setUserNickname("")
-        setUserPoints(0)
-        setUserTier(getTierFromPoints(0))
       }
     }
-
-    loadUserData()
-
-    // 랭킹 데이터 로드 (커플 매칭 미션인 경우)
-    const loadRanking = async () => {
-      try {
-        const { createClient } = await import("@/lib/supabase/client")
-        const supabase = createClient()
-
-        // t_pickresult2에서 점수순으로 조회 (t_users 조인)
-        const { data, error } = await supabase
-          .from("t_pickresult2")
-          .select(`
-            f_user_id,
-            f_points_earned,
-            t_users (
-              f_nickname,
-              f_tier,
-              f_points
-            )
-          `)
-          .eq("f_mission_id", params.id)
-          .not("f_points_earned", "is", null)
-          .order("f_points_earned", { ascending: false })
-          .limit(20)
-
-        if (error) throw error
-
-        if (data) {
-          const formattedRanking = data.map((item: any) => {
-            // DB 티어와 포인트를 기반으로 정확한 티어 계산
-            const userTotalPoints = item.t_users?.f_points || 0
-            const dbTier = item.t_users?.f_tier
-            const calculatedTier = getTierFromDbOrPoints(dbTier, userTotalPoints)
-
-            return {
-              userId: item.f_user_id,
-              nickname: item.t_users?.f_nickname || "알 수 없음",
-              tier: calculatedTier.name,
-              points: item.f_points_earned
-            }
-          })
-          setRanking(formattedRanking)
-        }
-      } catch (error) {
-        console.error("랭킹 로딩 실패:", error)
-      }
-    }
-
-    loadRanking()
-
-    // 인증 상태 변경 감지
-    const handleAuthChange = () => {
-      loadUserData()
-    }
-
-    window.addEventListener("auth-change", handleAuthChange)
-    window.addEventListener("storage", handleAuthChange)
-
-    return () => {
-      window.removeEventListener("auth-change", handleAuthChange)
-      window.removeEventListener("storage", handleAuthChange)
-    }
-  }, [params.id])
-
-  useEffect(() => {
-    const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
-    return cleanup
+    fetchUserInfo()
   }, [])
 
   const handleDeleteMission = async () => {
@@ -596,7 +524,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             showStatuses={showStatuses}
           />
 
-          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Button
@@ -1029,7 +957,10 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
           </main >
         </div >
 
-        <BottomNavigation />
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation />
+          <BannerAd />
+        </div>
 
         <SidebarNavigation
           selectedShow={selectedShowId}

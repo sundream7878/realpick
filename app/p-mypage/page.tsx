@@ -13,6 +13,7 @@ import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-sys
 import type { TUserRole } from "@/lib/utils/permissions"
 import type { TMission, TMatchPairs } from "@/types/t-vote/vote.types"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
@@ -40,75 +41,18 @@ export default function MyPage() {
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
-  
-  // 필터 상태 추가
-  const [filterCategory, setFilterCategory] = useState<TShowCategory | "ALL">("ALL")
-  const [filterShowId, setFilterShowId] = useState<string>("ALL")
-
-  const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
-  const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
-  const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
-  const [userChoices, setUserChoices] = useState<Record<string, any>>({})
-  const [createdMissions, setCreatedMissions] = useState<TMission[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null)
-  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({})
-  const [matchAnswerDrafts, setMatchAnswerDrafts] = useState<Record<string, Array<{ left: string; right: string }>>>({})
-  const [matchPairSelections, setMatchPairSelections] = useState<Record<string, { left?: string; right?: string }>>({})
-  const [submittingMissionId, setSubmittingMissionId] = useState<string | null>(null)
-  const [editingMissionAnswers, setEditingMissionAnswers] = useState<Record<string, boolean>>({})
-
-  // Created Missions Tab State
-  const [createdTab, setCreatedTab] = useState<"predict" | "majority">("predict")
-  const [createdPage, setCreatedPage] = useState(1)
-  const ITEMS_PER_PAGE = 10
-  const userId = getUserId()
-  const { toast } = useToast()
-
-  // 유저 데이터 로드
-  useEffect(() => {
-    const loadUserData = async () => {
-      if (isAuthenticated() && userId) {
-        try {
-          const user = await getUser(userId)
-          if (user) {
-            setUserNickname(user.nickname)
-            setUserPoints(user.points)
-            setUserTier(getTierFromDbOrPoints(user.tier, user.points))
-            setUserRole(user.role as TUserRole)
-          }
-        } catch (error) {
-          console.error("유저 데이터 로딩 실패:", error)
-        }
-      }
-    }
-
-    loadUserData()
-
-    // 인증 상태 변경 감지
-    const handleAuthChange = () => {
-      loadUserData()
-    }
-
-    window.addEventListener("auth-change", handleAuthChange)
-    window.addEventListener("storage", handleAuthChange)
-
-    return () => {
-      window.removeEventListener("auth-change", handleAuthChange)
-      window.removeEventListener("storage", handleAuthChange)
-    }
-  }, [userId])
-
-  // URL 쿼리 파라미터 동기화
-  useEffect(() => {
-    const showParam = searchParams.get('show')
-    setSelectedShowId(showParam)
-  }, [searchParams])
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
     return cleanup
   }, [])
 
@@ -1021,7 +965,7 @@ export default function MyPage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
               <Heart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-pink-600 fill-pink-600" />
@@ -1355,7 +1299,10 @@ export default function MyPage() {
         </div>
         </main>
 
-        <BottomNavigation />
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation />
+          <BannerAd />
+        </div>
 
         <SidebarNavigation
           selectedShow={selectedShowId ? getShowById(selectedShowId)?.name : undefined}

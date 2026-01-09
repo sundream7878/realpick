@@ -28,60 +28,54 @@ export async function GET() {
 
         console.log("[API] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + "...")
 
-        const { data, error } = await supabase
+        const { data: statusData, error: statusError } = await supabase
             .from("t_admin_settings")
             .select("value")
             .eq("key", "SHOW_STATUSES")
             .single()
 
-        if (error) {
-            if (error.code === "PGRST116") {
-                // 레코드가 없는 경우는 정상 (빈 상태 반환)
-                return NextResponse.json({ statuses: {} }, { status: 200 })
-            }
-            
-            console.error("Error fetching show statuses:", error)
-            console.error("Error details:", {
-                code: error.code,
-                message: error.message,
-                details: error.details,
-                hint: error.hint
-            })
-            
-            // API 키 오류인 경우 명확한 메시지 반환
-            if (error.message?.includes('Invalid API key') || error.message?.includes('JWT')) {
-                return NextResponse.json(
-                    { 
-                        error: "Invalid Supabase API key",
-                        details: "SUPABASE_SERVICE_ROLE_KEY is invalid or expired",
-                        hint: "Check Netlify environment variables"
-                    }, 
-                    { status: 500 }
-                )
-            }
-            
-            return NextResponse.json(
-                { 
-                    error: "Failed to fetch show statuses",
-                    details: error.message,
-                    code: error.code
-                }, 
-                { status: 500 }
-            )
-        }
+        const { data: visibilityData, error: visibilityError } = await supabase
+            .from("t_admin_settings")
+            .select("value")
+            .eq("key", "SHOW_VISIBILITY")
+            .single()
+
+        const { data: customShowsData, error: customShowsError } = await supabase
+            .from("t_admin_settings")
+            .select("value")
+            .eq("key", "CUSTOM_SHOWS")
+            .single()
 
         let statuses = {}
-        if (data?.value) {
+        if (statusData?.value) {
             try {
-                statuses = JSON.parse(data.value)
+                statuses = JSON.parse(statusData.value)
             } catch (e) {
                 console.error("Error parsing show statuses:", e)
             }
         }
 
-        return NextResponse.json({ statuses })
+        let visibility = {}
+        if (visibilityData?.value) {
+            try {
+                visibility = JSON.parse(visibilityData.value)
+            } catch (e) {
+                console.error("Error parsing show visibility:", e)
+            }
+        }
+
+        let customShows = []
+        if (customShowsData?.value) {
+            try {
+                customShows = JSON.parse(customShowsData.value)
+            } catch (e) {
+                console.error("Error parsing custom shows:", e)
+            }
+        }
+
+        return NextResponse.json({ statuses, visibility, customShows })
     } catch (error) {
         console.error("Error in public shows API:", error)
-        return NextResponse.json({ statuses: {} }, { status: 500 })
+        return NextResponse.json({ statuses: {}, visibility: {}, customShows: [] }, { status: 500 })
     }
 }

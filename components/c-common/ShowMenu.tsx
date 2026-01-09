@@ -28,6 +28,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     // 실시간 업데이트를 위한 상태
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>(initialShowStatuses || {})
     const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+    const [customShows, setCustomShows] = useState<any[]>([])
 
     // 초기 showStatuses가 변경되면 동기화
     useEffect(() => {
@@ -36,76 +37,21 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
         }
     }, [initialShowStatuses])
 
-    // 프로그램 가시성 로드
+    // 실시간 업데이트 이벤트 리스너 및 데이터 로드
     useEffect(() => {
-        const loadVisibility = async () => {
-            try {
-                const response = await fetch('/api/public/shows/visibility')
-                if (response.ok) {
-                    const data = await response.json()
-                    setShowVisibility(data.visibility || {})
-                }
-            } catch (error) {
-                console.error("Failed to load show visibility:", error)
-            }
-        }
-        loadVisibility()
+        const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
+        const cleanup = setupShowStatusSync(
+            setShowStatuses,
+            setShowVisibility,
+            setCustomShows
+        )
+
+        return cleanup
     }, [])
 
-    // 실시간 업데이트 이벤트 리스너
-    useEffect(() => {
-        const handleStatusUpdate = (event: any) => {
-            const { statuses } = event.detail || {}
-            if (statuses) {
-                setShowStatuses(statuses)
-            }
-        }
-
-        const handleVisibilityUpdate = (event: any) => {
-            const { visibility } = event.detail || {}
-            if (visibility) {
-                setShowVisibility(visibility)
-            }
-        }
-
-        // localStorage 변경 감지 (다른 탭에서의 변경)
-        const handleStorageChange = (event: StorageEvent) => {
-            if (event.key === 'show-statuses-update' && event.newValue) {
-                try {
-                    const data = JSON.parse(event.newValue)
-                    if (data.statuses) {
-                        setShowStatuses(data.statuses)
-                    }
-                } catch (err) {
-                    console.error("Failed to parse show statuses update", err)
-                }
-            }
-            
-            if (event.key === 'show-visibility-update' && event.newValue) {
-                try {
-                    const data = JSON.parse(event.newValue)
-                    if (data.visibility) {
-                        setShowVisibility(data.visibility)
-                    }
-                } catch (err) {
-                    console.error("Failed to parse show visibility update", err)
-                }
-            }
-        }
-
-        window.addEventListener('show-statuses-updated', handleStatusUpdate)
-        window.addEventListener('show-visibility-updated', handleVisibilityUpdate)
-        window.addEventListener('storage', handleStorageChange)
-
-        return () => {
-            window.removeEventListener('show-statuses-updated', handleStatusUpdate)
-            window.removeEventListener('show-visibility-updated', handleVisibilityUpdate)
-            window.removeEventListener('storage', handleStorageChange)
-        }
-    }, [])
-
-    // 현재 카테고리에 선택된 쇼가 있는지 확인
-    const selectedShow = shows.find(s => s.id === selectedShowId)
+    // 현재 카테고리에 선택된 쇼가 있는지 확인 (기본 쇼 + 커스텀 쇼 통합)
+    const allShowsInCategory = [...shows, ...customShows.filter(s => s.category === category)]
+    const selectedShow = allShowsInCategory.find(s => s.id === selectedShowId)
     const isCategoryActive = !!selectedShow
     
     // 각 프로그램별 읽지 않은 미션 개수 계산
@@ -248,7 +194,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     {/* 프로그램 목록 (헤더 제거) */}
                     {/* 프로그램 목록 (헤더 제거) */}
                     <div className="py-1 sm:py-1.5">
-                        {shows.filter(show => showVisibility[show.id] !== false).slice().sort((a, b) => {
+                        {allShowsInCategory.filter(show => showVisibility[show.id] !== false).slice().sort((a, b) => {
                             // Status Priority: ACTIVE (0) > UNDECIDED (1) > UPCOMING (2)
                             const getStatus = (id: string) => showStatuses?.[id] || 'ACTIVE'
                             const getPriority = (status: string) => {

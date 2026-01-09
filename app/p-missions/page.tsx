@@ -3,6 +3,7 @@
 import { Button } from "@/components/c-ui/button"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
@@ -227,9 +228,18 @@ export default function MissionsPage() {
     }
   }, [])
 
+  // Show Statuses, Visibility, Custom Shows Fetching & Sync
+  const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
+  const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
+  const [customShows, setCustomShows] = useState<any[]>([])
+
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
-    const cleanup = setupShowStatusSync(setShowStatuses)
+    const cleanup = setupShowStatusSync(
+      setShowStatuses,
+      setShowVisibility,
+      setCustomShows
+    )
     return cleanup
   }, [])
 
@@ -353,7 +363,7 @@ export default function MissionsPage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-20 md:pb-6">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
@@ -394,7 +404,10 @@ export default function MissionsPage() {
           </div>
         </main>
 
-        <BottomNavigation />
+        <div className="fixed bottom-0 left-0 right-0 z-50">
+          <BottomNavigation />
+          <BannerAd />
+        </div>
 
         <SidebarNavigation
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}

@@ -144,7 +144,7 @@ export function BottomNavigation({
 
   return (
     <>
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 md:hidden z-50 safe-area-inset-bottom">
+      <nav className="bg-white border-t border-gray-200 md:hidden safe-area-inset-bottom">
         <div className="flex justify-around items-center h-16 px-1">
           {navItems.map((item, index) => {
             const Icon = item.icon
