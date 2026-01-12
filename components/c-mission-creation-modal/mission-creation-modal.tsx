@@ -9,16 +9,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGr
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import { Checkbox } from "@/components/c-ui/checkbox"
 import { Plus, X, ArrowLeft, Check, Circle, Trophy, Lock } from "lucide-react"
-import { createMission } from "@/lib/supabase/missions"
+import { createMission } from "@/lib/firebase/missions"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { uploadMissionImage } from "@/lib/supabase/storage"
-import { createClient } from "@/lib/supabase/client"
+import { uploadMissionImage } from "@/lib/firebase/storage"
+import { auth } from "@/lib/firebase/config"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import { canCreateMission, hasMinimumRole, getRoleDisplayName } from "@/lib/utils/permissions"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getUserId } from "@/lib/auth-utils"
+import { onAuthStateChanged } from "firebase/auth"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -272,33 +273,33 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     }
   }, [isOpen, initialShowId])
 
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
-    if (!file) return
+      const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0]
+        if (!file) return
 
-    setIsUploading(true)
-    try {
-      const result = await uploadMissionImage(file)
-      if (result.success && result.url) {
-        setImageUrl(result.url)
-        toast({
-          title: "이미지 업로드 성공",
-          description: "이미지가 성공적으로 업로드되었습니다.",
-        })
-      } else {
-        throw new Error(result.error || "이미지 업로드 실패")
+        setIsUploading(true)
+        try {
+          const result = await uploadMissionImage(file)
+          if (result.success && result.url) {
+            setImageUrl(result.url)
+            toast({
+              title: "이미지 업로드 성공",
+              description: "이미지가 성공적으로 업로드되었습니다.",
+            })
+          } else {
+            throw new Error(result.error || "이미지 업로드 실패")
+          }
+        } catch (error) {
+          console.error("Image upload failed:", error)
+          toast({
+            title: "이미지 업로드 실패",
+            description: "이미지 업로드 중 오류가 발생했습니다.",
+            variant: "destructive",
+          })
+        } finally {
+          setIsUploading(false)
+        }
       }
-    } catch (error) {
-      console.error("Image upload failed:", error)
-      toast({
-        title: "이미지 업로드 실패",
-        description: "이미지 업로드 중 오류가 발생했습니다.",
-        variant: "destructive",
-      })
-    } finally {
-      setIsUploading(false)
-    }
-  }
 
   const handleFormatSelection = (format: MissionFormat) => {
     // Check permission
@@ -475,8 +476,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         isLive,
       }
 
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
+      const user = auth.currentUser
 
       if (!user) {
         toast({
@@ -488,7 +488,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         return
       }
 
-      const result = await createMission(missionData as any, user.id)
+      const result = await createMission(missionData as any, user.uid)
 
       if (!result.success) {
         throw new Error(result.error || "미션 게시에 실패했습니다")

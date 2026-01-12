@@ -8,7 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/c-ui/dialog"
-import { getUserPointLogs } from "@/lib/supabase/points"
+import { getUserPointLogs } from "@/lib/firebase/points"
 import { getUserId } from "@/lib/auth-utils"
 import type { TPointLog } from "@/types/t-vote/vote.types"
 import { formatPoints } from "@/lib/utils/u-format-points/formatPoints.util"

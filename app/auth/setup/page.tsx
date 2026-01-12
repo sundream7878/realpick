@@ -13,9 +13,9 @@ import {
   SelectValue,
 } from "@/components/c-ui/select"
 import { RadioGroup, RadioGroupItem } from "@/components/c-ui/radio-group"
-import { updateUserAdditionalInfo } from "@/lib/supabase/users"
+import { updateUserAdditionalInfo } from "@/lib/firebase/users"
 import { getUserId, setAuthToken } from "@/lib/auth-utils"
-import { createClient } from "@/lib/supabase/client"
+import { auth } from "@/lib/firebase/config"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 
 const AGE_RANGES = ["10대", "20대", "30대", "40대", "50대", "60대", "70대", "80대", "90대"] as const
@@ -76,13 +76,12 @@ export default function AuthSetupPage() {
       }
 
       // 추가 정보 저장 후 완전한 로그인 상태로 만들기
-      // Supabase 세션에서 access_token 가져오기
-      const supabase = createClient()
-      const { data: { session } } = await supabase.auth.getSession()
+      const user = auth.currentUser
 
-      if (session?.access_token) {
+      if (user) {
+        const idToken = await user.getIdToken()
         // 이제 완전한 로그인 상태로 만들기
-        setAuthToken(session.access_token)
+        setAuthToken(idToken)
       }
 
       toast({

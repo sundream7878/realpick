@@ -15,11 +15,12 @@ import { isAuthenticated, getUserId } from "@/lib/auth-utils"
 import { logout } from "@/lib/auth-api"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
-import { getUser, updateUserProfile } from "@/lib/supabase/users"
+import { getUser, updateUserProfile } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
 import { getShowByName, getShowById, CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
-import { createClient } from "@/lib/supabase/client"
+import { db } from "@/lib/firebase/config"
+import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 
 export default function ProfilePage() {
   const router = useRouter()
@@ -28,10 +29,78 @@ export default function ProfilePage() {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  
+  // User Data States
+  const [userNickname, setUserNickname] = useState("")
+  const [userEmail, setUserEmail] = useState("")
+  const [userPoints, setUserPoints] = useState(0)
+  const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
+  const [isLoading, setIsLoading] = useState(true)
+  const [isEditing, setIsEditing] = useState(false)
+  const [editedNickname, setEditedNickname] = useState("")
+  const [isSaving, setIsSaving] = useState(false)
+
+  // Notification States
+  const [emailNotification, setEmailNotification] = useState(false)
+  const [deadlineEmailNotification, setDeadlineEmailNotification] = useState(false)
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([])
+  const [isSavingNotification, setIsSavingNotification] = useState(false)
+
   // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
   const [customShows, setCustomShows] = useState<any[]>([])
+
+  useEffect(() => {
+    const loadUserData = async () => {
+      setIsLoading(true)
+      const userId = getUserId()
+      
+      if (!userId) {
+        setIsLoading(false)
+        return
+      }
+
+      try {
+        // 1. 유저 정보 조회
+        const user = await getUser(userId)
+        if (user) {
+          setUserNickname(user.nickname)
+          setUserEmail(user.email)
+          setUserPoints(user.points)
+          setUserTier(getTierFromDbOrPoints(user.tier, user.points))
+          setEditedNickname(user.nickname)
+        }
+
+        // 2. 알림 설정 조회
+        const prefRef = doc(db, 'notification_preferences', userId)
+        const prefSnap = await getDoc(prefRef)
+        
+        if (prefSnap.exists()) {
+          const data = prefSnap.data()
+          setEmailNotification(data.emailEnabled || false)
+          setDeadlineEmailNotification(data.deadlineEmailEnabled || false)
+          setSelectedCategories(data.categories || [])
+        }
+      } catch (error) {
+        console.error("데이터 로딩 실패:", error)
+      } finally {
+        setIsLoading(false)
+      }
+    }
+
+    loadUserData()
+
+    // 인증 상태 변경 감지
+    const handleAuthChange = () => loadUserData()
+    window.addEventListener("auth-change", handleAuthChange)
+    window.addEventListener("storage", handleAuthChange)
+
+    return () => {
+      window.removeEventListener("auth-change", handleAuthChange)
+      window.removeEventListener("storage", handleAuthChange)
+    }
+  }, [])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
@@ -158,37 +227,17 @@ export default function ProfilePage() {
         throw new Error("사용자 ID를 찾을 수 없습니다.")
       }
 
-      const supabase = createClient()
       const payload = {
-        f_user_id: currentUserId,
-        f_email_enabled: emailNotification,
-        f_deadline_email_enabled: deadlineEmailNotification,
-        f_categories: selectedCategories
+        userId: currentUserId,
+        emailEnabled: emailNotification,
+        deadlineEmailEnabled: deadlineEmailNotification,
+        categories: selectedCategories,
+        updatedAt: new Date()
       }
 
-      // 기존 설정 확인
-      const { data: existing } = await supabase
-        .from('t_notification_preferences')
-        .select('f_id')
-        .eq('f_user_id', currentUserId)
-        .single()
-
-      if (existing) {
-        // 업데이트
-        const { error } = await supabase
-          .from('t_notification_preferences')
-          .update(payload)
-          .eq('f_user_id', currentUserId)
-
-        if (error) throw error
-      } else {
-        // 생성
-        const { error } = await supabase
-          .from('t_notification_preferences')
-          .insert([payload])
-
-        if (error) throw error
-      }
+      // Firestore에서 알림 설정 저장 (collection 'notification_preferences')
+      const prefRef = doc(db, 'notification_preferences', currentUserId)
+      await setDoc(prefRef, payload, { merge: true })
 
       toast({
         title: "저장 완료",

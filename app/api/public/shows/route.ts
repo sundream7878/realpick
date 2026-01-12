@@ -1,81 +1,50 @@
-import { createServiceClient } from "@/lib/supabase/service"
+import { adminDb } from "@/lib/firebase/admin"
 import { NextResponse } from "next/server"
 
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
     try {
-        // 환경 변수 체크
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.warn("[Public Shows API] Supabase 환경 변수가 설정되지 않았습니다.")
-            return NextResponse.json({ statuses: {} }, { status: 200 })
-        }
+        const settingsRef = adminDb.collection("admin_settings")
+        
+        const [statusDoc, visibilityDoc, customShowsDoc] = await Promise.all([
+            settingsRef.doc("SHOW_STATUSES").get(),
+            settingsRef.doc("SHOW_VISIBILITY").get(),
+            settingsRef.doc("CUSTOM_SHOWS").get()
+        ])
 
-        let supabase;
+        let statuses = statusDoc.exists ? statusDoc.data()?.value : {}
+        let visibility = visibilityDoc.exists ? visibilityDoc.data()?.value : {}
+        let customShows = customShowsDoc.exists ? customShowsDoc.data()?.value : []
+
+        // 만약 value가 문자열(JSON)로 저장되어 있다면 파싱
         try {
-            supabase = createServiceClient()
-        } catch (error: any) {
-            console.error("[Public Shows API] Failed to create Supabase client:", error)
-            return NextResponse.json(
-                { 
-                    error: "Failed to initialize Supabase client",
-                    details: error.message,
-                    hint: "Check SUPABASE_SERVICE_ROLE_KEY environment variable"
-                }, 
-                { status: 500 }
-            )
+            if (typeof statuses === 'string' && (statuses.startsWith('{') || statuses.startsWith('['))) statuses = JSON.parse(statuses)
+            if (typeof visibility === 'string' && (visibility.startsWith('{') || visibility.startsWith('['))) visibility = JSON.parse(visibility)
+            if (typeof customShows === 'string' && (customShows.startsWith('{') || customShows.startsWith('['))) customShows = JSON.parse(customShows)
+        } catch (e) {
+            console.error("JSON parse error in shows API:", e)
         }
 
-        console.log("[API] Supabase URL:", process.env.NEXT_PUBLIC_SUPABASE_URL?.substring(0, 20) + "...")
+        // 최종적으로 타입 보장
+        if (!Array.isArray(customShows)) customShows = []
+        if (typeof statuses !== 'object' || statuses === null) statuses = {}
+        if (typeof visibility !== 'object' || visibility === null) visibility = {}
 
-        const { data: statusData, error: statusError } = await supabase
-            .from("t_admin_settings")
-            .select("value")
-            .eq("key", "SHOW_STATUSES")
-            .single()
-
-        const { data: visibilityData, error: visibilityError } = await supabase
-            .from("t_admin_settings")
-            .select("value")
-            .eq("key", "SHOW_VISIBILITY")
-            .single()
-
-        const { data: customShowsData, error: customShowsError } = await supabase
-            .from("t_admin_settings")
-            .select("value")
-            .eq("key", "CUSTOM_SHOWS")
-            .single()
-
-        let statuses = {}
-        if (statusData?.value) {
-            try {
-                statuses = JSON.parse(statusData.value)
-            } catch (e) {
-                console.error("Error parsing show statuses:", e)
-            }
-        }
-
-        let visibility = {}
-        if (visibilityData?.value) {
-            try {
-                visibility = JSON.parse(visibilityData.value)
-            } catch (e) {
-                console.error("Error parsing show visibility:", e)
-            }
-        }
-
-        let customShows = []
-        if (customShowsData?.value) {
-            try {
-                customShows = JSON.parse(customShowsData.value)
-            } catch (e) {
-                console.error("Error parsing custom shows:", e)
-            }
-        }
-
-        return NextResponse.json({ statuses, visibility, customShows })
-    } catch (error) {
-        console.error("Error in public shows API:", error)
-        return NextResponse.json({ statuses: {}, visibility: {}, customShows: [] }, { status: 500 })
+        return NextResponse.json({ 
+            statuses: statuses || {}, 
+            visibility: visibility || {}, 
+            customShows: customShows || [] 
+        })
+    } catch (error: any) {
+        console.error("❌ Error in public shows API:", error)
+        // 상세 에러 메시지를 포함하여 반환 (개발 단계에서 디버깅 용도)
+        return NextResponse.json({ 
+            error: error.message,
+            stack: error.stack,
+            statuses: {}, 
+            visibility: {}, 
+            customShows: [] 
+        }, { status: 500 })
     }
 }

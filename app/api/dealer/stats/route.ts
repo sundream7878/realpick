@@ -1,6 +1,4 @@
-
-import { createClient } from "@supabase/supabase-js"
-import { createClient as createServerClient } from "@/lib/supabase/server"
+import { adminDb, adminAuth } from "@/lib/firebase/admin"
 import { NextResponse } from "next/server"
 
 export const dynamic = 'force-dynamic'
@@ -8,77 +6,52 @@ export const dynamic = 'force-dynamic'
 export async function GET(request: Request) {
     try {
         // 1. Auth check
-        const supabase = createServerClient()
-        const { data: { user }, error: authError } = await supabase.auth.getUser()
-
-        if (authError || !user) {
+        const authHeader = request.headers.get("Authorization")
+        if (!authHeader?.startsWith("Bearer ")) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
         }
 
-        // Check role
-        const { data: userData, error: userError } = await supabase
-            .from("t_users")
-            .select("f_role")
-            .eq("f_id", user.id)
-            .single()
+        const idToken = authHeader.split("Bearer ")[1]
+        const decodedToken = await adminAuth.verifyIdToken(idToken)
+        const userId = decodedToken.uid
 
-        if (userError || !userData || (userData.f_role !== 'DEALER' && userData.f_role !== 'MAIN_DEALER' && userData.f_role !== 'ADMIN')) {
+        // Check role
+        const userDoc = await adminDb.collection("users").doc(userId).get()
+        const userData = userDoc.data()
+
+        if (!userData || (userData.role !== 'DEALER' && userData.role !== 'MAIN_DEALER' && userData.role !== 'ADMIN')) {
             return NextResponse.json({ error: "Forbidden" }, { status: 403 })
         }
 
-        // 2. Fetch all dealers using Service Role Key
-        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
-        if (!serviceRoleKey) {
-            console.error("Missing SUPABASE_SERVICE_ROLE_KEY")
-            return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-        }
+        // 2. Fetch all dealers
+        const dealersQuery = await adminDb.collection("users")
+            .where("role", "in", ["DEALER", "MAIN_DEALER", "ADMIN"])
+            .get()
 
-        const supabaseAdmin = createClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            serviceRoleKey,
-            { auth: { autoRefreshToken: false, persistSession: false } }
-        )
-
-        // Fetch dealers
-        const { data: dealers, error: dealersError } = await supabaseAdmin
-            .from("t_users")
-            .select("f_id, f_nickname, f_tier, f_role")
-            .in("f_role", ["DEALER", "MAIN_DEALER", "ADMIN"])
-
-        if (dealersError) {
-            console.error("Error fetching dealers:", dealersError)
-            return NextResponse.json({ error: "Failed to fetch dealers" }, { status: 500 })
-        }
+        const dealers = dealersQuery.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
         // Fetch all missions to aggregate stats
-        // Note: In a production app with many missions, we would use a SQL view or RPC.
-        // For now, fetching selected columns is acceptable.
-        const { data: missions1, error: m1Error } = await supabaseAdmin
-            .from("t_missions1")
-            .select("f_creator_id, f_stats_participants")
+        const [missions1Query, missions2Query] = await Promise.all([
+            adminDb.collection("missions1").get(),
+            adminDb.collection("missions2").get()
+        ])
 
-        const { data: missions2, error: m2Error } = await supabaseAdmin
-            .from("t_missions2")
-            .select("f_creator_id, f_stats_participants")
+        const missions1 = missions1Query.docs.map(doc => doc.data())
+        const missions2 = missions2Query.docs.map(doc => doc.data())
 
-        if (m1Error || m2Error) {
-            console.error("Error fetching missions:", m1Error || m2Error)
-            return NextResponse.json({ error: "Failed to fetch mission stats" }, { status: 500 })
-        }
-
-        const stats = dealers.map(dealer => {
-            const m1 = missions1?.filter(m => m.f_creator_id === dealer.f_id) || []
-            const m2 = missions2?.filter(m => m.f_creator_id === dealer.f_id) || []
+        const stats = dealers.map((dealer: any) => {
+            const m1 = missions1.filter(m => m.creatorId === dealer.id)
+            const m2 = missions2.filter(m => m.creatorId === dealer.id)
 
             const missionCount = m1.length + m2.length
-            const participants1 = m1.reduce((sum, m) => sum + (m.f_stats_participants || 0), 0)
-            const participants2 = m2.reduce((sum, m) => sum + (m.f_stats_participants || 0), 0)
+            const participants1 = m1.reduce((sum, m) => sum + (m.participants || 0), 0)
+            const participants2 = m2.reduce((sum, m) => sum + (m.participants || 0), 0)
 
             return {
-                id: dealer.f_id,
-                nickname: dealer.f_nickname,
-                tier: dealer.f_tier,
-                role: dealer.f_role,
+                id: dealer.id,
+                nickname: dealer.nickname,
+                tier: dealer.tier,
+                role: dealer.role,
                 missionCount,
                 totalParticipants: participants1 + participants2
             }

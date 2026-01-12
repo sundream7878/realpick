@@ -67,34 +67,35 @@ export function SidebarNavigation({
 
   useEffect(() => {
     const fetchUserRole = async () => {
-      const { createClient } = await import("@/lib/supabase/client")
-      const supabase = createClient()
+      const { auth } = await import("@/lib/firebase/config")
+      const { getUser } = await import("@/lib/firebase/users")
+      const { onAuthStateChanged } = await import("firebase/auth")
 
-      const getUserRole = async () => {
-        const { data: { user } } = await supabase.auth.getUser()
-        // console.log("[Sidebar] Current User:", user?.id)
-
+      const getUserRole = async (userId: string) => {
+        const user = await getUser(userId)
         if (user) {
-          const { data, error } = await supabase.from("t_users").select("f_role").eq("f_id", user.id).single()
-          // console.log("[Sidebar] Role Fetch Result:", data, error)
-          if (data) {
-            // console.log("[Sidebar] Setting Role:", data.f_role)
-            setUserRole(data.f_role)
-          }
+          setUserRole(user.role)
         } else {
           setUserRole(null)
         }
       }
 
-      getUserRole()
+      // 초기 상태 확인
+      if (auth.currentUser) {
+        getUserRole(auth.currentUser.uid)
+      }
 
-      const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-        // console.log("[Sidebar] Auth State Changed:", _event, session?.user?.id)
-        getUserRole()
+      // 인증 상태 변경 감지
+      const unsubscribe = onAuthStateChanged(auth, (user) => {
+        if (user) {
+          getUserRole(user.uid)
+        } else {
+          setUserRole(null)
+        }
       })
 
       return () => {
-        subscription.unsubscribe()
+        unsubscribe()
       }
     }
     fetchUserRole()

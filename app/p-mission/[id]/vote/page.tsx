@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { getMission, getMission2, getMissions, getMissions2 } from "@/lib/supabase/missions"
-import { getVote1, getAllVotes2 } from "@/lib/supabase/votes"
+import { getMissionById, getMissions, getMissions2 } from "@/lib/firebase/missions"
+import { getVote1, getAllVotes2 } from "@/lib/firebase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import { getTierFromDbOrPoints, getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { MultiVotePage } from "@/components/c-vote/multi-vote-page"
 import { MatchVotePage } from "@/components/c-vote/match-vote-page"
@@ -63,69 +63,71 @@ export default function VotePage({ params }: { params: { id: string } }) {
       setIsLoading(true)
       
       try {
-        // 1. 미션 상세 정보 가져오기 (병렬)
-        const [coupleResult, result] = await Promise.all([
-          getMission2(params.id),
-          getMission(params.id)
-        ])
+        // 1. 미션 상세 정보 가져오기 (통합 함수 사용)
+        const missionResult = await getMissionById(params.id)
 
         let activeMission: TMission | null = null
 
-        if (coupleResult.success && coupleResult.mission) {
-          console.log("✅ 커플매칭 미션 발견:", coupleResult.mission.f_title)
-          activeMission = {
-            id: coupleResult.mission.f_id,
-            title: coupleResult.mission.f_title,
-            kind: coupleResult.mission.f_kind,
-            form: "match",
-            seasonType: coupleResult.mission.f_season_type || "전체",
-            seasonNumber: coupleResult.mission.f_season_number || undefined,
-            options: coupleResult.mission.f_match_pairs, // TMatchPairs 형식
-            episodes: coupleResult.mission.f_total_episodes || 8,
-            episodeStatuses: coupleResult.mission.f_episode_statuses || {},
-            deadline: coupleResult.mission.f_deadline,
-            revealPolicy: coupleResult.mission.f_reveal_policy,
-            status: coupleResult.mission.f_status,
-            finalAnswer: coupleResult.mission.f_final_answer || undefined,
-            stats: {
-              participants: coupleResult.mission.f_stats_participants || 0,
-              totalVotes: coupleResult.mission.f_stats_total_votes || 0
-            },
-            result: {
-              distribution: {},
-              finalAnswer: coupleResult.mission.f_final_answer || undefined,
-              totalVotes: coupleResult.mission.f_stats_total_votes || 0
-            },
-            createdAt: coupleResult.mission.f_created_at,
-            showId: coupleResult.mission.f_show_id,
-            category: coupleResult.mission.f_category
-          }
-        } else if (result.success && result.mission) {
-          console.log("✅ 일반 미션 발견:", result.mission.f_title)
-          activeMission = {
-            id: result.mission.f_id,
-            title: result.mission.f_title,
-            kind: result.mission.f_kind,
-            form: result.mission.f_form,
-            seasonType: result.mission.f_season_type || "전체",
-            seasonNumber: result.mission.f_season_number || undefined,
-            options: result.mission.f_options || [],
-            deadline: result.mission.f_deadline,
-            revealPolicy: result.mission.f_reveal_policy,
-            status: result.mission.f_status,
-            stats: {
-              participants: result.mission.f_stats_participants || 0,
-              totalVotes: result.mission.f_stats_total_votes || 0
-            },
-            result: {
-              distribution: result.mission.f_option_vote_counts || {},
-              correct: result.mission.f_correct_answer || undefined,
-              majority: result.mission.f_majority_option || undefined,
-              totalVotes: result.mission.f_stats_total_votes || 0
-            },
-            createdAt: result.mission.f_created_at,
-            showId: result.mission.f_show_id,
-            category: result.mission.f_category
+        if (missionResult.success && missionResult.mission) {
+          const missionData = missionResult.mission
+          const isCouple = missionData.__table === "missions2"
+          
+          console.log(`✅ ${isCouple ? '커플매칭' : '일반'} 미션 발견:`, missionData.title)
+          
+          if (isCouple) {
+            activeMission = {
+              id: missionData.id,
+              title: missionData.title,
+              kind: missionData.kind,
+              form: "match",
+              seasonType: missionData.seasonType || "전체",
+              seasonNumber: missionData.seasonNumber || undefined,
+              options: missionData.matchPairs, // TMatchPairs 형식
+              episodes: missionData.totalEpisodes || 8,
+              episodeStatuses: missionData.episodeStatuses || {},
+              deadline: missionData.deadline,
+              revealPolicy: missionData.revealPolicy,
+              status: missionData.status,
+              finalAnswer: missionData.finalAnswer || undefined,
+              stats: {
+                participants: missionData.participants || 0,
+                totalVotes: missionData.totalVotes || 0
+              },
+              result: {
+                distribution: {},
+                finalAnswer: missionData.finalAnswer || undefined,
+                totalVotes: missionData.totalVotes || 0
+              },
+              createdAt: missionData.createdAt?.toDate?.()?.toISOString() || missionData.createdAt,
+              showId: missionData.showId,
+              category: missionData.category
+            }
+          } else {
+            activeMission = {
+              id: missionData.id,
+              title: missionData.title,
+              kind: missionData.kind,
+              form: missionData.form,
+              seasonType: missionData.seasonType || "전체",
+              seasonNumber: missionData.seasonNumber || undefined,
+              options: missionData.options || [],
+              deadline: missionData.deadline,
+              revealPolicy: missionData.revealPolicy,
+              status: missionData.status,
+              stats: {
+                participants: missionData.participants || 0,
+                totalVotes: missionData.totalVotes || 0
+              },
+              result: {
+                distribution: missionData.optionVoteCounts || {},
+                correct: missionData.correctAnswer || undefined,
+                majority: missionData.majorityOption || undefined,
+                totalVotes: missionData.totalVotes || 0
+              },
+              createdAt: missionData.createdAt?.toDate?.()?.toISOString() || missionData.createdAt,
+              showId: missionData.showId,
+              category: missionData.category
+            }
           }
         }
 
@@ -136,16 +138,16 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
         // 2. 헤더 알림 등을 위해 전체 미션 목록 가져오기
         const [m1Result, m2Result] = await Promise.all([
-          getMissions(30),
-          getMissions2(30)
+          getMissions("missions1", 30),
+          getMissions("missions2", 30)
         ])
 
         const combinedMissions: TMission[] = []
         if (m1Result.success && m1Result.missions) {
-          combinedMissions.push(...m1Result.missions.map((m: any) => ({ id: m.f_id, showId: m.f_show_id } as TMission)))
+          combinedMissions.push(...m1Result.missions.map((m: any) => ({ id: m.id, showId: m.showId } as TMission)))
         }
         if (m2Result.success && m2Result.missions) {
-          combinedMissions.push(...m2Result.missions.map((m: any) => ({ id: m.f_id, showId: m.f_show_id } as TMission)))
+          combinedMissions.push(...m2Result.missions.map((m: any) => ({ id: m.id, showId: m.showId } as TMission)))
         }
         setMissions(combinedMissions)
 
@@ -350,8 +352,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
             {/* 하단 공유 및 다른 미션 버튼 */}
             <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button
-                variant="outline"
-                className="w-full sm:w-auto h-12 px-8 rounded-xl border-rose-200 text-rose-600 hover:bg-rose-50 font-bold flex items-center gap-2 shadow-sm"
+                className="w-full sm:w-auto h-11 px-10 rounded-full bg-[#9333EA] hover:bg-[#7E22CE] text-white font-bold flex items-center gap-2 shadow-sm border-none"
                 onClick={() => {
                   if (navigator.share) {
                     navigator.share({
@@ -365,18 +366,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
                   }
                 }}
               >
-                <Share2 className="w-5 h-5" />
-                결과 공유하기
+                <Share2 className="w-4 h-4" />
+                <span>결과 공유하기</span>
               </Button>
               <Button
-                className="w-full sm:w-auto h-12 px-8 rounded-xl bg-gray-900 hover:bg-black text-white font-bold flex items-center gap-2 shadow-sm"
+                variant="outline"
+                className="w-full sm:w-auto h-11 px-10 rounded-full border-2 border-[#9333EA] text-[#9333EA] hover:bg-purple-50 bg-white font-bold flex items-center shadow-sm"
                 onClick={() => {
                   const missionsUrl = selectedShowId ? `/p-missions?show=${selectedShowId}` : "/p-missions"
                   router.push(missionsUrl)
                 }}
               >
-                <List className="w-5 h-5" />
-                다른 미션 보러가기
+                <span>다른 미션 보기</span>
               </Button>
             </div>
 

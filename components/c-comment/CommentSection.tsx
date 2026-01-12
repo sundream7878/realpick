@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react"
-import { getComments, createComment, createReply, deleteComment, deleteReply, toggleCommentLike, toggleReplyLike } from "@/lib/supabase/comments"
+import { getComments, createComment, createReply, deleteComment, deleteReply, toggleCommentLike } from "@/lib/firebase/comments"
+import { getUser } from "@/lib/firebase/users"
 import { TComment } from "@/types/t-vote/vote.types"
 import { CommentInput } from "./CommentInput"
 import { CommentList } from "./CommentList"
@@ -15,7 +16,24 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     const [comments, setComments] = useState<TComment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
+    const [currentUserInfo, setCurrentUserInfo] = useState<{ nickname: string; tier: string } | null>(null)
     const { toast } = useToast()
+
+    // 사용자 정보 불러오기
+    useEffect(() => {
+        const fetchUserInfo = async () => {
+            if (currentUserId) {
+                const user = await getUser(currentUserId)
+                if (user) {
+                    setCurrentUserInfo({
+                        nickname: user.nickname,
+                        tier: user.tier
+                    })
+                }
+            }
+        }
+        fetchUserInfo()
+    }, [currentUserId])
 
     // 댓글 목록 불러오기
     const loadComments = async () => {
@@ -37,7 +55,7 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
 
     // 댓글 작성 핸들러
     const handleAddComment = async (content: string) => {
-        if (!currentUserId) {
+        if (!currentUserId || !currentUserInfo) {
             toast({
                 title: "로그인 필요",
                 description: "댓글을 작성하려면 로그인이 필요합니다.",
@@ -47,7 +65,14 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
         }
 
         setIsSubmitting(true)
-        const result = await createComment(missionId, missionType, currentUserId, content)
+        const result = await createComment(
+            missionId, 
+            missionType, 
+            currentUserId, 
+            currentUserInfo.nickname, 
+            currentUserInfo.tier, 
+            content
+        )
 
         if (result.success && result.comment) {
             // 즉시 UI 업데이트 (목록 끝에 추가)
@@ -64,7 +89,7 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
 
     // 답글 작성 핸들러
     const handleReply = async (targetId: string, content: string) => {
-        if (!currentUserId) {
+        if (!currentUserId || !currentUserInfo) {
             toast({
                 title: "로그인 필요",
                 description: "답글을 작성하려면 로그인이 필요합니다.",
@@ -92,8 +117,13 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
         const parentId = targetComment.parentId || targetComment.id
 
         // 대댓글 작성 요청
-        // 주의: createReply는 'commentId'(부모)를 받음
-        const result = await createReply(parentId, currentUserId, content)
+        const result = await createReply(
+            parentId, 
+            currentUserId, 
+            currentUserInfo.nickname, 
+            currentUserInfo.tier, 
+            content
+        )
 
         if (result.success && result.reply) {
             // 즉시 UI 업데이트
@@ -128,50 +158,26 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     const handleDelete = async (commentId: string) => {
         if (!currentUserId) return
 
-        // 타겟 찾기
-        const findComment = (list: TComment[], id: string): TComment | null => {
-            for (const c of list) {
-                if (c.id === id) return c
-                if (c.replies) {
-                    const found = findComment(c.replies, id)
-                    if (found) return found
-                }
-            }
-            return null
-        }
-        const target = findComment(comments, commentId)
-        if (!target) return
+        // 서버 요청 (Firebase에서는 replies도 comments와 같은 레벨일 수 있지만 여기서는 commentId만)
+        const result = await deleteComment(commentId, currentUserId)
 
-        // UI 업데이트
-        setComments(prev => {
-            const deleteNode = (list: TComment[]): TComment[] => {
-                return list.filter(c => {
-                    if (c.id === commentId) {
-                        if (c.replies && c.replies.length > 0) {
-                            c.isDeleted = true
-                            c.content = "삭제된 댓글입니다."
-                            return true
-                        } else {
-                            return false
+        if (result.success) {
+            // UI 업데이트
+            setComments(prev => {
+                const deleteNode = (list: TComment[]): TComment[] => {
+                    return list.map(c => {
+                        if (c.id === commentId) {
+                            return { ...c, isDeleted: true, content: "삭제된 댓글입니다." }
                         }
-                    }
-                    if (c.replies && c.replies.length > 0) {
-                        c.replies = deleteNode(c.replies)
-                    }
-                    return true
-                })
-            }
-            return deleteNode([...prev])
-        })
-
-        // 서버 요청
-        const isReply = !!target.parentId
-        const result = isReply
-            ? await deleteReply(commentId, currentUserId)
-            : await deleteComment(commentId, currentUserId)
-
-        if (!result.success) {
-            await loadComments()
+                        if (c.replies && c.replies.length > 0) {
+                            return { ...c, replies: deleteNode(c.replies) }
+                        }
+                        return c
+                    })
+                }
+                return deleteNode([...prev])
+            })
+        } else {
             toast({
                 title: "삭제 실패",
                 description: result.error || "삭제 중 오류가 발생했습니다.",
@@ -191,49 +197,30 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
             return
         }
 
-        // 타겟 찾기
-        const findComment = (list: TComment[], id: string): TComment | null => {
-            for (const c of list) {
-                if (c.id === id) return c
-                if (c.replies) {
-                    const found = findComment(c.replies, id)
-                    if (found) return found
-                }
-            }
-            return null
-        }
-        const target = findComment(comments, commentId)
-        if (!target) return
-
-        // UI 업데이트
-        setComments(prevComments => {
-            const updateTree = (list: TComment[]): TComment[] => {
-                return list.map(c => {
-                    if (c.id === commentId) {
-                        const newIsLiked = !c.isLiked
-                        return {
-                            ...c,
-                            isLiked: newIsLiked,
-                            likesCount: newIsLiked ? c.likesCount + 1 : Math.max(0, c.likesCount - 1)
-                        }
-                    }
-                    if (c.replies && c.replies.length > 0) {
-                        return { ...c, replies: updateTree(c.replies) }
-                    }
-                    return c
-                })
-            }
-            return updateTree(prevComments)
-        })
-
         // 서버 요청
-        const isReply = !!target.parentId
-        const result = isReply
-            ? await toggleReplyLike(commentId, currentUserId)
-            : await toggleCommentLike(commentId, currentUserId)
+        const result = await toggleCommentLike(commentId, currentUserId)
 
-        if (!result.success) {
-            await loadComments()
+        if (result.success) {
+            // UI 업데이트
+            setComments(prevComments => {
+                const updateTree = (list: TComment[]): TComment[] => {
+                    return list.map(c => {
+                        if (c.id === commentId) {
+                            return {
+                                ...c,
+                                isLiked: result.isLiked!,
+                                likesCount: result.likesCount!
+                            }
+                        }
+                        if (c.replies && c.replies.length > 0) {
+                            return { ...c, replies: updateTree(c.replies) }
+                        }
+                        return c
+                    })
+                }
+                return updateTree(prevComments)
+            })
+        } else {
             toast({
                 title: "오류 발생",
                 description: "좋아요 처리에 실패했습니다.",

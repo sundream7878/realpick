@@ -15,15 +15,17 @@ import { SHOWS, CATEGORIES, getShowById, getShowByName, TShowCategory } from "@/
 import { getDDay, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { Calendar, User, Users, ExternalLink, Mic2, Ticket } from "lucide-react"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
+import type { TUser } from "@/types/t-vote/vote.types"
 
 export default function CastingPage() {
     const router = useRouter()
     const searchParams = useSearchParams()
     const [selectedType, setSelectedType] = useState<"all" | TRecruitType>("all")
     const [selectedCategory, setSelectedCategory] = useState<"ALL" | TShowCategory>("ALL")
+    const [user, setUser] = useState<TUser | null>(null)
 
     // 사이드바/모달 상태 관리
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
@@ -34,6 +36,19 @@ export default function CastingPage() {
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
     const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
     const [customShows, setCustomShows] = useState<any[]>([])
+
+    useEffect(() => {
+        const fetchUser = async () => {
+            if (isAuthenticated()) {
+                const userId = getUserId()
+                if (userId) {
+                    const userData = await getUser(userId)
+                    setUser(userData)
+                }
+            }
+        }
+        fetchUser()
+    }, [])
 
     useEffect(() => {
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
@@ -100,9 +115,9 @@ export default function CastingPage() {
                 <AppHeader
                     selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
                     onShowChange={() => { }}
-                    userNickname={userNickname}
-                    userPoints={userPoints}
-                    userTier={userTier}
+                    userNickname={user?.nickname}
+                    userPoints={user?.points}
+                    userTier={user?.tier}
                     onAvatarClick={() => {
                         const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
                         router.push(profileUrl)

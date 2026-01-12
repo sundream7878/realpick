@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { handleMagicLinkCallback } from "@/lib/auth-api"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 
 export default function AuthCallbackPage() {
   const router = useRouter()

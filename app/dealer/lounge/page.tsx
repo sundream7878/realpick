@@ -3,7 +3,10 @@
 
 import { useEffect, useState } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { auth, db } from "@/lib/firebase/config"
+import { collection, getDocs, query, where, doc, getDoc } from "firebase/firestore"
+import { onAuthStateChanged } from "firebase/auth"
+import { getUser } from "@/lib/firebase/users"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, LabelList } from 'recharts'
 import { Loader2, Trophy, Users, Layout, Crown } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
@@ -41,6 +44,74 @@ export default function DealerLoungePage() {
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
     const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
     const [customShows, setCustomShows] = useState<any[]>([])
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            setLoading(true)
+            try {
+                // 1. 유저 정보 및 인증 상태 확인
+                const unsubscribe = onAuthStateChanged(auth, async (user) => {
+                    if (!user) {
+                        setError("로그인이 필요합니다.")
+                        setLoading(false)
+                        return
+                    }
+
+                    const userData = await getUser(user.uid)
+                    if (!userData) {
+                        setError("사용자 정보를 찾을 수 없습니다.")
+                        setLoading(false)
+                        return
+                    }
+                    setCurrentUser({ ...userData, id: user.uid })
+
+                    // 2. 딜러 목록 가져오기 (DEALER, MAIN_DEALER, ADMIN)
+                    const dealersQuery = query(
+                        collection(db, "users"),
+                        where("role", "in", ["DEALER", "MAIN_DEALER", "ADMIN"])
+                    )
+                    const dealersSnap = await getDocs(dealersQuery)
+                    const dealers = dealersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
+
+                    // 3. 각 딜러별 미션 통계 계산
+                    const dealerStats: DealerStat[] = []
+                    for (const dealer of dealers) {
+                        // missions1과 missions2에서 이 딜러가 생성한 미션 조회
+                        const m1Query = query(collection(db, "missions1"), where("creatorId", "==", dealer.id))
+                        const m2Query = query(collection(db, "missions2"), where("creatorId", "==", dealer.id))
+                        
+                        const [m1Snap, m2Snap] = await Promise.all([getDocs(m1Query), getDocs(m2Query)])
+                        
+                        let totalParticipants = 0
+                        m1Snap.forEach(doc => totalParticipants += (doc.data().participants || 0))
+                        m2Snap.forEach(doc => totalParticipants += (doc.data().participants || 0))
+
+                        dealerStats.push({
+                            id: dealer.id,
+                            nickname: (dealer as any).nickname || "알 수 없음",
+                            tier: (dealer as any).tier || "루키",
+                            role: (dealer as any).role || "DEALER",
+                            missionCount: m1Snap.size + m2Snap.size,
+                            totalParticipants
+                        })
+                    }
+
+                    // 참여자 수 순으로 정렬
+                    dealerStats.sort((a, b) => b.totalParticipants - a.totalParticipants)
+                    setStats(dealerStats)
+                    setLoading(false)
+                })
+
+                return () => unsubscribe()
+            } catch (err: any) {
+                console.error("Stats fetch error:", err)
+                setError("통계 데이터를 불러오는 중 오류가 발생했습니다.")
+                setLoading(false)
+            }
+        }
+
+        fetchStats()
+    }, [])
 
     useEffect(() => {
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')

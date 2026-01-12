@@ -50,7 +50,8 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     }, [])
 
     // 현재 카테고리에 선택된 쇼가 있는지 확인 (기본 쇼 + 커스텀 쇼 통합)
-    const allShowsInCategory = [...shows, ...customShows.filter(s => s.category === category)]
+    const validCustomShows = Array.isArray(customShows) ? customShows : []
+    const allShowsInCategory = [...shows, ...validCustomShows.filter(s => s.category === category)]
     const selectedShow = allShowsInCategory.find(s => s.id === selectedShowId)
     const isCategoryActive = !!selectedShow
     

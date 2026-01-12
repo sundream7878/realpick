@@ -10,8 +10,8 @@ import { useRouter } from "next/navigation"
 import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
-import { getMission, getMission2 } from "@/lib/supabase/missions"
-import { getVote1 } from "@/lib/supabase/votes"
+import { getMission, getMission2 } from "@/lib/firebase/missions"
+import { getVote1 } from "@/lib/firebase/votes"
 import { getUserId } from "@/lib/auth-utils"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
@@ -26,7 +26,7 @@ import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { CommentSection } from "@/components/c-comment/CommentSection"
 import { isAuthenticated } from "@/lib/auth-utils"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { ShareModal } from "@/components/c-share-modal/share-modal"
 import { isAdmin } from "@/lib/utils/permissions"
@@ -196,68 +196,68 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         let missionData: TMission | null = null
 
         if (coupleResult.success && coupleResult.mission) {
-          // t_missions2 데이터를 TMission 형태로 변환
+          // Firebase 데이터를 TMission 형태로 변환
           missionData = {
-            id: coupleResult.mission.f_id,
-            title: coupleResult.mission.f_title,
-            kind: coupleResult.mission.f_kind,
+            id: coupleResult.mission.id,
+            title: coupleResult.mission.title,
+            kind: coupleResult.mission.kind,
             form: "match",
-            seasonType: coupleResult.mission.f_season_type || "전체",
-            seasonNumber: coupleResult.mission.f_season_number || undefined,
-            options: coupleResult.mission.f_match_pairs, // TMatchPairs 형식
-            deadline: coupleResult.mission.f_deadline,
-            revealPolicy: coupleResult.mission.f_reveal_policy,
-            status: coupleResult.mission.f_status,
-            episodes: coupleResult.mission.f_total_episodes || 8,
-            episodeStatuses: coupleResult.mission.f_episode_statuses || {}, // 누락된 필드 추가
-            finalAnswer: coupleResult.mission.f_final_answer || undefined,
+            seasonType: coupleResult.mission.seasonType || "전체",
+            seasonNumber: coupleResult.mission.seasonNumber || undefined,
+            options: coupleResult.mission.matchPairs, // TMatchPairs 형식
+            deadline: coupleResult.mission.deadline,
+            revealPolicy: coupleResult.mission.revealPolicy,
+            status: coupleResult.mission.status,
+            episodes: coupleResult.mission.totalEpisodes || 8,
+            episodeStatuses: coupleResult.mission.episodeStatuses || {},
+            finalAnswer: coupleResult.mission.finalAnswer || undefined,
             stats: {
-              participants: coupleResult.mission.f_stats_participants || 0
+              participants: coupleResult.mission.participants || 0
             },
             result: {
               distribution: {},
-              finalAnswer: coupleResult.mission.f_final_answer || undefined,
-              totalVotes: coupleResult.mission.f_stats_total_votes || 0
+              finalAnswer: coupleResult.mission.finalAnswer || undefined,
+              totalVotes: coupleResult.mission.totalVotes || 0
             },
-            createdAt: coupleResult.mission.f_created_at,
-            showId: coupleResult.mission.f_show_id,
-            category: coupleResult.mission.f_category
+            createdAt: coupleResult.mission.createdAt?.toDate?.()?.toISOString() || coupleResult.mission.createdAt,
+            showId: coupleResult.mission.showId,
+            category: coupleResult.mission.category
           }
         } else {
-          // t_missions2에 없으면 t_missions1에서 미션 데이터 가져오기
-          const result = await getMission(params.id)
+          // Firebase에 없으면 missions1에서 미션 데이터 가져오기
+          const result = await getMission("missions1", params.id)
 
           if (result.success && result.mission) {
-            // Supabase 데이터를 TMission 형태로 변환
+            // Firebase 데이터를 TMission 형태로 변환
             missionData = {
-              id: result.mission.f_id,
-              title: result.mission.f_title,
-              kind: result.mission.f_kind,
-              form: result.mission.f_form,
-              seasonType: result.mission.f_season_type || "전체",
-              seasonNumber: result.mission.f_season_number || undefined,
-              options: result.mission.f_options || [],
-              submissionType: result.mission.f_form === "subjective" ? "text" : (result.mission.f_submission_type || "selection"),
-              subjectivePlaceholder: result.mission.f_subjective_placeholder || undefined,
-              deadline: result.mission.f_deadline,
-              revealPolicy: result.mission.f_reveal_policy,
-              status: result.mission.f_status,
+              id: result.mission.id,
+              title: result.mission.title,
+              kind: result.mission.kind,
+              form: result.mission.form,
+              seasonType: result.mission.seasonType || "전체",
+              seasonNumber: result.mission.seasonNumber || undefined,
+              options: result.mission.options || [],
+              submissionType: result.mission.form === "subjective" ? "text" : (result.mission.submissionType || "selection"),
+              subjectivePlaceholder: result.mission.subjectivePlaceholder || undefined,
+              deadline: result.mission.deadline,
+              revealPolicy: result.mission.revealPolicy,
+              status: result.mission.status,
               stats: {
-                participants: result.mission.f_stats_participants || 0,
-                totalVotes: result.mission.f_stats_total_votes || 0
+                participants: result.mission.participants || 0,
+                totalVotes: result.mission.totalVotes || 0
               },
               result: {
-                distribution: result.mission.f_option_vote_counts || {},
-                correctAnswer: result.mission.f_correct_answer || undefined,
-                majorityOption: result.mission.f_majority_option || undefined,
-                totalVotes: result.mission.f_stats_total_votes || 0
+                distribution: result.mission.optionVoteCounts || {},
+                correctAnswer: result.mission.correctAnswer || undefined,
+                majorityOption: result.mission.majorityOption || undefined,
+                totalVotes: result.mission.totalVotes || 0
               },
-              createdAt: result.mission.f_created_at,
-              showId: result.mission.f_show_id,
-              category: result.mission.f_category
+              createdAt: result.mission.createdAt?.toDate?.()?.toISOString() || result.mission.createdAt,
+              showId: result.mission.showId,
+              category: result.mission.category
             }
           } else {
-            // Supabase에 없으면 Mock 데이터에서 시도
+            // Firebase에 없으면 Mock 데이터에서 시도
             missionData = MockVoteRepo.getMission(params.id)
           }
         }
@@ -282,8 +282,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               // 에러가 발생해도 계속 진행
             }
           } else if (missionData.form === "match") {
-            // 커플매칭은 t_pickresult2에서 가져오기
-            const { getAllVotes2 } = await import("@/lib/supabase/votes")
+            // 커플매칭은 pickresult2에서 가져오기
+            const { getAllVotes2 } = await import("@/lib/firebase/votes")
             const votes = await getAllVotes2(userId, params.id)
             if (votes && votes.length > 0) {
               // 모든 에피소드의 투표를 predictions 형식으로 변환

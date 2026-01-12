@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { createClient } from "@/lib/supabase/client"
 
 interface NewMissionData {
     id: string
@@ -65,27 +64,6 @@ export function useNewMissionNotifications() {
         return () => {
             window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
         }
-        
-        /* 기존 Realtime 코드 임시 주석 처리
-        const supabase = createClient()
-        
-        // Realtime 연결 상태 확인
-        console.log("[Realtime] Supabase 클라이언트 초기화 완료")
-
-        // 기존 Realtime 구독 코드 임시 주석 처리
-        /*
-        const channelId1 = `mission1-inserts-${Date.now()}`
-        const channelId2 = `mission2-inserts-${Date.now()}`
-
-        const channel1 = supabase.channel(channelId1)...
-        const channel2 = supabase.channel(channelId2)...
-        
-        return () => {
-            supabase.removeChannel(channel1)
-            supabase.removeChannel(channel2)
-            window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
-        }
-        */
     }, [])
 
     /**

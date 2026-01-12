@@ -1,0 +1,322 @@
+import { 
+  collection, 
+  doc, 
+  getDoc, 
+  getDocs, 
+  query, 
+  where, 
+  setDoc,
+  serverTimestamp,
+  updateDoc,
+  increment,
+  addDoc
+} from "firebase/firestore";
+import { db } from "./config";
+import { TVoteSubmission } from "@/types/t-vote/vote.types";
+
+/**
+ * Firestore를 사용한 투표 관리
+ */
+
+// Binary/Multi 투표 조회
+export async function getVote1(userId: string, missionId: string): Promise<TVoteSubmission | null> {
+  try {
+    const q = query(
+      collection(db, "pickresult1"),
+      where("userId", "==", userId),
+      where("missionId", "==", missionId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    const data = snap.docs[0].data();
+    return {
+      missionId: data.missionId,
+      userId: data.userId,
+      choice: data.selectedOption,
+      submittedAt: data.submittedAt?.toDate?.()?.toISOString() || data.createdAt?.toDate?.()?.toISOString(),
+    };
+  } catch (error) {
+    console.error("Error fetching vote1 from Firestore:", error);
+    return null;
+  }
+}
+
+// 커플 매칭 투표 조회 (특정 에피소드)
+export async function getVote2(userId: string, missionId: string, episodeNo: number): Promise<TVoteSubmission | null> {
+  try {
+    const q = query(
+      collection(db, "pickresult2"),
+      where("userId", "==", userId),
+      where("missionId", "==", missionId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return null;
+
+    const data = snap.docs[0].data();
+    const votes = data.votes || {};
+    const episodeVote = votes[episodeNo.toString()];
+
+    if (!episodeVote) return null;
+
+    return {
+      missionId: data.missionId,
+      userId: data.userId,
+      pairs: episodeVote.connections || [],
+      episodeNo: episodeNo,
+      submittedAt: episodeVote.submittedAt,
+    };
+  } catch (error) {
+    console.error("Error fetching vote2 from Firestore:", error);
+    return null;
+  }
+}
+
+// 커플 매칭 투표 전체 조회 (모든 에피소드)
+export async function getAllVotes2(userId: string, missionId: string): Promise<TVoteSubmission[]> {
+  try {
+    const q = query(
+      collection(db, "pickresult2"),
+      where("userId", "==", userId),
+      where("missionId", "==", missionId)
+    );
+    const snap = await getDocs(q);
+    if (snap.empty) return [];
+
+    const data = snap.docs[0].data();
+    const votes = data.votes || {};
+
+    return Object.entries(votes).map(([epNo, voteData]: [string, any]) => ({
+      missionId: data.missionId,
+      userId: data.userId,
+      pairs: voteData.connections || [],
+      episodeNo: parseInt(epNo),
+      submittedAt: voteData.submittedAt,
+    })).sort((a, b) => a.episodeNo - b.episodeNo);
+  } catch (error) {
+    console.error("Error fetching all votes2 from Firestore:", error);
+    return [];
+  }
+}
+
+// 모든 사용자의 커플 매칭 투표 집계 (실시간 결과용)
+export async function getAggregatedVotes2(missionId: string, episodeNo?: number): Promise<{
+  pairCounts: Record<string, number>,
+  totalParticipants: number
+}> {
+  try {
+    const q = query(collection(db, "pickresult2"), where("missionId", "==", missionId));
+    const snap = await getDocs(q);
+    
+    const pairCounts: Record<string, number> = {};
+    const uniqueUsers = new Set<string>();
+
+    snap.forEach((doc) => {
+      const data = doc.data();
+      const votes = data.votes || {};
+      const episodesToAggregate = episodeNo ? [episodeNo.toString()] : Object.keys(votes);
+      
+      let hasVotedInTargetEpisodes = false;
+      episodesToAggregate.forEach(epKey => {
+        const voteData = votes[epKey];
+        if (voteData && Array.isArray(voteData.connections)) {
+          hasVotedInTargetEpisodes = true;
+          voteData.connections.forEach((pair: { left: string; right: string }) => {
+            const pairKey = `${pair.left}-${pair.right}`;
+            pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1;
+          });
+        }
+      });
+
+      if (hasVotedInTargetEpisodes) {
+        uniqueUsers.add(data.userId);
+      }
+    });
+
+    return { pairCounts, totalParticipants: uniqueUsers.size };
+  } catch (error) {
+    console.error("Error fetching aggregated votes2 from Firestore:", error);
+    return { pairCounts: {}, totalParticipants: 0 };
+  }
+}
+
+// 여러 에피소드의 집계 결과
+export async function getAggregatedVotesMultipleEpisodes(missionId: string, episodeNos: number[]): Promise<{
+  pairCounts: Record<string, number>,
+  totalParticipants: number
+}> {
+  try {
+    const q = query(collection(db, "pickresult2"), where("missionId", "==", missionId));
+    const snap = await getDocs(q);
+    
+    const pairCounts: Record<string, number> = {};
+    const uniqueUsers = new Set<string>();
+
+    snap.forEach((doc) => {
+      const data = doc.data();
+      const votes = data.votes || {};
+      let hasVotedInTargetEpisodes = false;
+
+      episodeNos.forEach(epNo => {
+        const voteData = votes[epNo.toString()];
+        if (voteData && Array.isArray(voteData.connections)) {
+          hasVotedInTargetEpisodes = true;
+          voteData.connections.forEach((pair: { left: string; right: string }) => {
+            const pairKey = `${pair.left}-${pair.right}`;
+            pairCounts[pairKey] = (pairCounts[pairKey] || 0) + 1;
+          });
+        }
+      });
+
+      if (hasVotedInTargetEpisodes) {
+        uniqueUsers.add(data.userId);
+      }
+    });
+
+    return { pairCounts, totalParticipants: uniqueUsers.size };
+  } catch (error) {
+    console.error("Error fetching aggregated votes multiple episodes from Firestore:", error);
+    return { pairCounts: {}, totalParticipants: 0 };
+  }
+}
+
+// Binary/Multi 투표 제출
+export async function submitVote1(submission: TVoteSubmission): Promise<boolean> {
+  try {
+    // 미션 정보 조회 (포인트 보상 확인용)
+    const missionRef = doc(db, "missions1", submission.missionId);
+    const missionSnap = await getDoc(missionRef);
+    const missionData = missionSnap.data();
+
+    let pointsEarned = 0;
+    if (missionData && (missionData.kind === "poll" || missionData.kind === "majority")) {
+      pointsEarned = 10;
+    }
+
+    const voteId = `${submission.userId}_${submission.missionId}`;
+    const voteData = {
+      userId: submission.userId,
+      missionId: submission.missionId,
+      selectedOption: submission.choice,
+      submittedAt: serverTimestamp(),
+      pointsEarned,
+      createdAt: serverTimestamp(),
+    };
+
+    await setDoc(doc(db, "pickresult1", voteId), voteData);
+
+    // 참여자 수 증가
+    await updateDoc(missionRef, {
+      participants: increment(1)
+    });
+
+    // 포인트 지급 (공감픽인 경우)
+    if (pointsEarned > 0) {
+      const { addPointLog } = await import("./points");
+      await addPointLog(
+        submission.userId,
+        pointsEarned,
+        `[공감 픽] ${missionData?.title} 참여 보상`,
+        submission.missionId,
+        "mission1"
+      );
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error submitting vote1 to Firestore:", error);
+    return false;
+  }
+}
+
+// 커플 매칭 투표 제출
+export async function submitVote2(submission: TVoteSubmission): Promise<boolean> {
+  try {
+    if (!submission.episodeNo || !submission.pairs) return false;
+
+    const voteId = `${submission.userId}_${submission.missionId}`;
+    const voteRef = doc(db, "pickresult2", voteId);
+    const voteSnap = await getDoc(voteRef);
+
+    const currentVotes = voteSnap.exists() ? (voteSnap.data().votes || {}) : {};
+    currentVotes[submission.episodeNo.toString()] = {
+      connections: submission.pairs,
+      submittedAt: new Date().toISOString()
+    };
+
+    await setDoc(voteRef, {
+      userId: submission.userId,
+      missionId: submission.missionId,
+      votes: currentVotes,
+      updatedAt: serverTimestamp(),
+    }, { merge: true });
+
+    // 처음 투표하는 경우 미션 참여자 수 증가
+    if (!voteSnap.exists()) {
+      await updateDoc(doc(db, "missions2", submission.missionId), {
+        participants: increment(1)
+      });
+    }
+
+    return true;
+  } catch (error) {
+    console.error("Error submitting vote2 to Firestore:", error);
+    return false;
+  }
+}
+
+// 유저가 특정 미션들에 투표했는지 확인 (Map 반환)
+export async function getUserVotesMap(userId: string, missionIds: string[]): Promise<Record<string, any>> {
+  try {
+    if (!missionIds.length) return {};
+    
+    const votesMap: Record<string, any> = {};
+    
+    // 1. pickresult1 조회
+    const q1 = query(
+      collection(db, "pickresult1"),
+      where("userId", "==", userId)
+    );
+    const snap1 = await getDocs(q1);
+    snap1.forEach(doc => {
+      const data = doc.data();
+      if (missionIds.includes(data.missionId)) {
+        votesMap[data.missionId] = data.selectedOption;
+      }
+    });
+    
+    // 2. pickresult2 조회
+    const q2 = query(
+      collection(db, "pickresult2"),
+      where("userId", "==", userId)
+    );
+    const snap2 = await getDocs(q2);
+    snap2.forEach(doc => {
+      const data = doc.data();
+      if (missionIds.includes(data.missionId)) {
+        const episodes = Object.keys(data.votes || {});
+        if (episodes.length > 0) {
+          votesMap[data.missionId] = { 
+            type: 'match', 
+            episodeCount: episodes.length 
+          };
+        }
+      }
+    });
+
+    return votesMap;
+  } catch (error) {
+    console.error("Error fetching user votes map from Firestore:", error);
+    return {};
+  }
+}
+
+// 특정 미션에 투표했는지 확인
+export async function hasUserVoted(userId: string, missionId: string): Promise<boolean> {
+  const voteId = `${userId}_${missionId}`;
+  const snap1 = await getDoc(doc(db, "pickresult1", voteId));
+  if (snap1.exists()) return true;
+  
+  const snap2 = await getDoc(doc(db, "pickresult2", voteId));
+  return snap2.exists();
+}

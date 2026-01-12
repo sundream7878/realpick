@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServiceClient } from "@/lib/supabase/service"
+import { adminDb } from "@/lib/firebase/admin"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export async function POST(request: Request) {
@@ -15,32 +15,18 @@ export async function POST(request: Request) {
             })
         }
 
-        // 환경 변수 체크
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.warn("[Verify] Supabase 환경 변수가 설정되지 않았습니다. 검증을 건너뜁니다.")
-            return NextResponse.json({
-                status: "pass",
-                reasons: [],
-                suggestions: []
-            })
-        }
-
-        const supabase = createServiceClient()
-
         // 1. Exact Match Check (DB)
-        const { data: exact1 } = await supabase
-            .from("t_missions1")
-            .select("f_title")
-            .ilike("f_title", title.trim())
+        const exact1Query = await adminDb.collection("missions1")
+            .where("title", "==", title.trim())
             .limit(1)
+            .get()
 
-        const { data: exact2 } = await supabase
-            .from("t_missions2")
-            .select("f_title")
-            .ilike("f_title", title.trim())
+        const exact2Query = await adminDb.collection("missions2")
+            .where("title", "==", title.trim())
             .limit(1)
+            .get()
 
-        if ((exact1 && exact1.length > 0) || (exact2 && exact2.length > 0)) {
+        if (!exact1Query.empty || !exact2Query.empty) {
             return NextResponse.json({
                 status: "revise",
                 reasons: ["이미 동일한 제목의 미션이 존재합니다."],
@@ -56,20 +42,19 @@ export async function POST(request: Request) {
         } else {
             try {
                 // Fetch recent missions for context (limit 25 from each table)
-                // We rely on LLM with recent context because vector search API is unreliable.
-                let query1 = supabase.from("t_missions1").select("f_title").order("f_created_at", { ascending: false }).limit(25)
-                let query2 = supabase.from("t_missions2").select("f_title").order("f_created_at", { ascending: false }).limit(25)
+                let query1 = adminDb.collection("missions1").orderBy("createdAt", "desc").limit(25)
+                let query2 = adminDb.collection("missions2").orderBy("createdAt", "desc").limit(25)
 
                 if (showId) {
-                    query1 = query1.eq("f_show_id", showId)
-                    query2 = query2.eq("f_show_id", showId)
+                    query1 = query1.where("showId", "==", showId)
+                    query2 = query2.where("showId", "==", showId)
                 }
 
-                const [res1, res2] = await Promise.all([query1, query2])
+                const [res1, res2] = await Promise.all([query1.get(), query2.get()])
 
                 const existingTitles = [
-                    ...(res1.data?.map(m => m.f_title) || []),
-                    ...(res2.data?.map(m => m.f_title) || [])
+                    ...res1.docs.map(doc => doc.data().title),
+                    ...res2.docs.map(doc => doc.data().title)
                 ]
 
                 if (existingTitles.length > 0) {

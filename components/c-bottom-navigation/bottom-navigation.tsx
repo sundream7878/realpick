@@ -8,7 +8,7 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { PointHistoryModal } from "@/components/c-common/PointHistoryModal"
 import { isAuthenticated, getUserId } from "@/lib/auth-utils"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import { hasMinimumRole } from "@/lib/utils/permissions"
 import type { TUserRole } from "@/lib/utils/permissions"
 import type { TTierInfo } from "@/types/t-tier/tier.types"

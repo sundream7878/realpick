@@ -21,9 +21,9 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
-import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/supabase/missions"
-import { hasUserVoted as checkUserVoted } from "@/lib/supabase/votes"
-import { getUser } from "@/lib/supabase/users"
+import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/firebase/missions"
+import { getUserVotesMap } from "@/lib/firebase/votes"
+import { getUser } from "@/lib/firebase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
@@ -41,6 +41,17 @@ export default function MyPage() {
   const [isMissionStatusOpen, setIsMissionStatusOpen] = useState(false)
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
+  const [isLoading, setIsLoading] = useState(true)
+  const [createdMissions, setCreatedMissions] = useState<TMission[]>([])
+  const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
+  const [userChoices, setUserChoices] = useState<Record<string, any>>({})
+  const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({})
+  const [matchAnswerDrafts, setMatchAnswerDrafts] = useState<Record<string, Array<{ left: string; right: string }>>>({})
+  const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
+  const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
+  
+  const userId = getUserId()
+
   // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
@@ -73,62 +84,68 @@ export default function MyPage() {
 
       if (createdResult.success && createdResult.missions) {
         const created: TMission[] = createdResult.missions.map((mission: any) => {
-          if (mission.__table === "t_missions2") {
+          if (mission.__table === "missions2") {
             return {
-              id: mission.f_id,
-              showId: mission.f_show_id,
-              title: mission.f_title,
-              kind: mission.f_kind || "predict",
+              id: mission.id,
+              showId: mission.showId,
+              title: mission.title,
+              kind: mission.kind || "predict",
               form: "match",
-              seasonType: mission.f_season_type || "전체",
-              seasonNumber: mission.f_season_number || undefined,
-              options: mission.f_match_pairs,
-              deadline: mission.f_deadline,
-              revealPolicy: mission.f_reveal_policy,
-              status: mission.f_status,
-              episodes: mission.f_total_episodes || 8,
-              episodeStatuses: mission.f_episode_statuses || {},
-              finalAnswer: mission.f_final_answer || undefined,
+              seasonType: mission.seasonType || "전체",
+              seasonNumber: mission.seasonNumber || undefined,
+              options: mission.matchPairs,
+              deadline: mission.deadline,
+              revealPolicy: mission.revealPolicy,
+              status: mission.status,
+              episodes: mission.totalEpisodes || 8,
+              episodeStatuses: mission.episodeStatuses || {},
+              finalAnswer: mission.finalAnswer || undefined,
               stats: {
-                participants: mission.f_stats_participants || 0,
+                participants: mission.participants || 0,
               },
               result: {
                 distribution: {},
                 correctAnswer:
-                  mission.f_final_answer && mission.f_final_answer.length > 0
+                  mission.finalAnswer && mission.finalAnswer.length > 0
                     ? "최종 커플 확정"
                     : undefined,
-                totalVotes: mission.f_stats_total_votes || 0,
+                totalVotes: mission.totalVotes || 0,
               },
-              createdAt: mission.f_created_at,
-              updatedAt: mission.f_updated_at,
+              createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+              updatedAt: mission.updatedAt?.toDate?.()?.toISOString() || mission.updatedAt,
+              thumbnailUrl: mission.thumbnailUrl,
+              referenceUrl: mission.referenceUrl,
+              isLive: mission.isLive,
             } as TMission
           }
 
           return {
-            id: mission.f_id,
-            showId: mission.f_show_id,
-            title: mission.f_title,
-            kind: mission.f_kind,
-            form: mission.f_form,
-            seasonType: mission.f_season_type || "전체",
-            seasonNumber: mission.f_season_number || undefined,
-            options: mission.f_options || [],
-            deadline: mission.f_deadline,
-            revealPolicy: mission.f_reveal_policy,
-            status: mission.f_status,
+            id: mission.id,
+            showId: mission.showId,
+            title: mission.title,
+            kind: mission.kind,
+            form: mission.form,
+            seasonType: mission.seasonType || "전체",
+            seasonNumber: mission.seasonNumber || undefined,
+            options: mission.options || [],
+            deadline: mission.deadline,
+            revealPolicy: mission.revealPolicy,
+            status: mission.status,
             stats: {
-              participants: mission.f_stats_participants || 0,
-              totalVotes: mission.f_stats_total_votes || 0,
+              participants: mission.participants || 0,
+              totalVotes: mission.totalVotes || 0,
             },
             result: {
-              distribution: mission.f_option_vote_counts || {},
-              correctAnswer: mission.f_correct_answer || undefined,
-              majorityOption: mission.f_majority_option || undefined,
-              totalVotes: mission.f_stats_total_votes || 0,
+              distribution: mission.optionVoteCounts || {},
+              correctAnswer: mission.correctAnswer || undefined,
+              majorityOption: mission.majorityOption || undefined,
+              totalVotes: mission.totalVotes || 0,
             },
-            createdAt: mission.f_created_at,
-            updatedAt: mission.f_updated_at,
+            createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+            updatedAt: mission.updatedAt?.toDate?.()?.toISOString() || mission.updatedAt,
+            thumbnailUrl: mission.thumbnailUrl,
+            referenceUrl: mission.referenceUrl,
+            isLive: mission.isLive,
           } as TMission
         })
 
@@ -137,34 +154,37 @@ export default function MyPage() {
       }
 
       if (participatedResult.success && participatedResult.missions) {
-        const participatedIds = participatedResult.missions.map((m: any) => m.f_id)
-        const { getUserVotesMap } = await import("@/lib/supabase/votes")
+        const participatedIds = participatedResult.missions.map((m: any) => m.id)
+        const { getUserVotesMap } = await import("@/lib/firebase/votes")
         const choicesMap = await getUserVotesMap(userId, participatedIds)
         setUserChoices(choicesMap)
 
         const participated: TMission[] = participatedResult.missions.map((mission: any) => ({
-          id: mission.f_id,
-          showId: mission.f_show_id,
-          title: mission.f_title,
-          kind: mission.f_kind,
-          form: mission.f_form,
-          seasonType: mission.f_season_type || "전체",
-          seasonNumber: mission.f_season_number || undefined,
-          options: mission.f_options || [],
-          deadline: mission.f_deadline,
-          revealPolicy: mission.f_reveal_policy,
-          status: mission.f_status,
+          id: mission.id,
+          showId: mission.showId,
+          title: mission.title,
+          kind: mission.kind,
+          form: mission.form,
+          seasonType: mission.seasonType || "전체",
+          seasonNumber: mission.seasonNumber || undefined,
+          options: mission.options || [],
+          deadline: mission.deadline,
+          revealPolicy: mission.revealPolicy,
+          status: mission.status,
           stats: {
-            participants: mission.f_stats_participants || 0,
-            totalVotes: mission.f_stats_total_votes || 0,
+            participants: mission.participants || 0,
+            totalVotes: mission.totalVotes || 0,
           },
           result: {
-            distribution: mission.f_option_vote_counts || {},
-            correctAnswer: mission.f_correct_answer || undefined,
-            majorityOption: mission.f_majority_option || undefined,
-            totalVotes: mission.f_stats_total_votes || 0,
+            distribution: mission.optionVoteCounts || {},
+            correctAnswer: mission.correctAnswer || undefined,
+            majorityOption: mission.majorityOption || undefined,
+            totalVotes: mission.totalVotes || 0,
           },
-          createdAt: mission.f_created_at,
+          createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+          thumbnailUrl: mission.thumbnailUrl,
+          referenceUrl: mission.referenceUrl,
+          isLive: mission.isLive,
         }))
         setParticipatedMissions(participated)
       }

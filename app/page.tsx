@@ -13,16 +13,16 @@ import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getMissions, getMissions2 } from "@/lib/supabase/missions"
-import { hasUserVoted as checkUserVoted, getVote1, getAllVotes2 } from "@/lib/supabase/votes"
-import { getTopVotersByMission } from "@/lib/supabase/top-voters"
+import { getMissions, getMissions2 } from "@/lib/firebase/missions"
+import { getVote1, getAllVotes2, getUserVotesMap } from "@/lib/firebase/votes"
+import { getTopVotersByMission } from "@/lib/firebase/top-voters"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
-import { getUser } from "@/lib/supabase/users"
+import { getUser } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
-import { getMainMissionId } from "@/lib/supabase/admin"
+import { getMainMissionId } from "@/lib/firebase/admin-settings"
 import { getShowById } from "@/lib/constants/shows"
 
 export default function HomePage() {
@@ -59,8 +59,8 @@ export default function HomePage() {
   useEffect(() => {
     const showParam = searchParams.get('show')
     
-    // 쿼리 파라미터가 없으면 기본으로 nasolo 설정
-    if (!showParam) {
+    // 쿼리 파라미터가 없으면 기본으로 nasolo 설정 (로그인한 경우만)
+    if (!showParam && isLoggedIn) {
       router.push('/?show=nasolo')
       return
     }
@@ -92,11 +92,11 @@ export default function HomePage() {
         // 0. 관리자 설정 메인 미션 ID 가져오기
         const adminSettingPromise = getMainMissionId()
 
-        // 1. Supabase에서 미션 가져오기 (병렬 처리로 최적화)
+        // 1. Firebase에서 미션 가져오기
         const [adminSetting, result, coupleResult] = await Promise.all([
           adminSettingPromise,
-          getMissions(30), // 100개 -> 30개로 줄임
-          getMissions2(30)  // 100개 -> 30개로 줄임
+          getMissions("missions1", 30),
+          getMissions("missions2", 30)
         ])
 
         if (adminSetting.success) {
@@ -105,37 +105,37 @@ export default function HomePage() {
 
         let realMissions: TMission[] = []
         if (result.success && result.missions) {
-          // Supabase 데이터를 TMission 형태로 변환
+          // Firebase 데이터를 TMission 형태로 변환
           realMissions = result.missions.map((mission: any) => ({
-            id: mission.f_id,
-            title: mission.f_title,
-            kind: mission.f_kind,
-            form: mission.f_form,
-            seasonType: mission.f_season_type || "전체",
-            showId: mission.f_show_id,
-            category: mission.f_category,
-            seasonNumber: mission.f_season_number || undefined,
-            options: mission.f_options || [],
-            subjectivePlaceholder: mission.f_subjective_placeholder || undefined,
-            deadline: mission.f_deadline,
-            revealPolicy: mission.f_reveal_policy,
-            status: mission.f_status,
+            id: mission.id,
+            title: mission.title,
+            kind: mission.kind,
+            form: mission.form,
+            seasonType: mission.seasonType || "전체",
+            showId: mission.showId,
+            category: mission.category,
+            seasonNumber: mission.seasonNumber || undefined,
+            options: mission.options || [],
+            subjectivePlaceholder: mission.subjectivePlaceholder || undefined,
+            deadline: mission.deadline,
+            revealPolicy: mission.revealPolicy,
+            status: mission.status,
             stats: {
-              participants: mission.f_stats_participants || 0,
-              totalVotes: mission.f_stats_total_votes || 0
+              participants: mission.participants || 0,
+              totalVotes: mission.totalVotes || 0
             },
             result: {
-              distribution: mission.f_option_vote_counts || {},
-              correct: mission.f_correct_answer || undefined,
-              majority: mission.f_majority_option || undefined,
-              totalVotes: mission.f_stats_total_votes || 0
+              distribution: mission.optionVoteCounts || {},
+              correct: mission.correctAnswer || undefined,
+              majority: mission.majorityOption || undefined,
+              totalVotes: mission.totalVotes || 0
             },
-            creatorNickname: mission.creator?.f_nickname,
-            creatorTier: mission.creator?.f_tier,
-            createdAt: mission.f_created_at,
-            thumbnailUrl: mission.f_thumbnail_url,
-            referenceUrl: mission.f_reference_url,
-            isLive: mission.f_is_live
+            creatorNickname: mission.creatorNickname,
+            creatorTier: mission.creatorTier,
+            createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+            thumbnailUrl: mission.thumbnailUrl,
+            referenceUrl: mission.referenceUrl,
+            isLive: mission.isLive
           }))
         }
 
@@ -143,34 +143,36 @@ export default function HomePage() {
         let coupleMissions: TMission[] = []
         if (coupleResult.success && coupleResult.missions) {
           coupleMissions = coupleResult.missions.map((mission: any) => ({
-            id: mission.f_id,
-            title: mission.f_title,
-            kind: mission.f_kind,
+            id: mission.id,
+            title: mission.title,
+            kind: mission.kind,
             form: "match",
-            seasonType: mission.f_season_type || "전체",
-            showId: mission.f_show_id,
-            category: mission.f_category,
-            seasonNumber: mission.f_season_number || undefined,
-            options: mission.f_match_pairs,
-            deadline: mission.f_deadline,
-            revealPolicy: mission.f_reveal_policy,
-            status: mission.f_status,
-            episodes: mission.f_total_episodes || 8,
-            episodeStatuses: mission.f_episode_statuses || {},
-            finalAnswer: mission.f_final_answer || undefined,
+            seasonType: mission.seasonType || "전체",
+            showId: mission.showId,
+            category: mission.category,
+            seasonNumber: mission.seasonNumber || undefined,
+            options: mission.matchPairs,
+            deadline: mission.deadline,
+            revealPolicy: mission.revealPolicy,
+            status: mission.status,
+            episodes: mission.totalEpisodes || 8,
+            episodeStatuses: mission.episodeStatuses || {},
+            finalAnswer: mission.finalAnswer || undefined,
             stats: {
-              participants: mission.f_stats_participants || 0,
-              totalVotes: mission.f_stats_total_votes || 0
+              participants: mission.participants || 0,
+              totalVotes: mission.totalVotes || 0
             },
             result: {
               distribution: {},
-              finalAnswer: mission.f_final_answer || undefined,
-              totalVotes: mission.f_stats_total_votes || 0
+              finalAnswer: mission.finalAnswer || undefined,
+              totalVotes: mission.totalVotes || 0
             },
-            creatorNickname: mission.creator?.f_nickname,
-            creatorTier: mission.creator?.f_tier,
-            createdAt: mission.f_created_at,
-            isLive: mission.f_is_live
+            creatorNickname: mission.creatorNickname,
+            creatorTier: mission.creatorTier,
+            createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+            thumbnailUrl: mission.thumbnailUrl,
+            referenceUrl: mission.referenceUrl,
+            isLive: mission.isLive
           }))
         }
 
@@ -178,20 +180,17 @@ export default function HomePage() {
         const combinedMissions = [...realMissions, ...coupleMissions]
         setMissions(combinedMissions)
 
-        // 4. 투표 여부 확인 (비동기 백그라운드 처리)
-        // UI를 먼저 표시하고 투표 여부는 나중에 업데이트
+        // 4. 투표 여부 확인
         setIsLoading(false)
 
-        // 투표 여부 확인을 백그라운드에서 처리
-        if (isAuthenticated()) {
-          const { getUserVotesMap } = await import("@/lib/supabase/votes")
+        if (await isAuthenticated()) {
           const missionIds = combinedMissions.map(m => m.id)
           const choicesMap = await getUserVotesMap(userId, missionIds)
           
           setUserChoices(choicesMap)
           setVotedMissions(new Set(Object.keys(choicesMap)))
         } else {
-          // 비인증 사용자는 localStorage 확인 (동기적, 빠름)
+          // 비인증 사용자는 localStorage 확인
           const voted = new Set<string>()
           const choices: Record<string, any> = {}
           

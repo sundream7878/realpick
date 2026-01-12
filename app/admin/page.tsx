@@ -13,11 +13,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow } from "@/lib/supabase/admin"
-import { getAllUsers, updateUserRole, searchUsers } from "@/lib/supabase/users"
+import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow } from "@/lib/firebase/admin-settings"
+import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
 import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
-import { createClient } from "@/lib/supabase/client"
+import { auth, db } from "@/lib/firebase/config"
+import { doc, getDoc } from "firebase/firestore"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
@@ -67,22 +68,18 @@ export default function AdminPage() {
 
     useEffect(() => {
         const checkPermissionAndLoad = async () => {
-            const supabase = createClient()
-            const { data: { user } } = await supabase.auth.getUser()
+            const currentUser = auth.currentUser
 
-            if (!user) {
+            if (!currentUser) {
                 router.push("/")
                 return
             }
 
             // Check role first
-            const { data: userData } = await supabase
-                .from("t_users")
-                .select("f_role")
-                .eq("f_id", user.id)
-                .single()
+            const userDoc = await getDoc(doc(db, "users", currentUser.uid))
+            const userData = userDoc.data()
 
-            if (userData?.f_role !== 'ADMIN') {
+            if (userData?.role !== 'ADMIN') {
                 router.push("/")
                 toast({
                     title: "접근 거부",
@@ -154,9 +151,15 @@ export default function AdminPage() {
         }
 
         try {
+            const { auth } = await import("@/lib/firebase/config")
+            const token = await auth.currentUser?.getIdToken()
+
             const res = await fetch("/api/admin/auth/update", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ newPassword }),
             })
 
@@ -166,10 +169,12 @@ export default function AdminPage() {
                 setNewPassword("")
                 setConfirmNewPassword("")
             } else {
-                throw new Error("Failed to update password")
+                const data = await res.json()
+                throw new Error(data.error || "Failed to update password")
             }
-        } catch (error) {
-            toast({ title: "오류", description: "비밀번호 변경 중 오류가 발생했습니다.", variant: "destructive" })
+        } catch (error: any) {
+            console.error("Admin password change error:", error)
+            toast({ title: "오류", description: error.message || "비밀번호 변경 중 오류가 발생했습니다.", variant: "destructive" })
         }
     }
 
@@ -464,11 +469,12 @@ export default function AdminPage() {
         }
     }
 
-    // 기본 프로그램 + 커스텀 프로그램 통합
+    // 기본 프로그램 + 커스텀 프로그램 통합 (customShows가 배열인지 확인)
+    const validCustomShows = Array.isArray(customShows) ? customShows : []
     const groupedShows = {
-        LOVE: [...SHOWS.LOVE, ...customShows.filter((s: any) => s.category === 'LOVE')],
-        VICTORY: [...SHOWS.VICTORY, ...customShows.filter((s: any) => s.category === 'VICTORY')],
-        STAR: [...SHOWS.STAR, ...customShows.filter((s: any) => s.category === 'STAR')]
+        LOVE: [...SHOWS.LOVE, ...validCustomShows.filter((s: any) => s.category === 'LOVE')],
+        VICTORY: [...SHOWS.VICTORY, ...validCustomShows.filter((s: any) => s.category === 'VICTORY')],
+        STAR: [...SHOWS.STAR, ...validCustomShows.filter((s: any) => s.category === 'STAR')]
     }
 
     const totalPages = Math.ceil(totalUsers / usersPerPage)
@@ -571,9 +577,9 @@ export default function AdminPage() {
                                         {groupedShows[category].map((show) => {
                                             const showMissions = missions.filter(m => {
                                                 if (show.id === 'nasolo') {
-                                                    return m.f_show_id === show.id || !m.f_show_id
+                                                    return m.showId === show.id || !m.showId
                                                 }
-                                                return m.f_show_id === show.id
+                                                return m.showId === show.id
                                             })
 
                                             return (
@@ -590,7 +596,7 @@ export default function AdminPage() {
                                                         <div className="flex items-center gap-2">
                                                             <Select
                                                                 onValueChange={handleSetMainMission}
-                                                                value={currentMainMissionId && showMissions.find(m => m.f_id === currentMainMissionId) ? currentMainMissionId : ""}
+                                                                value={currentMainMissionId && showMissions.find(m => m.id === currentMainMissionId) ? currentMainMissionId : ""}
                                                             >
                                                                 <SelectTrigger className="w-full">
                                                                     <SelectValue placeholder="메인 미션으로 선정할 투표 선택" />
@@ -600,8 +606,8 @@ export default function AdminPage() {
                                                                         <div className="p-2 text-sm text-gray-500 text-center">진행 중인 투표 없음</div>
                                                                     ) : (
                                                                         showMissions.map((mission) => (
-                                                                            <SelectItem key={mission.f_id} value={mission.f_id}>
-                                                                                <span className="truncate block max-w-[300px]">{mission.f_title}</span>
+                                                                            <SelectItem key={mission.id} value={mission.id}>
+                                                                                <span className="truncate block max-w-[300px]">{mission.title}</span>
                                                                             </SelectItem>
                                                                         ))
                                                                     )}
@@ -657,7 +663,7 @@ export default function AdminPage() {
                                                             >
                                                                 {isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
                                                             </Button>
-                                                            {customShows.some((s: any) => s.id === show.id) && (
+                                                            {validCustomShows.some((s: any) => s.id === show.id) && (
                                                                 <Button
                                                                     variant="ghost"
                                                                     size="sm"

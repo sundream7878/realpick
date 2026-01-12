@@ -44,7 +44,10 @@ export function MissionCard({
   const category = showInfo?.category
   const theme = getThemeColors(category)
   const targetUrl = mission.referenceUrl || showInfo?.officialUrl
-  const displayThumbnailUrl = mission.thumbnailUrl || showInfo?.defaultThumbnail
+  
+  // 썸네일 URL 처리 ("null" 문자열인 경우 null로 취급)
+  const thumbnailUrl = (mission.thumbnailUrl && mission.thumbnailUrl !== "null") ? mission.thumbnailUrl : null
+  const displayThumbnailUrl = thumbnailUrl || showInfo?.defaultThumbnail
 
   const isClosed = (() => {
     if (mission.form === "match") {

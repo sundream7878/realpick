@@ -254,7 +254,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
                     전송 중...
                   </div>
                 ) : (
-                  "인증 코드 받기"
+                  "로그인 링크 받기"
                 )}
               </Button>
 
@@ -263,53 +263,22 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
               </p>
             </form>
           ) : (
-            /* OTP 코드 입력 단계 */
-            <form onSubmit={handleCodeVerify} className="space-y-6">
+            /* 매직링크 안내 단계 */
+            <div className="space-y-6">
               <div className="flex flex-col items-center justify-center space-y-4 py-2">
                 <div className="w-16 h-16 bg-[#3E757B]/10 rounded-full flex items-center justify-center">
                   <Mail className="w-8 h-8 text-[#3E757B]" />
                 </div>
                 <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-900">인증 코드를 입력하세요</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">이메일을 확인해주세요</h3>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-900">{email}</span>로 6자리 코드를 전송했습니다.
+                    <span className="font-medium text-gray-900">{email}</span>로 로그인 링크를 전송했습니다.
+                  </p>
+                  <p className="text-sm text-[#3E757B] font-medium">
+                    이메일의 링크를 클릭하면 로그인이 완료됩니다.
                   </p>
                 </div>
               </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="code" className="text-gray-700">
-                  인증 코드
-                </Label>
-                <Input
-                  id="code"
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  placeholder="000000"
-                  value={code}
-                  onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
-                  required
-                  className="h-12 text-center text-2xl tracking-widest border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B]"
-                  autoFocus
-                />
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isVerifying || code.length !== 6}
-                className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
-              >
-                {isVerifying ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    확인 중...
-                  </div>
-                ) : (
-                  "로그인"
-                )}
-              </Button>
 
               <div className="space-y-4">
                 <Button
@@ -332,7 +301,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
                     disabled={isResending}
                     className="text-sm text-[#3E757B] hover:text-[#2C2745] disabled:text-gray-400"
                   >
-                    {isResending ? "재전송 중..." : "코드 재전송"}
+                    {isResending ? "재전송 중..." : "링크 재전송"}
                   </button>
                 </div>
               </div>
@@ -340,7 +309,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
               <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
                 이메일이 보이지 않나요? 스팸 폴더를 확인해주세요.
               </p>
-            </form>
+            </div>
           )}
         </div>
       </DialogContent>

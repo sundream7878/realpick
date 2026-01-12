@@ -1,33 +1,26 @@
-import { createClient } from "@/lib/supabase/server"
+import { adminDb, adminAuth } from "@/lib/firebase/admin"
 import { NextResponse } from "next/server"
 
 export async function DELETE(request: Request) {
   try {
-    const supabase = createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-
-    if (!user) {
+    const authHeader = request.headers.get("Authorization")
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
+    const idToken = authHeader.split("Bearer ")[1]
+    const decodedToken = await adminAuth.verifyIdToken(idToken)
+    const userId = decodedToken.uid
+
     // Check if user is admin
-    const { data: userData, error: userError } = await supabase
-      .from("t_users")
-      .select("f_role")
-      .eq("f_id", user.id)
-      .single()
+    const userDoc = await adminDb.collection("users").doc(userId).get()
+    const userData = userDoc.data()
 
-    if (userError) {
-      console.error("사용자 정보 조회 실패:", userError)
-      return NextResponse.json({ error: "User not found" }, { status: 404 })
-    }
-
-    const userRole = userData?.f_role?.toUpperCase()
-    if (userRole !== "ADMIN") {
-      console.log("권한 없음:", { userId: user.id, role: userData?.f_role })
+    if (userData?.role?.toUpperCase() !== "ADMIN") {
+      console.log("권한 없음:", { userId, role: userData?.role })
       return NextResponse.json({ 
         error: "Forbidden",
-        details: `Admin role required. Current role: ${userData?.f_role}` 
+        details: `Admin role required. Current role: ${userData?.role}` 
       }, { status: 403 })
     }
 
@@ -40,72 +33,30 @@ export async function DELETE(request: Request) {
     }
 
     // Delete related data first (votes, comments, etc.)
-    if (missionType === "mission2") {
-      // Delete votes for mission2
-      const { error: votesError } = await supabase
-        .from("t_pickresult2")
-        .delete()
-        .eq("f_mission_id", missionId)
-      
-      if (votesError) {
-        console.error("투표 데이터 삭제 실패:", votesError)
-        // Continue anyway, might not have votes
-      }
-    } else {
-      // Delete votes for mission1
-      const { error: votesError } = await supabase
-        .from("t_pickresult1")
-        .delete()
-        .eq("f_mission_id", missionId)
-      
-      if (votesError) {
-        console.error("투표 데이터 삭제 실패:", votesError)
-        // Continue anyway, might not have votes
-      }
-    }
+    const batch = adminDb.batch()
 
-    // Delete comments (if exists)
-    const { error: commentsError } = await supabase
-      .from("t_comments")
-      .delete()
-      .eq("f_mission_id", missionId)
-    
-    if (commentsError) {
-      console.error("댓글 삭제 실패:", commentsError)
-      // Continue anyway, might not have comments
-    }
+    // 1. Delete votes
+    const votesCollection = missionType === "mission2" ? "pickresult2" : "pickresult1"
+    const votesQuery = await adminDb.collection(votesCollection).where("missionId", "==", missionId).get()
+    votesQuery.forEach(doc => batch.delete(doc.ref))
 
-    // Delete point logs related to this mission
-    const { error: pointLogsError } = await supabase
-      .from("t_pointlogs")
-      .delete()
-      .eq("f_mission_id", missionId)
-    
-    if (pointLogsError) {
-      console.error("포인트 로그 삭제 실패:", pointLogsError)
-      // Continue anyway
-    }
+    // 2. Delete comments
+    const commentsQuery = await adminDb.collection("comments").where("missionId", "==", missionId).get()
+    commentsQuery.forEach(doc => batch.delete(doc.ref))
 
-    // Delete from appropriate table
-    const tableName = missionType === "mission2" ? "t_missions2" : "t_missions1"
-    
-    const { error, data } = await supabase
-      .from(tableName)
-      .delete()
-      .eq("f_id", missionId)
-      .select()
+    // 3. Delete point logs
+    const pointLogsQuery = await adminDb.collection("pointlogs").where("missionId", "==", missionId).get()
+    pointLogsQuery.forEach(doc => batch.delete(doc.ref))
 
-    if (error) {
-      console.error("미션 삭제 실패:", error)
-      return NextResponse.json({ 
-        error: "Failed to delete mission",
-        details: error.message 
-      }, { status: 500 })
-    }
+    // 4. Delete the mission itself
+    const missionTable = missionType === "mission2" ? "missions2" : "missions1"
+    batch.delete(adminDb.collection(missionTable).doc(missionId))
 
-    console.log("미션 삭제 성공:", missionId, "삭제된 레코드:", data)
+    await batch.commit()
 
-    return NextResponse.json({ success: true, deleted: data })
+    console.log("미션 삭제 성공:", missionId)
+
+    return NextResponse.json({ success: true })
   } catch (error) {
     console.error("미션 삭제 중 오류:", error)
     return NextResponse.json({ error: "Internal Server Error" }, { status: 500 })

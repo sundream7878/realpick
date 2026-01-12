@@ -10,8 +10,8 @@ import { Clock, Users } from "lucide-react"
 import { ResultSection } from "./result-section"
 import { SubmissionSheet } from "./submission-sheet"
 import { MockVoteRepo } from "@/lib/mock-vote-data"
-import { submitVote1, getVote1 } from "@/lib/supabase/votes"
-import { incrementMissionParticipants, updateOptionVoteCounts, getMission } from "@/lib/supabase/missions"
+import { submitVote1, getVote1 } from "@/lib/firebase/votes"
+import { incrementMissionParticipants, updateOptionVoteCounts, getMissionById as getMission } from "@/lib/firebase/missions"
 import { getUserId } from "@/lib/auth-utils"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
@@ -174,30 +174,31 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       // 4. 업데이트된 미션 데이터 다시 가져오기
       const updatedMissionResult = await getMission(mission.id)
       if (updatedMissionResult.success && updatedMissionResult.mission) {
+        const m = updatedMissionResult.mission;
         const updatedMission: TMission = {
-          id: updatedMissionResult.mission.f_id,
-          title: updatedMissionResult.mission.f_title,
-          kind: updatedMissionResult.mission.f_kind,
-          form: updatedMissionResult.mission.f_form,
-          seasonType: updatedMissionResult.mission.f_season_type || "전체",
-          seasonNumber: updatedMissionResult.mission.f_season_number || undefined,
-          options: updatedMissionResult.mission.f_options || [],
-          deadline: updatedMissionResult.mission.f_deadline,
-          revealPolicy: updatedMissionResult.mission.f_reveal_policy,
-          status: updatedMissionResult.mission.f_status,
+          id: m.id,
+          title: m.title,
+          kind: m.kind,
+          form: m.form,
+          seasonType: m.seasonType || "전체",
+          seasonNumber: m.seasonNumber || undefined,
+          options: m.options || [],
+          deadline: m.deadline,
+          revealPolicy: m.revealPolicy,
+          status: m.status,
           stats: {
-            participants: updatedMissionResult.mission.f_stats_participants || 0,
-            totalVotes: updatedMissionResult.mission.f_stats_total_votes || 0
+            participants: m.participants || 0,
+            totalVotes: m.stats?.totalVotes || 0
           },
           result: {
-            distribution: updatedMissionResult.mission.f_option_vote_counts || {},
-            totalVotes: updatedMissionResult.mission.f_stats_total_votes || 0
+            distribution: m.optionVoteCounts || {},
+            totalVotes: m.stats?.totalVotes || 0
           },
-          createdAt: updatedMissionResult.mission.f_created_at,
-          description: updatedMissionResult.mission.f_description || undefined,
-          referenceUrl: updatedMissionResult.mission.f_reference_url || undefined,
-          imageUrl: updatedMissionResult.mission.f_image_url || undefined,
-          thumbnailUrl: updatedMissionResult.mission.f_thumbnail_url || undefined
+          createdAt: m.createdAt?.toDate?.()?.toISOString() || m.createdAt,
+          description: m.description || undefined,
+          referenceUrl: m.referenceUrl || undefined,
+          imageUrl: m.imageUrl || undefined,
+          thumbnailUrl: m.thumbnailUrl || undefined
         }
         setCurrentMission(updatedMission)
       } else {

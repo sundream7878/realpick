@@ -3,10 +3,11 @@
  * TODO: 실제 Supabase 인증과 연결 필요
  */
 
+import { auth } from "./firebase/config";
+
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  const authToken = localStorage.getItem("rp_auth_token")
-  return !!authToken
+  return !!auth.currentUser || !!localStorage.getItem("rp_auth_token")
 }
 
 export function setAuthToken(token: string): void {

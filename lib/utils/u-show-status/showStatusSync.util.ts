@@ -14,7 +14,7 @@ export function setupShowStatusSync(
       .then(data => {
         if (data.statuses) setShowStatuses(data.statuses)
         if (data.visibility && setShowVisibility) setShowVisibility(data.visibility)
-        if (data.customShows && setCustomShows) setCustomShows(data.customShows)
+        if (setCustomShows) setCustomShows(Array.isArray(data.customShows) ? data.customShows : [])
       })
       .catch(err => console.error("Failed to fetch show data", err))
   }
@@ -36,7 +36,7 @@ export function setupShowStatusSync(
   // 커스텀 프로그램 업데이트 핸들러
   const handleCustomShowsUpdate = (event: any) => {
     const { shows } = event.detail || {}
-    if (shows && setCustomShows) setCustomShows(shows)
+    if (setCustomShows) setCustomShows(Array.isArray(shows) ? shows : [])
   }
 
   // localStorage 변경 감지 (다른 탭)
@@ -49,8 +49,8 @@ export function setupShowStatusSync(
         setShowStatuses(data.statuses)
       } else if (event.key === 'show-visibility-update' && data.visibility && setShowVisibility) {
         setShowVisibility(data.visibility)
-      } else if (event.key === 'custom-shows-update' && data.shows && setCustomShows) {
-        setCustomShows(data.shows)
+      } else if (event.key === 'custom-shows-update' && setCustomShows) {
+        setCustomShows(Array.isArray(data.shows) ? data.shows : [])
       }
     } catch (err) {
       console.error("Failed to parse storage update", err)

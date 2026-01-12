@@ -23,9 +23,15 @@ export function AdminLockScreen({ onUnlock }: AdminLockScreenProps) {
 
         setIsLoading(true)
         try {
+            const { auth } = await import("@/lib/firebase/config")
+            const token = await auth.currentUser?.getIdToken()
+
             const res = await fetch("/api/admin/auth/verify", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ password }),
             })
             const data = await res.json()
@@ -37,9 +43,10 @@ export function AdminLockScreen({ onUnlock }: AdminLockScreenProps) {
                 setIsSettingMode(true)
                 toast({ title: "비밀번호 설정 필요", description: "관리자 비밀번호를 설정해주세요." })
             } else {
-                toast({ title: "인증 실패", description: "비밀번호가 올바르지 않습니다.", variant: "destructive" })
+                toast({ title: "인증 실패", description: data.error || "비밀번호가 올바르지 않습니다.", variant: "destructive" })
             }
         } catch (error) {
+            console.error("Admin verify error:", error)
             toast({ title: "오류 발생", description: "인증 중 오류가 발생했습니다.", variant: "destructive" })
         } finally {
             setIsLoading(false)
@@ -54,9 +61,15 @@ export function AdminLockScreen({ onUnlock }: AdminLockScreenProps) {
 
         setIsLoading(true)
         try {
+            const { auth } = await import("@/lib/firebase/config")
+            const token = await auth.currentUser?.getIdToken()
+
             const res = await fetch("/api/admin/auth/update", {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { 
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${token}`
+                },
                 body: JSON.stringify({ newPassword: password }),
             })
 
@@ -64,10 +77,12 @@ export function AdminLockScreen({ onUnlock }: AdminLockScreenProps) {
                 toast({ title: "설정 완료", description: "비밀번호가 설정되었습니다." })
                 onUnlock()
             } else {
-                throw new Error("Failed to set password")
+                const data = await res.json()
+                throw new Error(data.error || "Failed to set password")
             }
-        } catch (error) {
-            toast({ title: "오류 발생", description: "비밀번호 설정 중 오류가 발생했습니다.", variant: "destructive" })
+        } catch (error: any) {
+            console.error("Admin update password error:", error)
+            toast({ title: "오류 발생", description: error.message || "비밀번호 설정 중 오류가 발생했습니다.", variant: "destructive" })
         } finally {
             setIsLoading(false)
         }

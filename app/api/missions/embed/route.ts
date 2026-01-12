@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { createServiceClient } from "@/lib/supabase/service"
+import { adminDb } from "@/lib/firebase/admin"
 import { GoogleGenerativeAI } from "@google/generative-ai"
 
 export async function POST(request: Request) {
@@ -17,32 +17,18 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
         }
 
-        if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-            console.error("[Embed] Missing Supabase environment variables")
-            return NextResponse.json({ error: "Server configuration error" }, { status: 500 })
-        }
-
         const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY)
         const model = genAI.getGenerativeModel({ model: "text-embedding-004" })
 
         const result = await model.embedContent(title)
         const embedding = result.embedding.values
 
-        const supabase = createServiceClient()
+        // Firestore collection name mapping
+        const collectionName = table.startsWith('t_') ? table.substring(2) : table
 
-        // Determine the correct ID column based on table convention
-        // t_missions1 uses 'f_id', t_missions2 uses 'f_id' based on previous file reads
-        const idColumn = 'f_id'
-
-        const { error } = await supabase
-            .from(table)
-            .update({ embedding: embedding })
-            .eq(idColumn, id)
-
-        if (error) {
-            console.error(`Failed to update embedding for ${table}/${id}:`, error)
-            return NextResponse.json({ error: "Database update failed" }, { status: 500 })
-        }
+        await adminDb.collection(collectionName).doc(id).update({
+            embedding: embedding
+        })
 
         return NextResponse.json({ success: true })
 

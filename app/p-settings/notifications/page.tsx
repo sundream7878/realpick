@@ -2,16 +2,17 @@
 
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/lib/supabase/client"
+import { auth, db } from "@/lib/firebase/config"
+import { getNotificationPreferences, saveNotificationPreferences } from "@/lib/firebase/notifications"
 import { Button } from "@/components/c-ui/button"
 import { Switch } from "@/components/c-ui/switch"
 import { ArrowLeft, Bell, Mail } from "lucide-react"
 import { CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
 
 interface NotificationPreferences {
-    f_id?: string
-    f_email_enabled: boolean
-    f_categories: string[]
+    id?: string
+    emailEnabled: boolean
+    categories: string[]
 }
 
 const CATEGORIES = [
@@ -25,44 +26,33 @@ export default function NotificationSettingsPage() {
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
     const [preferences, setPreferences] = useState<NotificationPreferences>({
-        f_email_enabled: true,
-        f_categories: ['LOVE', 'VICTORY', 'STAR']
+        emailEnabled: true,
+        categories: ['LOVE', 'VICTORY', 'STAR']
     })
     const [userId, setUserId] = useState<string | null>(null)
 
     useEffect(() => {
-        loadPreferences()
+        const unsubscribe = auth.onAuthStateChanged((user) => {
+            if (user) {
+                setUserId(user.uid)
+                loadPreferences(user.uid)
+            } else {
+                router.push('/')
+            }
+        })
+        return () => unsubscribe()
     }, [])
 
-    async function loadPreferences() {
+    async function loadPreferences(uid: string) {
         try {
-            const supabase = createClient()
+            const result = await getNotificationPreferences(uid)
 
-            // 현재 사용자 확인
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) {
-                router.push('/')
-                return
-            }
-
-            setUserId(user.id)
-
-            // 알림 설정 조회
-            const { data, error } = await supabase
-                .from('t_notification_preferences')
-                .select('*')
-                .eq('f_user_id', user.id)
-                .single()
-
-            if (error && error.code !== 'PGRST116') { // PGRST116 = no rows found
-                console.error('Error loading preferences:', error)
-            }
-
-            if (data) {
+            if (result.success && result.preferences) {
+                const data = result.preferences as any;
                 setPreferences({
-                    f_id: data.f_id,
-                    f_email_enabled: data.f_email_enabled,
-                    f_categories: data.f_categories || []
+                    id: data.id,
+                    emailEnabled: data.emailEnabled ?? true,
+                    categories: data.categories || ['LOVE', 'VICTORY', 'STAR']
                 })
             }
         } catch (error) {
@@ -77,30 +67,12 @@ export default function NotificationSettingsPage() {
 
         setSaving(true)
         try {
-            const supabase = createClient()
+            const result = await saveNotificationPreferences(userId, {
+                emailEnabled: preferences.emailEnabled,
+                categories: preferences.categories
+            })
 
-            const payload = {
-                f_user_id: userId,
-                f_email_enabled: preferences.f_email_enabled,
-                f_categories: preferences.f_categories
-            }
-
-            if (preferences.f_id) {
-                // 업데이트
-                const { error } = await supabase
-                    .from('t_notification_preferences')
-                    .update(payload)
-                    .eq('f_id', preferences.f_id)
-
-                if (error) throw error
-            } else {
-                // 생성
-                const { error } = await supabase
-                    .from('t_notification_preferences')
-                    .insert([payload])
-
-                if (error) throw error
-            }
+            if (!result.success) throw result.error
 
             alert('알림 설정이 저장되었습니다!')
         } catch (error: any) {
@@ -113,11 +85,11 @@ export default function NotificationSettingsPage() {
 
     function toggleCategory(categoryId: string) {
         setPreferences(prev => {
-            const categories = prev.f_categories.includes(categoryId)
-                ? prev.f_categories.filter(c => c !== categoryId)
-                : [...prev.f_categories, categoryId]
+            const categories = prev.categories.includes(categoryId)
+                ? prev.categories.filter(c => c !== categoryId)
+                : [...prev.categories, categoryId]
 
-            return { ...prev, f_categories: categories }
+            return { ...prev, categories }
         })
     }
 
@@ -169,9 +141,9 @@ export default function NotificationSettingsPage() {
                                     </p>
                                 </div>
                                 <Switch
-                                    checked={preferences.f_email_enabled}
+                                    checked={preferences.emailEnabled}
                                     onCheckedChange={(checked) =>
-                                        setPreferences(prev => ({ ...prev, f_email_enabled: checked }))
+                                        setPreferences(prev => ({ ...prev, emailEnabled: checked }))
                                     }
                                 />
                             </div>
@@ -189,7 +161,7 @@ export default function NotificationSettingsPage() {
 
                         <div className="space-y-3">
                             {CATEGORIES.map(category => {
-                                const isSelected = preferences.f_categories.includes(category.id)
+                                const isSelected = preferences.categories.includes(category.id)
 
                                 return (
                                     <button
