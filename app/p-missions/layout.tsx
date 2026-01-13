@@ -6,10 +6,11 @@ interface Props {
 }
 
 export async function generateMetadata(
-  { searchParams }: { searchParams: { show?: string } },
+  { searchParams }: { searchParams?: { [key: string]: string | string[] | undefined } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  const showId = searchParams.show
+  // Layout에서는 searchParams를 직접 받을 수 없으므로 안전하게 처리
+  const showId = typeof searchParams?.show === 'string' ? searchParams.show : null
   const showInfo = showId ? getShowById(showId) : null
   
   const title = showInfo ? `${showInfo.displayName} 미션 목록` : "미션 목록 | 리얼픽"
