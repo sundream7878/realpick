@@ -82,11 +82,11 @@ export async function createMission(missionData: CreateMissionData, userId: stri
   }
 }
 
-// 미션 목록 조회
-export async function getMissions(type: 'missions1' | 'missions2' = 'missions1', limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
+// 미션 목록 조회 (missions1)
+export async function getMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
     const q = query(
-      collection(db, type),
+      collection(db, "missions1"),
       orderBy("createdAt", "desc"),
       firestoreLimit(limitCount)
     );
@@ -96,6 +96,24 @@ export async function getMissions(type: 'missions1' | 'missions2' = 'missions1',
     return { success: true, missions };
   } catch (error: any) {
     console.error("Firebase 미션 목록 조회 실패:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+// 미션 목록 조회 (missions2)
+export async function getMissions2(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
+  try {
+    const q = query(
+      collection(db, "missions2"),
+      orderBy("createdAt", "desc"),
+      firestoreLimit(limitCount)
+    );
+    const querySnapshot = await getDocs(q);
+    const missions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    
+    return { success: true, missions };
+  } catch (error: any) {
+    console.error("Firebase 미션2 목록 조회 실패:", error);
     return { success: false, error: error.message };
   }
 }

@@ -59,7 +59,9 @@ export default function MissionsPage() {
 
         if (result.success && result.missions) {
           // Firebase 데이터를 TMission 형태로 변환
-          realMissions = result.missions.map((mission: any) => ({
+          realMissions = (result.missions || [])
+            .filter(Boolean)
+            .map((mission: any) => ({
             id: mission.id,
             title: mission.title,
             kind: mission.kind,
@@ -96,7 +98,9 @@ export default function MissionsPage() {
 
         if (coupleResult.success && coupleResult.missions) {
           // Firebase 데이터를 TMission 형태로 변환
-          coupleMissions = coupleResult.missions.map((mission: any) => ({
+          coupleMissions = (coupleResult.missions || [])
+            .filter(Boolean)
+            .map((mission: any) => ({
             id: mission.id,
             title: mission.title,
             kind: mission.kind,
