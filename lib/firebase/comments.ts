@@ -43,17 +43,29 @@ const mapFirestoreToComment = (id: string, data: any, replies: TComment[] = []):
 // 댓글 목록 조회
 export async function getComments(missionId: string, userId?: string): Promise<{ success: boolean; comments?: TComment[]; error?: string }> {
   try {
-    // 1. 최상위 댓글 조회
-    const q = query(
+    // 1. 해당 미션의 모든 댓글(최상위)과 대댓글을 한꺼번에 조회 시도
+    // (대댓글이 너무 많지 않다는 가정하에 효율적)
+    const commentsQ = query(
       collection(db, "comments"),
       where("missionId", "==", missionId),
       orderBy("createdAt", "asc")
     );
-    const querySnapshot = await getDocs(q);
+    const commentsSnap = await getDocs(commentsQ);
     
-    // 2. 대댓글 조회 (모든 댓글에 대해 한꺼번에 조회하거나 루프 - 여기선 간단하게)
-    const comments: TComment[] = [];
+    const repliesQ = query(
+      collection(db, "replies"),
+      where("missionId", "==", missionId), // replies 테이블에도 missionId가 있다면 효율적
+      orderBy("createdAt", "asc")
+    );
+    // 만약 replies에 missionId가 없다면, 모든 대댓글을 가져오는 것은 위험하므로 
+    // 기존의 루프 방식을 유지하되 최적화가 필요함.
+    // 하지만 우선 데이터 구조를 확인해야 하므로, 안전하게 최상위 댓글부터 매핑
     
+    const allCommentsData = commentsSnap.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data()
+    }));
+
     // 좋아요 정보 가져오기 (로그인한 경우)
     const likedCommentIds = new Set<string>();
     if (userId) {
@@ -62,26 +74,41 @@ export async function getComments(missionId: string, userId?: string): Promise<{
       likesSnap.forEach(doc => likedCommentIds.add(doc.data().commentId));
     }
 
-    for (const doc of querySnapshot.docs) {
-      const data = doc.data();
-      const commentId = doc.id;
-      
-      // 대댓글 조회
-      const repliesQ = query(
-        collection(db, "replies"),
-        where("commentId", "==", commentId),
-        orderBy("createdAt", "asc")
-      );
-      const repliesSnap = await getDocs(repliesQ);
-      const replies = repliesSnap.docs.map(rDoc => {
-        const rData = rDoc.data();
-        return mapFirestoreToComment(rDoc.id, rData);
-      });
-
-      const comment = mapFirestoreToComment(commentId, data, replies);
-      comment.isLiked = likedCommentIds.has(commentId);
-      comments.push(comment);
+    // 모든 대댓글을 한 번에 가져오기 (성능 최적화의 핵심)
+    // replies 테이블에 missionId 인덱스가 있다고 가정하거나, 
+    // 없는 경우를 대비해 commentId 목록으로 조회
+    const commentIds = allCommentsData.map(c => c.id);
+    let allReplies: any[] = [];
+    
+    if (commentIds.length > 0) {
+      // commentId별로 나누어 조회 (Firestore 'in' 쿼리는 최대 30개 제한)
+      for (let i = 0; i < commentIds.length; i += 30) {
+        const chunk = commentIds.slice(i, i + 30);
+        const rQ = query(
+          collection(db, "replies"),
+          where("commentId", "in", chunk),
+          orderBy("createdAt", "asc")
+        );
+        const rSnap = await getDocs(rQ);
+        allReplies.push(...rSnap.docs.map(rd => ({ id: rd.id, ...rd.data() })));
+      }
     }
+
+    // 대댓글을 부모 commentId별로 그룹화
+    const repliesByCommentId: Record<string, TComment[]> = {};
+    allReplies.forEach(rData => {
+      const cId = rData.commentId;
+      if (!repliesByCommentId[cId]) repliesByCommentId[cId] = [];
+      repliesByCommentId[cId].push(mapFirestoreToComment(rData.id, rData));
+    });
+
+    const comments: TComment[] = allCommentsData.map(cData => {
+      const commentId = cData.id;
+      const replies = repliesByCommentId[commentId] || [];
+      const comment = mapFirestoreToComment(commentId, cData, replies);
+      comment.isLiked = likedCommentIds.has(commentId);
+      return comment;
+    });
 
     return { success: true, comments };
   } catch (error: any) {

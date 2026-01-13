@@ -10,7 +10,9 @@ import {
   getDocs,
   where,
   serverTimestamp,
-  Timestamp
+  Timestamp,
+  startAfter,
+  getCountFromServer
 } from "firebase/firestore";
 import { db } from "./config";
 import type { TUser, TTier } from "@/types/t-vote/vote.types";
@@ -170,28 +172,48 @@ export async function getUserRanking(limitCount: number = 100): Promise<TUser[]>
   }
 }
 
-// 모든 사용자 조회 (관리자 전용)
+// 모든 사용자 조회 (관리자 전용) - 페이징 및 필터링 최적화
 export async function getAllUsers(
   limitCount: number = 50,
-  offset: number = 0
-): Promise<{ users: TUser[]; total: number }> {
+  lastDoc: any = null,
+  roleFilter: string = "ALL"
+): Promise<{ users: TUser[]; lastVisible: any; total: number }> {
   try {
-    // Firestore에서는 단순 offset이 비효율적이지만, 여기서는 소규모 앱이므로 일단 구현
-    // 실제 대규모 앱에서는 startAfter를 사용해야 함
-    const q = query(
-      collection(db, "users"),
-      orderBy("createdAt", "desc")
-    );
+    const coll = collection(db, "users");
+    
+    // 1. 전체 개수 조회
+    let countQuery = query(coll);
+    if (roleFilter !== "ALL") {
+      countQuery = query(coll, where("role", "==", roleFilter));
+    }
+    const countSnapshot = await getCountFromServer(countQuery);
+    const total = countSnapshot.data().count;
+
+    // 2. 쿼리 작성
+    let q = query(coll);
+    
+    if (roleFilter !== "ALL") {
+      q = query(q, where("role", "==", roleFilter));
+    }
+    
+    q = query(q, orderBy("createdAt", "desc"), firestoreLimit(limitCount));
+
+    if (lastDoc) {
+      q = query(q, startAfter(lastDoc));
+    }
+
     const querySnapshot = await getDocs(q);
-    const allUsers = querySnapshot.docs.map(doc => mapFirestoreToUser(doc.id, doc.data()));
+    const users = querySnapshot.docs.map(doc => mapFirestoreToUser(doc.id, doc.data()));
+    const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
     
     return { 
-      users: allUsers.slice(offset, offset + limitCount), 
-      total: allUsers.length 
+      users, 
+      lastVisible,
+      total 
     };
   } catch (error) {
     console.error("Error fetching all users from Firestore:", error);
-    return { users: [], total: 0 };
+    return { users: [], lastVisible: null, total: 0 };
   }
 }
 

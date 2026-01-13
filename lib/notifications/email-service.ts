@@ -75,35 +75,45 @@ export const emailService = {
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <style>
-    body { margin: 0; padding: 0; background-color: #F9FAFB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>리얼픽 인증 코드</title>
 </head>
-<body>
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F9FAFB; padding: 40px 20px;">
+<body style="margin: 0; padding: 0; background-color: #F9FAFB; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Noto Sans KR', Arial, sans-serif;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color: #F9FAFB; padding: 40px 20px;">
     <tr>
       <td align="center">
-        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 12px; max-width: 600px;">
+        <table width="600" cellpadding="0" cellspacing="0" border="0" style="background-color: #FFFFFF; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05); max-width: 600px;">
+          
+          <!-- 헤더 (리얼픽 그라데이션) -->
           <tr>
-            <td style="background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); padding: 40px 30px; text-align: center;">
-              <h1 style="margin: 0; color: #FFFFFF; font-size: 32px; font-weight: bold;">리얼픽</h1>
-              <p style="margin: 10px 0 0 0; color: #E5E7EB; font-size: 14px;">LOGIN VERIFICATION CODE</p>
+            <td style="background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); padding: 50px 30px; text-align: center;">
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 34px; font-weight: 800; letter-spacing: -1px;">
+                리얼픽
+              </h1>
+              <p style="margin: 12px 0 0 0; color: #E5E7EB; font-size: 15px; letter-spacing: 0.5px; opacity: 0.9;">
+                LOGIN VERIFICATION CODE
+              </p>
             </td>
           </tr>
+
+          <!-- 본문 -->
           <tr>
-            <td style="padding: 40px 30px;">
-              <h2 style="margin: 0 0 20px 0; color: #1F2937; font-size: 22px;">로그인 인증 코드 안내</h2>
-              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px; line-height: 1.6;">
-                안녕하세요, 리얼픽에 로그인 할 권한을 확인하기 위해 인증 코드를 생성했습니다.<br>
-                아래 인증 코드를 입력해 주세요.
+            <td style="padding: 50px 40px;">
+              <h2 style="margin: 0 0 20px 0; color: #111827; font-size: 24px; font-weight: 700; text-align: center;">
+                로그인 인증 코드 안내
+              </h2>
+              <p style="margin: 0 0 35px 0; color: #4B5563; font-size: 16px; line-height: 1.7; text-align: center;">
+                안녕하세요! 리얼픽에 로그인하시려면<br>아래 인증 코드를 입력해 주세요.
               </p>
-              <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+
+              <!-- 인증 코드 박스 -->
+              <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin: 30px 0;">
                 <tr>
                   <td align="center">
-                    <table cellpadding="0" cellspacing="0" style="background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); border-radius: 12px; padding: 2px;">
+                    <table cellpadding="0" cellspacing="0" border="0" style="background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); border-radius: 12px; padding: 2px;">
                       <tr>
                         <td style="background-color: #FFFFFF; border-radius: 10px; padding: 25px 40px;">
-                          <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 12px; text-align: center;">리얼픽 인증 코드</p>
+                          <p style="margin: 0 0 8px 0; color: #6B7280; font-size: 12px; text-align: center; font-weight: 500;">리얼픽 인증 코드</p>
                           <div style="font-size: 36px; font-weight: bold; letter-spacing: 8px; text-align: center; color: #2C2745; font-family: 'Courier New', monospace;">
                             ${code}
                           </div>
@@ -113,14 +123,19 @@ export const emailService = {
                   </td>
                 </tr>
               </table>
-              <p style="margin: 20px 0 0 0; color: #6B7280; font-size: 14px;">
+
+              <p style="margin: 20px 0 0 0; color: #6B7280; font-size: 14px; text-align: center;">
                 이 코드는 발송 시간으로부터 <strong style="color: #3E757B;">10분 동안 유효</strong>합니다.
               </p>
             </td>
           </tr>
+
+          <!-- 푸터 -->
           <tr>
-            <td style="background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #E5E7EB;">
-              <p style="margin: 0; color: #6B7280; font-size: 12px;">© 리얼픽. All rights reserved.</p>
+            <td style="background-color: #F9FAFB; padding: 30px; text-align: center; border-top: 1px solid #F3F4F6;">
+              <p style="margin: 0 0 8px 0; color: #9CA3AF; font-size: 12px;">
+                © REALPICK. All rights reserved.
+              </p>
             </td>
           </tr>
         </table>

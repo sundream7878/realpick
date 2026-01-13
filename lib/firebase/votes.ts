@@ -99,12 +99,25 @@ export async function getAllVotes2(userId: string, missionId: string): Promise<T
   }
 }
 
-// 모든 사용자의 커플 매칭 투표 집계 (실시간 결과용)
+// 모든 사용자의 커플 매칭 투표 집계 (실시간 결과용 - 최적화 버전)
 export async function getAggregatedVotes2(missionId: string, episodeNo?: number): Promise<{
   pairCounts: Record<string, number>,
   totalParticipants: number
 }> {
   try {
+    // 1. 미션 문서에서 미리 집계된 데이터가 있는지 확인 (가장 효율적)
+    const missionSnap = await getDoc(doc(db, "missions2", missionId));
+    if (missionSnap.exists()) {
+      const data = missionSnap.data();
+      if (data.aggregatedStats && episodeNo && data.aggregatedStats[episodeNo.toString()]) {
+        return { 
+          pairCounts: data.aggregatedStats[episodeNo.toString()], 
+          totalParticipants: data.participants || 0 
+        };
+      }
+    }
+
+    // 2. 집계 데이터가 없으면 기존의 무거운 쿼리로 대체 (하위 호환성)
     const q = query(collection(db, "pickresult2"), where("missionId", "==", missionId));
     const snap = await getDocs(q);
     
@@ -205,10 +218,24 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
 
     await setDoc(doc(db, "pickresult1", voteId), voteData);
 
-    // 참여자 수 증가
-    await updateDoc(missionRef, {
-      participants: increment(1)
-    });
+    // 참여자 수 및 옵션별 투표 수 업데이트 (원자적 연산)
+    const updateData: any = {
+      participants: increment(1),
+      "stats.totalVotes": increment(1)
+    };
+
+    // 옵션별 투표 수 업데이트 (배열인 경우 처리)
+    if (submission.choice) {
+      if (Array.isArray(submission.choice)) {
+        submission.choice.forEach(opt => {
+          if (opt) updateData[`optionVoteCounts.${opt}`] = increment(1);
+        });
+      } else {
+        updateData[`optionVoteCounts.${submission.choice}`] = increment(1);
+      }
+    }
+
+    await updateDoc(missionRef, updateData);
 
     // 포인트 지급 (공감픽인 경우)
     if (pointsEarned > 0) {
@@ -251,12 +278,27 @@ export async function submitVote2(submission: TVoteSubmission): Promise<boolean>
       updatedAt: serverTimestamp(),
     }, { merge: true });
 
-    // 처음 투표하는 경우 미션 참여자 수 증가
-    if (!voteSnap.exists()) {
-      await updateDoc(doc(db, "missions2", submission.missionId), {
-        participants: increment(1)
+    // 실시간 집계 업데이트 (Atomic Increments)
+    const missionRef = doc(db, "missions2", submission.missionId);
+    const updateData: any = {
+      updatedAt: serverTimestamp()
+    };
+
+    if (submission.pairs && Array.isArray(submission.pairs)) {
+      submission.pairs.forEach((pair: { left: string; right: string }) => {
+        const pairKey = `${pair.left}-${pair.right}`;
+        // 주의: Firestore 필드 이름에 특수문자나 공백이 포함될 수 있으므로 pairKey 생성 시 주의
+        // 여기서는 ID-ID 형식이므로 안전할 것으로 보임
+        updateData[`aggregatedStats.${submission.episodeNo}.${pairKey}`] = increment(1);
       });
     }
+
+    // 처음 투표하는 경우 미션 참여자 수 증가
+    if (!voteSnap.exists()) {
+      updateData.participants = increment(1);
+    }
+    
+    await updateDoc(missionRef, updateData);
 
     return true;
   } catch (error) {

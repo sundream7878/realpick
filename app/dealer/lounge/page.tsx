@@ -73,27 +73,42 @@ export default function DealerLoungePage() {
                     const dealersSnap = await getDocs(dealersQuery)
                     const dealers = dealersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }))
 
-                    // 3. 각 딜러별 미션 통계 계산
+                    // 3. 모든 딜러의 미션 통계 한 번에 계산 (N+1 문제 해결)
+                    const dealerIds = dealers.map(d => d.id)
                     const dealerStats: DealerStat[] = []
-                    for (const dealer of dealers) {
-                        // missions1과 missions2에서 이 딜러가 생성한 미션 조회
-                        const m1Query = query(collection(db, "missions1"), where("creatorId", "==", dealer.id))
-                        const m2Query = query(collection(db, "missions2"), where("creatorId", "==", dealer.id))
-                        
-                        const [m1Snap, m2Snap] = await Promise.all([getDocs(m1Query), getDocs(m2Query)])
-                        
-                        let totalParticipants = 0
-                        m1Snap.forEach(doc => totalParticipants += (doc.data().participants || 0))
-                        m2Snap.forEach(doc => totalParticipants += (doc.data().participants || 0))
+                    
+                    if (dealerIds.length > 0) {
+                        // 모든 딜러가 생성한 미션을 한꺼번에 가져오기 (최대 30명씩 묶어서)
+                        let allM1: any[] = []
+                        let allM2: any[] = []
 
-                        dealerStats.push({
-                            id: dealer.id,
-                            nickname: (dealer as any).nickname || "알 수 없음",
-                            tier: (dealer as any).tier || "루키",
-                            role: (dealer as any).role || "DEALER",
-                            missionCount: m1Snap.size + m2Snap.size,
-                            totalParticipants
-                        })
+                        for (let i = 0; i < dealerIds.length; i += 30) {
+                            const chunk = dealerIds.slice(i, i + 30)
+                            const m1Q = query(collection(db, "missions1"), where("creatorId", "in", chunk))
+                            const m2Q = query(collection(db, "missions2"), where("creatorId", "in", chunk))
+                            const [m1S, m2S] = await Promise.all([getDocs(m1Q), getDocs(m2Q)])
+                            allM1.push(...m1S.docs.map(doc => doc.data()))
+                            allM2.push(...m2S.docs.map(doc => doc.data()))
+                        }
+
+                        // 딜러별로 그룹화
+                        for (const dealer of dealers) {
+                            const dealerM1 = allM1.filter(m => m.creatorId === dealer.id)
+                            const dealerM2 = allM2.filter(m => m.creatorId === dealer.id)
+                            
+                            let totalParticipants = 0
+                            dealerM1.forEach(m => totalParticipants += (m.participants || 0))
+                            dealerM2.forEach(m => totalParticipants += (m.participants || 0))
+
+                            dealerStats.push({
+                                id: dealer.id,
+                                nickname: (dealer as any).nickname || "알 수 없음",
+                                tier: (dealer as any).tier || "루키",
+                                role: (dealer as any).role || "DEALER",
+                                missionCount: dealerM1.length + dealerM2.length,
+                                totalParticipants
+                            })
+                        }
                     }
 
                     // 참여자 수 순으로 정렬

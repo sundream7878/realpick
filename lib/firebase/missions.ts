@@ -155,7 +155,7 @@ export async function getMissionsByCreator(userId: string): Promise<{ success: b
   }
 }
 
-// 내가 참여한 미션 조회
+// 내가 참여한 미션 조회 - 최적화
 export async function getMissionsByParticipant(userId: string): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
     const q1 = query(collection(db, "pickresult1"), where("userId", "==", userId));
@@ -163,19 +163,36 @@ export async function getMissionsByParticipant(userId: string): Promise<{ succes
     
     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     
-    const missionIds = new Set<string>();
-    snap1.docs.forEach(doc => missionIds.add(doc.data().missionId));
-    snap2.docs.forEach(doc => missionIds.add(doc.data().missionId));
+    const m1Ids = snap1.docs.map(doc => doc.data().missionId);
+    const m2Ids = snap2.docs.map(doc => doc.data().missionId);
     
-    if (missionIds.size === 0) return { success: true, missions: [] };
+    if (m1Ids.length === 0 && m2Ids.length === 0) return { success: true, missions: [] };
     
-    // 미션 상세 정보 가져오기 (비효율적일 수 있으나 일단 구현)
-    const missionPromises = Array.from(missionIds).map(id => getMissionById(id));
-    const results = await Promise.all(missionPromises);
-    const missions = results.filter(r => r.success).map(r => r.mission);
+    const missions: any[] = [];
+
+    // missions1 상세 정보 가져오기 (in 쿼리 사용)
+    if (m1Ids.length > 0) {
+      for (let i = 0; i < m1Ids.length; i += 30) {
+        const chunk = m1Ids.slice(i, i + 30);
+        const mq = query(collection(db, "missions1"), where("__name__", "in", chunk));
+        const mSnap = await getDocs(mq);
+        missions.push(...mSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), __table: "missions1" })));
+      }
+    }
+
+    // missions2 상세 정보 가져오기 (in 쿼리 사용)
+    if (m2Ids.length > 0) {
+      for (let i = 0; i < m2Ids.length; i += 30) {
+        const chunk = m2Ids.slice(i, i + 30);
+        const mq = query(collection(db, "missions2"), where("__name__", "in", chunk));
+        const mSnap = await getDocs(mq);
+        missions.push(...mSnap.docs.map(doc => ({ id: doc.id, ...doc.data(), __table: "missions2" })));
+      }
+    }
     
-    return { success: true, missions };
+    return { success: true, missions: missions.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0)) };
   } catch (error: any) {
+    console.error("Error in getMissionsByParticipant:", error);
     return { success: false, error: error.message };
   }
 }

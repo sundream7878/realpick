@@ -56,6 +56,11 @@ export default function AdminPage() {
     // Custom Shows State
     const [customShows, setCustomShows] = useState<any[]>([])
     
+    // Filtering State
+    const [missionCategoryFilter, setMissionCategoryFilter] = useState<string>("ALL")
+    const [programCategoryFilter, setProgramCategoryFilter] = useState<string>("ALL")
+    const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL")
+    
     // Add Show Dialog State
     const [isAddShowDialogOpen, setIsAddShowDialogOpen] = useState(false)
     const [newShow, setNewShow] = useState({
@@ -179,12 +184,31 @@ export default function AdminPage() {
     }
 
     // Load users
-    const loadUsers = async (page: number = 0) => {
+    const [lastDoc, setLastDoc] = useState<any>(null)
+    const [pageDocs, setPageDocs] = useState<Record<number, any>>({})
+
+    const loadUsers = async (page: number = 0, role: string = userRoleFilter) => {
         try {
-            const { users: fetchedUsers, total } = await getAllUsers(usersPerPage, page * usersPerPage)
+            // Reset pagination if filter changed
+            const isFilterChanged = role !== userRoleFilter
+            const currentLastDoc = (page === 0 || isFilterChanged) ? null : pageDocs[page - 1]
+            
+            const { users: fetchedUsers, lastVisible, total } = await getAllUsers(usersPerPage, currentLastDoc, role)
+            
             setUsers(fetchedUsers)
             setTotalUsers(total)
             setCurrentPage(page)
+            setLastDoc(lastVisible)
+            
+            if (isFilterChanged) {
+                setPageDocs({})
+                setUserRoleFilter(role)
+            }
+            
+            // Store the cursor for the next page
+            if (lastVisible) {
+                setPageDocs(prev => ({ ...prev, [page]: lastVisible }))
+            }
         } catch (error) {
             console.error("Failed to load users", error)
             toast({
@@ -547,10 +571,10 @@ export default function AdminPage() {
                     </TabsList>
 
                     <TabsContent value="missions" className="space-y-6">
-                        <div className="flex justify-between items-center mb-6">
+                        <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm text-gray-500">현재 메인 미션 ID:</span>
-                                <Badge variant="outline" className="font-mono">
+                                <Badge variant="outline" className="font-mono text-[10px] sm:text-xs">
                                     {currentMainMissionId || "없음 (자동 선정)"}
                                 </Badge>
                                 {currentMainMissionId && (
@@ -561,8 +585,35 @@ export default function AdminPage() {
                             </div>
                         </div>
 
-                        <div className="space-y-8">
-                            {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
+                        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-fit">
+                            <Button 
+                                variant={missionCategoryFilter === "ALL" ? "default" : "ghost"} 
+                                size="sm" 
+                                onClick={() => setMissionCategoryFilter("ALL")}
+                                className="h-8 text-xs px-3"
+                            >
+                                전체
+                            </Button>
+                            {(Object.keys(CATEGORIES) as TShowCategory[])
+                                .filter(cat => cat !== "UNIFIED")
+                                .map((cat) => (
+                                <Button 
+                                    key={cat}
+                                    variant={missionCategoryFilter === cat ? "default" : "ghost"} 
+                                    size="sm" 
+                                    onClick={() => setMissionCategoryFilter(cat)}
+                                    className="h-8 text-xs gap-1 px-3"
+                                >
+                                    <span>{CATEGORIES[cat].label}</span>
+                                </Button>
+                            ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            {(Object.keys(groupedShows) as TShowCategory[])
+                                .filter(cat => cat !== "UNIFIED")
+                                .filter(cat => missionCategoryFilter === "ALL" || missionCategoryFilter === cat)
+                                .map((category) => (
                                 <section key={category} className="space-y-4">
                                     <div className="flex items-center gap-2 mb-4">
                                         <img
@@ -625,15 +676,41 @@ export default function AdminPage() {
                     </TabsContent>
 
                     <TabsContent value="programs" className="space-y-6">
-                        <div className="flex justify-end mb-4">
-                            <Button onClick={() => setIsAddShowDialogOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700">
+                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
+                            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
+                                <Button 
+                                    variant={programCategoryFilter === "ALL" ? "default" : "ghost"} 
+                                    size="sm" 
+                                    onClick={() => setProgramCategoryFilter("ALL")}
+                                    className="h-8 text-xs px-3"
+                                >
+                                    전체
+                                </Button>
+                                {(Object.keys(CATEGORIES) as TShowCategory[])
+                                    .filter(cat => cat !== "UNIFIED")
+                                    .map((cat) => (
+                                    <Button 
+                                        key={cat}
+                                        variant={programCategoryFilter === cat ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramCategoryFilter(cat)}
+                                        className="h-8 text-xs gap-1 px-3"
+                                    >
+                                        <span>{CATEGORIES[cat].label}</span>
+                                    </Button>
+                                ))}
+                            </div>
+                            <Button onClick={() => setIsAddShowDialogOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700 w-full sm:w-auto">
                                 <Plus className="w-4 h-4" />
                                 프로그램 추가
                             </Button>
                         </div>
                         
-                        <div className="space-y-8">
-                            {(Object.keys(groupedShows) as TShowCategory[]).map((category) => (
+                        <div className="space-y-4">
+                            {(Object.keys(groupedShows) as TShowCategory[])
+                                .filter(cat => cat !== "UNIFIED")
+                                .filter(cat => programCategoryFilter === "ALL" || programCategoryFilter === cat)
+                                .map((category) => (
                                 <section key={category} className="space-y-4">
                                     <div className="flex items-center gap-2 mb-4">
                                         <img
@@ -716,7 +793,51 @@ export default function AdminPage() {
                     <TabsContent value="users" className="space-y-6">
                         <Card>
                             <CardHeader>
-                                <CardTitle>유저 관리</CardTitle>
+                                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                                    <CardTitle>유저 관리</CardTitle>
+                                    <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg self-end">
+                                        <Button 
+                                            variant={userRoleFilter === "ALL" ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => loadUsers(0, "ALL")}
+                                            className="h-8 text-xs"
+                                        >
+                                            전체
+                                        </Button>
+                                        <Button 
+                                            variant={userRoleFilter === "PICKER" ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => loadUsers(0, "PICKER")}
+                                            className="h-8 text-xs"
+                                        >
+                                            피커
+                                        </Button>
+                                        <Button 
+                                            variant={userRoleFilter === "DEALER" ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => loadUsers(0, "DEALER")}
+                                            className="h-8 text-xs"
+                                        >
+                                            딜러
+                                        </Button>
+                                        <Button 
+                                            variant={userRoleFilter === "MAIN_DEALER" ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => loadUsers(0, "MAIN_DEALER")}
+                                            className="h-8 text-xs"
+                                        >
+                                            메인 딜러
+                                        </Button>
+                                        <Button 
+                                            variant={userRoleFilter === "ADMIN" ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => loadUsers(0, "ADMIN")}
+                                            className="h-8 text-xs"
+                                        >
+                                            관리자
+                                        </Button>
+                                    </div>
+                                </div>
                                 <div className="flex gap-2 mt-4">
                                     <div className="relative flex-1">
                                         <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
@@ -746,53 +867,65 @@ export default function AdminPage() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {users.map((user) => (
-                                            <TableRow key={user.id}>
-                                                <TableCell className="font-medium">{user.nickname}</TableCell>
-                                                <TableCell>{user.email}</TableCell>
-                                                <TableCell>{user.points.toLocaleString()} P</TableCell>
-                                                <TableCell>{user.tier}</TableCell>
-                                                <TableCell>
-                                                    <Select
-                                                        defaultValue={user.role}
-                                                        onValueChange={(value) => handleRoleUpdate(user.id, value as TUserRole)}
-                                                    >
-                                                        <SelectTrigger className="w-[140px]">
-                                                            <SelectValue>
-                                                                <Badge className={getRoleBadgeColor(user.role)}>
-                                                                    {getRoleDisplayName(user.role)}
-                                                                </Badge>
-                                                            </SelectValue>
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            <SelectItem value="PICKER">피커 (일반)</SelectItem>
-                                                            <SelectItem value="DEALER">딜러</SelectItem>
-                                                            <SelectItem value="MAIN_DEALER">메인 딜러</SelectItem>
-                                                            <SelectItem value="ADMIN">관리자</SelectItem>
-                                                        </SelectContent>
-                                                    </Select>
+                                        {users.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={6} className="text-center py-10 text-gray-500">
+                                                    조건에 맞는 유저가 없습니다.
                                                 </TableCell>
-                                                <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : (
+                                            users.map((user) => (
+                                                <TableRow key={user.id}>
+                                                    <TableCell className="font-medium">{user.nickname}</TableCell>
+                                                    <TableCell>{user.email}</TableCell>
+                                                    <TableCell>{user.points.toLocaleString()} P</TableCell>
+                                                    <TableCell>{user.tier}</TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            defaultValue={user.role}
+                                                            onValueChange={(value) => handleRoleUpdate(user.id, value as TUserRole)}
+                                                        >
+                                                            <SelectTrigger className="w-[140px]">
+                                                                <SelectValue>
+                                                                    <Badge className={getRoleBadgeColor(user.role)}>
+                                                                        {getRoleDisplayName(user.role)}
+                                                                    </Badge>
+                                                                </SelectValue>
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="PICKER">피커 (일반)</SelectItem>
+                                                                <SelectItem value="DEALER">딜러</SelectItem>
+                                                                <SelectItem value="MAIN_DEALER">메인 딜러</SelectItem>
+                                                                <SelectItem value="ADMIN">관리자</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
 
-                                {/* Pagination Controls could go here */}
-                                <div className="flex justify-center gap-2 mt-4">
+                                {/* Pagination Controls */}
+                                <div className="flex justify-center items-center gap-4 mt-6">
                                     <Button
                                         variant="outline"
+                                        size="sm"
                                         disabled={currentPage === 0 || isSearching}
                                         onClick={() => loadUsers(currentPage - 1)}
                                     >
                                         이전
                                     </Button>
-                                    <span className="flex items-center text-sm text-gray-500">
-                                        Page {currentPage + 1}
-                                    </span>
+                                    <div className="flex items-center gap-1">
+                                        <span className="text-sm font-medium text-purple-600">{currentPage + 1}</span>
+                                        <span className="text-sm text-gray-400">/</span>
+                                        <span className="text-sm text-gray-500">{Math.max(1, totalPages)}</span>
+                                    </div>
                                     <Button
                                         variant="outline"
-                                        disabled={users.length < usersPerPage || isSearching}
+                                        size="sm"
+                                        disabled={currentPage + 1 >= totalPages || isSearching}
                                         onClick={() => loadUsers(currentPage + 1)}
                                     >
                                         다음

@@ -32,3 +32,16 @@ docs/*AUTH*.md
 docs/*SMTP*.md
 **/credentials*.md
 **/secrets*.md
+
+#scripts
+scripts*
+serviceAccountKey.json
+
+#firebase
+firebase-*.json
+
+#supabase
+supabase-*.json
+
+
+#netlify

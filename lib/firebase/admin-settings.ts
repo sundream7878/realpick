@@ -123,12 +123,17 @@ export async function getCustomShows() {
   try {
     const docSnap = await getDoc(doc(db, "admin_settings", "CUSTOM_SHOWS"));
     if (docSnap.exists()) {
-      return { success: true, shows: docSnap.data().value || [] };
+      const data = docSnap.data();
+      const shows = data.value;
+      return { 
+        success: true, 
+        shows: Array.isArray(shows) ? shows : [] 
+      };
     }
     return { success: true, shows: [] };
   } catch (error) {
     console.error("Error getting custom shows:", error);
-    return { success: false, error };
+    return { success: false, error, shows: [] };
   }
 }
 
