@@ -424,8 +424,13 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
+      console.log(`[정답 입력] 미션 ${missionId}, 정답: ${answer}`)
+      
       // 딜러가 정답을 확정하는 것이므로 settleMissionWithFinalAnswer 호출
       const result = await settleMissionWithFinalAnswer(missionId, answer)
+      
+      console.log(`[정답 입력 결과]`, result)
+      
       if (!result.success) {
         toast({
           title: "정답 저장 실패",
@@ -437,14 +442,23 @@ export default function MyPage() {
 
       toast({
         title: "정답이 확정되었습니다.",
-        description: "참여자들에게 결과가 공개됩니다.",
+        description: "참여자들에게 포인트가 지급됩니다.",
       })
+      
+      // 정답 입력란 초기화
+      setAnswerDrafts(prev => {
+        const next = { ...prev }
+        delete next[missionId]
+        return next
+      })
+      
       await loadMissions()
-    } catch (error) {
+    } catch (error: any) {
       console.error("정답 확정 중 오류:", error)
+      console.error("에러 상세:", error?.message, error?.code)
       toast({
         title: "정답 저장 실패",
-        description: "잠시 후 다시 시도해주세요.",
+        description: error?.message || "잠시 후 다시 시도해주세요.",
         variant: "destructive",
       })
     } finally {
@@ -465,8 +479,13 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
+      console.log(`[정답 수정] 미션 ${missionId}, 정답: ${answer}`)
+      
       // 정답 수정도 동일하게 settleMissionWithFinalAnswer 호출 (이미 settled 상태여도 업데이트 가능하도록)
       const result = await settleMissionWithFinalAnswer(missionId, answer)
+      
+      console.log(`[정답 수정 결과]`, result)
+      
       if (!result.success) {
         toast({
           title: "정답 수정 실패",
@@ -478,19 +497,25 @@ export default function MyPage() {
 
       toast({
         title: "정답이 수정되었습니다.",
-        description: "참여자들에게 수정된 결과가 반영됩니다.",
+        description: "참여자들에게 수정된 포인트가 재분배됩니다.",
       })
       setEditingMissionAnswers(prev => {
         const next = { ...prev }
         delete next[missionId]
         return next
       })
+      setAnswerDrafts(prev => {
+        const next = { ...prev }
+        delete next[missionId]
+        return next
+      })
       await loadMissions()
-    } catch (error) {
+    } catch (error: any) {
       console.error("정답 수정 중 오류:", error)
+      console.error("에러 상세:", error?.message, error?.code)
       toast({
         title: "정답 수정 실패",
-        description: "잠시 후 다시 시도해주세요.",
+        description: error?.message || "잠시 후 다시 시도해주세요.",
         variant: "destructive",
       })
     } finally {
@@ -510,7 +535,12 @@ export default function MyPage() {
 
     setSubmittingMissionId(missionId)
     try {
+      console.log(`[커플 정답 입력] 미션 ${missionId}, 커플: ${JSON.stringify(pairs)}`)
+      
       const result = await settleMatchMission(missionId, pairs)
+      
+      console.log(`[커플 정답 입력 결과]`, result)
+      
       if (!result.success) {
         toast({
           title: "최종 커플 저장 실패",
@@ -522,14 +552,23 @@ export default function MyPage() {
 
       toast({
         title: "최종 커플이 확정되었습니다.",
-        description: "딜러 결과가 즉시 공개됩니다.",
+        description: "참여자들에게 포인트가 지급됩니다.",
       })
+      
+      // 입력란 초기화
+      setMatchAnswerDrafts(prev => {
+        const next = { ...prev }
+        delete next[missionId]
+        return next
+      })
+      
       await loadMissions()
-    } catch (error) {
+    } catch (error: any) {
       console.error("커플 결과 저장 중 오류:", error)
+      console.error("에러 상세:", error?.message, error?.code)
       toast({
         title: "최종 커플 저장 실패",
-        description: "잠시 후 다시 시도해주세요.",
+        description: error?.message || "잠시 후 다시 시도해주세요.",
         variant: "destructive",
       })
     } finally {

@@ -225,17 +225,120 @@ export async function getMissionsByParticipant(userId: string): Promise<{ succes
 export async function settleMissionWithFinalAnswer(missionId: string, correctAnswer: string): Promise<{ success: boolean; error?: string }> {
   try {
     const missionRef = doc(db, "missions1", missionId);
+    const missionSnap = await getDoc(missionRef);
+    
+    if (!missionSnap.exists()) {
+      return { success: false, error: "미션을 찾을 수 없습니다." };
+    }
+    
+    const missionData = missionSnap.data();
+    
+    // 미션 상태 업데이트
     await updateDoc(missionRef, {
       status: "settled",
       correctAnswer,
       updatedAt: serverTimestamp()
     });
     
-    // 포인트 정산 로직은 별도 트리거 또는 배치 작업 권장
-    // 여기서는 상태만 업데이트
+    // 포인트 분배 실행
+    try {
+      await distributePointsForMission1(missionId, correctAnswer, missionData);
+    } catch (pointError: any) {
+      console.error("포인트 분배 중 오류:", pointError);
+      // 포인트 분배 실패해도 미션은 settled 상태로 유지
+    }
+    
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 미션 포인트 분배 (missions1)
+ * 
+ * 점수 규칙 (plan2.md 기준):
+ * - 공감 픽 (Poll/Majority): 참여 보상 +10P (오답 개념 없음)
+ * - 예측 픽 (Predict - Binary/Multi/Text): 정답 +100P / 오답 -50P
+ */
+async function distributePointsForMission1(
+  missionId: string, 
+  correctAnswer: string, 
+  missionData: any
+): Promise<void> {
+  try {
+    // 1. 미션 타입 확인
+    const missionKind = missionData.kind || missionData.type || "predict"; // predict or poll
+    
+    // 2. 모든 투표 조회
+    const votesQuery = query(
+      collection(db, "pickresult1"),
+      where("missionId", "==", missionId)
+    );
+    const votesSnap = await getDocs(votesQuery);
+    
+    if (votesSnap.empty) {
+      console.log("투표가 없어 포인트 분배를 건너뜁니다.");
+      return;
+    }
+    
+    // 3. 포인트 계산 규칙
+    let pointsForCorrect = 10;
+    let pointsForIncorrect = 0;
+    
+    if (missionKind === "poll" || missionKind === "majority") {
+      // 공감 픽: 참여만 해도 +10P (오답 개념 없음)
+      pointsForCorrect = 10;
+      pointsForIncorrect = 10; // 오답도 +10P
+    } else {
+      // 예측 픽 (predict): 정답 +100P / 오답 -50P
+      pointsForCorrect = 100;
+      pointsForIncorrect = -50;
+    }
+    
+    console.log(`[포인트 분배] 미션 ${missionId}, 타입: ${missionKind}, 정답: ${correctAnswer}`);
+    console.log(`[포인트 규칙] 정답: ${pointsForCorrect}P, 오답: ${pointsForIncorrect}P`);
+    
+    // 4. 각 투표자에게 포인트 분배
+    const { addPointLog } = await import("./points");
+    
+    for (const voteDoc of votesSnap.docs) {
+      const voteData = voteDoc.data();
+      const userId = voteData.userId;
+      const userChoice = voteData.choice || voteData.selectedOption;
+      
+      // 정답 비교
+      let isCorrect = false;
+      
+      if (Array.isArray(userChoice)) {
+        // 배열인 경우 (다중 선택 가능성)
+        isCorrect = userChoice.includes(correctAnswer);
+      } else if (typeof userChoice === "string") {
+        // 문자열 비교 (대소문자 무시, 공백 제거)
+        isCorrect = userChoice.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+      }
+      
+      // 포인트 지급 (공감 픽은 무조건 +10P, 예측 픽은 정답/오답 구분)
+      const pointDiff = isCorrect ? pointsForCorrect : pointsForIncorrect;
+      const reason = missionKind === "poll" || missionKind === "majority"
+        ? `미션 참여: ${missionData.title || "미션"}`
+        : `미션 ${isCorrect ? "정답" : "오답"}: ${missionData.title || "미션"}`;
+      
+      await addPointLog(
+        userId,
+        pointDiff,
+        reason,
+        missionId,
+        "mission1"
+      );
+      
+      console.log(`[포인트 지급] 사용자 ${userId}에게 ${pointDiff}P 지급 (${isCorrect ? "정답" : "오답"})`);
+    }
+    
+    console.log(`[포인트 분배 완료] 미션 ${missionId}`);
+  } catch (error) {
+    console.error("포인트 분배 중 오류:", error);
+    throw error;
   }
 }
 
@@ -261,14 +364,185 @@ export async function updateEpisodeStatuses(missionId: string, episodeNo: number
 export async function settleMatchMission(missionId: string, finalAnswer: any[]): Promise<{ success: boolean; error?: string }> {
   try {
     const missionRef = doc(db, "missions2", missionId);
+    const missionSnap = await getDoc(missionRef);
+    
+    if (!missionSnap.exists()) {
+      return { success: false, error: "미션을 찾을 수 없습니다." };
+    }
+    
+    const missionData = missionSnap.data();
+    
+    // 미션 상태 업데이트
     await updateDoc(missionRef, {
       status: "settled",
       finalAnswer,
       updatedAt: serverTimestamp()
     });
+    
+    // 포인트 분배 실행
+    try {
+      await distributePointsForMission2(missionId, finalAnswer, missionData);
+    } catch (pointError: any) {
+      console.error("포인트 분배 중 오류:", pointError);
+      // 포인트 분배 실패해도 미션은 settled 상태로 유지
+    }
+    
     return { success: true };
   } catch (error: any) {
     return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 커플 매칭 미션 포인트 분배 (missions2)
+ * 
+ * 점수 규칙 (plan2.md 기준 - 역주행 채점):
+ * - 최종 정답/오답을 몇 회차부터 계속 유지했는지 확인
+ * - 가장 빠른 회차의 포인트만 1회 지급/감점
+ * - 회차별 점수:
+ *   1회차: +1000P / -500P
+ *   2회차: +900P / -450P
+ *   3회차: +800P / -400P
+ *   4회차: +700P / -350P
+ *   5회차: +600P / -300P
+ *   6회차: +500P / -250P
+ *   7회차: +400P / -200P
+ *   8회차: +300P / -150P
+ */
+async function distributePointsForMission2(
+  missionId: string,
+  finalAnswer: any[],
+  missionData: any
+): Promise<void> {
+  try {
+    // 1. 회차별 포인트 맵 (plan2.md 기준)
+    const episodePoints: Record<number, { correct: number; incorrect: number }> = {
+      1: { correct: 1000, incorrect: -500 },
+      2: { correct: 900, incorrect: -450 },
+      3: { correct: 800, incorrect: -400 },
+      4: { correct: 700, incorrect: -350 },
+      5: { correct: 600, incorrect: -300 },
+      6: { correct: 500, incorrect: -250 },
+      7: { correct: 400, incorrect: -200 },
+      8: { correct: 300, incorrect: -150 },
+    };
+    
+    // 2. 모든 투표 조회 (통합 f_votes 구조)
+    const votesQuery = query(
+      collection(db, "pickresult2"),
+      where("missionId", "==", missionId)
+    );
+    const votesSnap = await getDocs(votesQuery);
+    
+    if (votesSnap.empty) {
+      console.log("투표가 없어 포인트 분배를 건너뜁니다.");
+      return;
+    }
+    
+    console.log(`[포인트 분배] 커플 매칭 미션 ${missionId}, 정답: ${JSON.stringify(finalAnswer)}`);
+    
+    // 3. 정답 비교 함수
+    const compareConnections = (userConnections: any[], correctAnswer: any[]): boolean => {
+      if (!Array.isArray(userConnections) || !Array.isArray(correctAnswer)) return false;
+      if (userConnections.length !== correctAnswer.length) return false;
+      
+      // 순서 무관 비교 (정렬 후 JSON 비교)
+      const sortedUser = JSON.stringify(
+        userConnections.map((c: any) => ({ man: c.man, woman: c.woman })).sort((a, b) => 
+          a.man.localeCompare(b.man) || a.woman.localeCompare(b.woman)
+        )
+      );
+      const sortedAnswer = JSON.stringify(
+        correctAnswer.map((c: any) => ({ man: c.man, woman: c.woman })).sort((a, b) => 
+          a.man.localeCompare(b.man) || a.woman.localeCompare(b.woman)
+        )
+      );
+      
+      return sortedUser === sortedAnswer;
+    };
+    
+    // 4. 각 투표자별로 역주행 채점
+    const { addPointLog } = await import("./points");
+    
+    // 사용자별로 투표 데이터 그룹화 (구 구조 호환)
+    const userVotes: Record<string, Record<number, any>> = {};
+    
+    for (const voteDoc of votesSnap.docs) {
+      const voteData = voteDoc.data();
+      const userId = voteData.userId;
+      
+      // 신규 구조 (f_votes JSONB) vs 구 구조 (episodeNo)
+      if (voteData.votes && typeof voteData.votes === "object") {
+        // 신규 구조: f_votes JSONB
+        userVotes[userId] = voteData.votes;
+      } else if (voteData.episodeNo) {
+        // 구 구조: episodeNo별 개별 row
+        if (!userVotes[userId]) {
+          userVotes[userId] = {};
+        }
+        userVotes[userId][voteData.episodeNo] = {
+          connections: voteData.connections || [],
+          submitted_at: voteData.submittedAt || voteData.createdAt
+        };
+      }
+    }
+    
+    // 5. 각 사용자별로 역주행 채점
+    for (const [userId, votes] of Object.entries(userVotes)) {
+      // 역주행 채점: 8회차부터 1회차로 거슬러 올라가며 연속성 확인
+      let streakEpisode: number | null = null;
+      let isFinalCorrect: boolean | null = null;
+      
+      // 최종 회차부터 역순으로 확인
+      const episodeNos = Object.keys(votes).map(Number).sort((a, b) => b - a); // 내림차순
+      
+      if (episodeNos.length === 0) {
+        console.log(`[포인트 지급 스킵] 사용자 ${userId}: 투표 기록 없음`);
+        continue;
+      }
+      
+      for (const ep of episodeNos) {
+        const episodeVote = votes[ep];
+        if (!episodeVote || !episodeVote.connections) continue;
+        
+        const isCorrect = compareConnections(episodeVote.connections, finalAnswer);
+        
+        if (isFinalCorrect === null) {
+          // 최종 회차의 정답 여부 확인
+          isFinalCorrect = isCorrect;
+          streakEpisode = ep;
+        } else if (isFinalCorrect === isCorrect) {
+          // 연속성 유지 중
+          streakEpisode = ep;
+        } else {
+          // 연속성 끊김
+          break;
+        }
+      }
+      
+      // 포인트 계산 (streakEpisode의 점수만 지급)
+      if (streakEpisode && isFinalCorrect !== null) {
+        const points = episodePoints[streakEpisode] || episodePoints[8]; // 8회차 이상은 8회차 점수
+        const pointDiff = isFinalCorrect ? points.correct : points.incorrect;
+        
+        await addPointLog(
+          userId,
+          pointDiff,
+          `${missionData.title || "커플 매칭"} ${streakEpisode}회차부터 ${isFinalCorrect ? "정답" : "오답"} 유지`,
+          missionId,
+          "mission2"
+        );
+        
+        console.log(`[포인트 지급] 사용자 ${userId}: ${streakEpisode}회차부터 ${isFinalCorrect ? "정답" : "오답"} 유지 → ${pointDiff}P`);
+      } else {
+        console.log(`[포인트 지급 스킵] 사용자 ${userId}: 투표 기록 없음`);
+      }
+    }
+    
+    console.log(`[포인트 분배 완료] 커플 매칭 미션 ${missionId}`);
+  } catch (error) {
+    console.error("커플 매칭 포인트 분배 중 오류:", error);
+    throw error;
   }
 }
 

@@ -96,10 +96,10 @@ export default function AdminPage() {
             }
 
             setIsAdminRole(true)
-
-            // Check session storage for unlock state
-            const unlocked = sessionStorage.getItem("admin_unlocked") === "true"
-            setIsUnlocked(unlocked)
+            
+            // 관리자 역할이 확인되면 자동으로 unlock
+            setIsUnlocked(true)
+            sessionStorage.setItem("admin_unlocked", "true")
 
             // Load Admin Data
             try {
