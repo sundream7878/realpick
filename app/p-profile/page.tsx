@@ -412,17 +412,18 @@ export default function ProfilePage() {
                             className="w-full h-full object-contain"
                           />
                         </div>
+                        {/* 등급명 배지 (프로필 사진 오른쪽 하단) */}
+                        <span className="absolute bottom-0 right-0 text-xs lg:text-sm text-pink-600 font-bold bg-white px-2 py-1 rounded-full border-2 border-pink-200 shadow-md whitespace-nowrap">
+                          {userTier.name}
+                        </span>
                       </div>
 
                       <div className="space-y-2">
                         <h2 className="text-2xl font-bold text-gray-800">{userNickname}</h2>
                         <p className="text-gray-600">{userEmail}</p>
                         <div className="flex items-center justify-center gap-4 mt-4">
-                          <div className="bg-gradient-to-r from-[#2C2745]/10 to-[#3E757B]/10 px-4 py-2 rounded-full">
-                            <span className="text-sm font-medium text-[#2C2745]">{userTier.name}</span>
-                          </div>
-                          <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-4 py-2 rounded-full">
-                            <span className="text-sm font-medium text-[#3E757B]">{userPoints.toLocaleString()}P</span>
+                          <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-5 py-2.5 rounded-full">
+                            <span className="text-base font-bold text-[#3E757B]">{userPoints.toLocaleString()} <span className="font-semibold">Point</span></span>
                           </div>
                         </div>
                       </div>

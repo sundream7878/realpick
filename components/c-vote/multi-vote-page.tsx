@@ -16,6 +16,7 @@ import { getUserId } from "@/lib/auth-utils"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
+import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
@@ -509,7 +510,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
               <div className="space-y-2">
                 {(() => {
                   // 실제 투표수 합계를 계산하여 퍼센트를 정확하게 표시
-                  const distribution = currentMission.result?.distribution || {}
+                  const distribution = desanitizeVoteCounts(currentMission.result?.distribution || {})
                   const distributionSum = Object.values(distribution).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
                   const totalVotes = distributionSum > 0 ? distributionSum : (currentMission.stats?.totalVotes || 0)
 

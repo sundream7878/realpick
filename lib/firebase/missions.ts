@@ -28,6 +28,24 @@ export async function createMission(missionData: CreateMissionData, userId: stri
     const isCouple = missionData.format === "couple";
     const collectionName = isCouple ? "missions2" : "missions1";
     
+    // 생성자 정보 가져오기
+    const { getUser } = await import("./users");
+    const { getTierFromDbOrPoints } = await import("../utils/u-tier-system/tierSystem.util");
+    
+    let creatorNickname = "익명";
+    let creatorTier = "루키";
+    
+    try {
+      const user = await getUser(userId);
+      if (user) {
+        creatorNickname = user.nickname || "익명";
+        const tier = getTierFromDbOrPoints(user.tier, user.points);
+        creatorTier = tier.name;
+      }
+    } catch (error) {
+      console.error("생성자 정보 조회 실패:", error);
+    }
+    
     const missionPayload: any = {
       title: missionData.title,
       kind: isCouple ? "predict" : (missionData.type === "prediction" ? "predict" : missionData.type),
@@ -35,6 +53,8 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       deadline: missionData.deadline,
       revealPolicy: missionData.resultVisibility === "realtime" ? "realtime" : "onClose",
       creatorId: userId,
+      creatorNickname: creatorNickname,
+      creatorTier: creatorTier,
       status: "open",
       thumbnailUrl: missionData.imageUrl || null,
       isLive: missionData.isLive || false,
@@ -106,6 +126,108 @@ export async function getMissions(type: 'missions1' | 'missions2' = 'missions1',
   }
 }
 
+// AI 미션 목록 조회
+export async function getAIMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
+  try {
+    console.log(`[Firebase] ai_mission 조회 시작...`);
+    
+    // showId 변환 함수 import
+    const { normalizeShowId } = await import("@/lib/constants/shows");
+    
+    // orderBy 없이 먼저 조회 시도 (인덱스 문제 회피)
+    const q = query(
+      collection(db, "ai_mission"),
+      firestoreLimit(limitCount)
+    );
+    
+    const querySnapshot = await getDocs(q);
+    console.log(`[Firebase] ai_mission 문서 수:`, querySnapshot.size);
+    
+    const missions = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const originalShowId = data.showId;
+      const normalizedShowId = normalizeShowId(originalShowId);
+      
+      // showId로 프로그램 정보 가져오기 (category도 자동 설정)
+      const { getShowById } = require("@/lib/constants/shows");
+      const show = normalizedShowId ? getShowById(normalizedShowId) : null;
+      const category = show ? show.category : data.category;
+      
+      console.log(`[Firebase] ai_mission 문서 ${doc.id}:`, {
+        title: data.title,
+        showId원본: originalShowId,
+        showId변환: normalizedShowId,
+        category원본: data.category,
+        category변환: category,
+        createdAt: data.createdAt
+      });
+      
+      return {
+        id: doc.id,
+        ...data,
+        showId: normalizedShowId, // 한글 → 영어 변환
+        category: category, // show에서 가져온 정확한 category
+        __table: "ai_mission", // AI 미션임을 표시
+        isAIMission: true // AI 미션 플래그
+      };
+    });
+    
+    // createdAt 기준 정렬 (클라이언트 사이드)
+    missions.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
+      const timeB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
+      return timeB - timeA;
+    });
+    
+    console.log(`[Firebase] ai_mission fetched:`, missions.length);
+    
+    return { success: true, missions };
+  } catch (error: any) {
+    console.error(`Firebase ai_mission 목록 조회 실패:`, error);
+    console.error(`에러 상세:`, error.code, error.message);
+    return { success: false, error: error.message };
+  }
+}
+
+// 모든 미션 조회 (missions1 + missions2 + ai_mission 통합)
+export async function getAllMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
+  try {
+    const [result1, result2, resultAI] = await Promise.all([
+      getMissions('missions1', limitCount),
+      getMissions('missions2', limitCount),
+      getAIMissions(limitCount)
+    ]);
+    
+    const allMissions = [
+      ...(result1.missions || []).map(m => ({ ...m, __table: "missions1" })),
+      ...(result2.missions || []).map(m => ({ ...m, __table: "missions2" })),
+      ...(resultAI.missions || [])
+    ];
+    
+    // createdAt 기준 내림차순 정렬
+    allMissions.sort((a, b) => {
+      const timeA = a.createdAt?.toMillis?.() || new Date(a.createdAt).getTime() || 0;
+      const timeB = b.createdAt?.toMillis?.() || new Date(b.createdAt).getTime() || 0;
+      return timeB - timeA;
+    });
+    
+    // limitCount 만큼만 반환
+    const limitedMissions = allMissions.slice(0, limitCount);
+    
+    console.log(`[Firebase] 전체 미션 fetched:`, {
+      missions1: result1.missions?.length || 0,
+      missions2: result2.missions?.length || 0,
+      ai_mission: resultAI.missions?.length || 0,
+      total: limitedMissions.length
+    });
+    
+    return { success: true, missions: limitedMissions };
+  } catch (error: any) {
+    console.error(`Firebase 전체 미션 목록 조회 실패:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 // 미션 목록 조회 (missions2 전용 - 하위 호환성 유지)
 export async function getMissions2(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   return getMissions("missions2", limitCount);
@@ -127,12 +249,13 @@ export async function getMission(type: 'missions1' | 'missions2', missionId: str
 
 import { cache } from "react";
 
-// 특정 미션 조회 (통합 - missions1과 missions2 병렬 검색) - 서버 사이드 캐싱 적용
+// 특정 미션 조회 (통합 - missions1, missions2, ai_mission 병렬 검색) - 서버 사이드 캐싱 적용
 export const getMissionById = cache(async (missionId: string): Promise<{ success: boolean; mission?: any; error?: string }> => {
   try {
-    const [snap1, snap2] = await Promise.all([
+    const [snap1, snap2, snapAI] = await Promise.all([
       getDoc(doc(db, "missions1", missionId)),
-      getDoc(doc(db, "missions2", missionId))
+      getDoc(doc(db, "missions2", missionId)),
+      getDoc(doc(db, "ai_mission", missionId))
     ]);
 
     if (snap1.exists()) {
@@ -141,6 +264,25 @@ export const getMissionById = cache(async (missionId: string): Promise<{ success
     
     if (snap2.exists()) {
       return { success: true, mission: { id: snap2.id, ...snap2.data(), __table: "missions2" } };
+    }
+    
+    if (snapAI.exists()) {
+      const data = snapAI.data();
+      const { normalizeShowId, getShowById } = await import("@/lib/constants/shows");
+      const normalizedShowId = normalizeShowId(data.showId);
+      const show = normalizedShowId ? getShowById(normalizedShowId) : null;
+      
+      return { 
+        success: true, 
+        mission: { 
+          id: snapAI.id, 
+          ...data, 
+          showId: normalizedShowId,
+          category: show ? show.category : data.category,
+          __table: "ai_mission", 
+          isAIMission: true 
+        } 
+      };
     }
     
     return { success: false, error: "미션을 찾을 수 없습니다." };
@@ -224,14 +366,24 @@ export async function getMissionsByParticipant(userId: string): Promise<{ succes
 // 미션 정산 (일반 미션)
 export async function settleMissionWithFinalAnswer(missionId: string, correctAnswer: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const missionRef = doc(db, "missions1", missionId);
-    const missionSnap = await getDoc(missionRef);
+    // missions1 또는 ai_mission에서 검색
+    let missionRef = doc(db, "missions1", missionId);
+    let missionSnap = await getDoc(missionRef);
+    let missionCollection = "missions1";
+    
+    if (!missionSnap.exists()) {
+      // ai_mission에서 검색
+      missionRef = doc(db, "ai_mission", missionId);
+      missionSnap = await getDoc(missionRef);
+      missionCollection = "ai_mission";
+    }
     
     if (!missionSnap.exists()) {
       return { success: false, error: "미션을 찾을 수 없습니다." };
     }
     
     const missionData = missionSnap.data();
+    console.log(`[정답 확정] 미션 찾음: ${missionCollection}`);
     
     // 미션 상태 업데이트
     await updateDoc(missionRef, {

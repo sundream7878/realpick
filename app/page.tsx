@@ -13,11 +13,12 @@ import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
-import { getMissions, getMissions2 } from "@/lib/firebase/missions"
+import { getMissions, getMissions2, getAIMissions, getAllMissions } from "@/lib/firebase/missions"
 import { getVote1, getAllVotes2, getUserVotesMap } from "@/lib/firebase/votes"
 import { getTopVotersByMission } from "@/lib/firebase/top-voters"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/firebase/users"
@@ -92,11 +93,12 @@ export default function HomePage() {
         // 0. 관리자 설정 메인 미션 ID 가져오기
         const adminSettingPromise = getMainMissionId()
 
-        // 1. Firebase에서 미션 가져오기
-        const [adminSetting, result, coupleResult] = await Promise.all([
+        // 1. Firebase에서 미션 가져오기 (missions1, missions2, ai_mission)
+        const [adminSetting, result, coupleResult, aiResult] = await Promise.all([
           adminSettingPromise,
           getMissions("missions1", 30),
-          getMissions("missions2", 30)
+          getMissions("missions2", 30),
+          getAIMissions(30)
         ])
 
         if (adminSetting.success) {
@@ -180,8 +182,71 @@ export default function HomePage() {
           }))
         }
 
-        // 3. 두 데이터 합치기
-        const combinedMissions = [...realMissions, ...coupleMissions]
+        // 2-1. AI 미션 변환
+        let aiMissions: TMission[] = []
+        console.log('[홈페이지] AI 미션 결과:', aiResult);
+        
+        if (aiResult.success && aiResult.missions) {
+          console.log('[홈페이지] AI 미션 개수:', aiResult.missions.length);
+          
+          aiMissions = aiResult.missions
+            .filter(Boolean)
+            .map((mission: any) => {
+              console.log('[홈페이지] AI 미션 변환:', {
+                id: mission.id,
+                title: mission.title,
+                showId: mission.showId,
+                category: mission.category
+              });
+              
+              return {
+                id: mission.id,
+                title: mission.title,
+                kind: mission.kind || "predict", // AI 미션은 기본적으로 predict
+                form: mission.form || "binary",
+                seasonType: mission.seasonType || "전체",
+                showId: mission.showId,
+                category: mission.category,
+                seasonNumber: mission.seasonNumber || undefined,
+                options: mission.options || [],
+                subjectivePlaceholder: mission.subjectivePlaceholder || undefined,
+                deadline: mission.deadline,
+                revealPolicy: mission.revealPolicy || "realtime",
+                status: mission.status,
+                stats: {
+                  participants: mission.participants || 0,
+                  totalVotes: mission.totalVotes || 0
+                },
+                result: {
+                  distribution: desanitizeVoteCounts(mission.optionVoteCounts || {}),
+                  correct: mission.correctAnswer || undefined,
+                  majority: mission.majorityOption || undefined,
+                  totalVotes: mission.totalVotes || 0
+                },
+                creatorNickname: mission.creatorNickname,
+                creatorTier: mission.creatorTier,
+                createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+                thumbnailUrl: mission.thumbnailUrl,
+                referenceUrl: mission.referenceUrl,
+                isLive: mission.isLive,
+                isAIMission: true  // AI 미션 플래그
+              } as TMission;
+            })
+          
+          console.log('[홈페이지] AI 미션 변환 완료:', aiMissions.length);
+        } else {
+          console.log('[홈페이지] AI 미션 로드 실패 또는 데이터 없음:', aiResult.error);
+        }
+
+        // 3. 세 데이터 합치기 (missions1 + missions2 + ai_mission)
+        const combinedMissions = [...realMissions, ...coupleMissions, ...aiMissions]
+        
+        console.log('[홈페이지] 미션 통합 결과:', {
+          missions1: realMissions.length,
+          missions2: coupleMissions.length,
+          ai_mission: aiMissions.length,
+          total: combinedMissions.length
+        })
         setMissions(combinedMissions)
 
         // 4. 투표 여부 확인

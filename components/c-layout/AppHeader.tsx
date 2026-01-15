@@ -145,13 +145,17 @@ export function AppHeader({
                 </div>
                 <button
                   onClick={onAvatarClick}
-                  className="lg:hidden flex items-center justify-center p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                  className="lg:hidden relative p-1.5 rounded-full hover:bg-gray-100 transition-colors"
                 >
                   <img 
                     src={userTier?.characterImage || "/placeholder.svg"} 
                     alt={userNickname || userTier?.name || "User"}
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-contain border border-gray-200"
                   />
+                  {/* 등급명 배지 (모바일) */}
+                  <span className="absolute -bottom-0.5 -right-0.5 text-[7px] sm:text-[8px] text-pink-600 font-semibold bg-white px-0.5 py-0.5 rounded-full border border-pink-200 shadow-sm whitespace-nowrap leading-none">
+                    {userTier?.name}
+                  </span>
                 </button>
               </>
             ) : (

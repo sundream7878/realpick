@@ -70,15 +70,16 @@ export default function PublicProfilePage() {
                   className="w-full h-full object-contain"
                 />
               </div>
-              <div className="absolute -bottom-2 right-0 bg-[#2C2745] text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white shadow-md">
+              {/* 등급명 배지 (프로필 사진 오른쪽 하단) */}
+              <span className="absolute bottom-0 right-0 text-xs lg:text-sm text-pink-600 font-bold bg-white px-2 py-1 rounded-full border-2 border-pink-200 shadow-md whitespace-nowrap">
                 {tier?.name}
-              </div>
+              </span>
             </div>
 
             <h2 className="text-3xl font-bold text-gray-900 mb-2">{user.nickname}</h2>
             <div className="flex items-center gap-2 text-gray-500 mb-6">
               <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
-              <span className="font-semibold text-[#3E757B]">{user.points.toLocaleString()}P</span>
+              <span className="font-bold text-[#3E757B]">{user.points.toLocaleString()} <span className="font-semibold">Point</span></span>
             </div>
 
             <div className="grid grid-cols-2 gap-4 w-full max-w-md">
@@ -94,7 +95,7 @@ export default function PublicProfilePage() {
                   <Target className="w-4 h-4" />
                   <span className="text-xs font-medium">총 포인트</span>
                 </div>
-                <p className="text-lg font-bold text-gray-900">{user.points.toLocaleString()}P</p>
+                <p className="text-base font-bold text-gray-900">{user.points.toLocaleString()} <span className="text-sm font-semibold">Point</span></p>
               </div>
             </div>
           </div>

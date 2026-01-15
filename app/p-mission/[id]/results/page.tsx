@@ -16,6 +16,7 @@ import { getUserId } from "@/lib/auth-utils"
 import { auth } from "@/lib/firebase/config"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import MyPicksModal from "@/components/c-my-picks-modal/my-picks-modal"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
@@ -1055,7 +1056,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
 function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any }) {
   // distribution이 없더라도 options가 있으면 진행
-  const distribution = mission.result?.distribution || {}
+  const distribution = desanitizeVoteCounts(mission.result?.distribution || {})
   const options = Array.isArray(mission.options) ? mission.options : []
   
   console.log('[ResultsChart] 렌더링 시작:', {

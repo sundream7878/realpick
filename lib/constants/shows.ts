@@ -109,3 +109,23 @@ export function getShowByName(showName: string): TShow | undefined {
     }
     return undefined
 }
+
+// AI 미션의 한글 showId를 영어 showId로 변환
+export function normalizeShowId(showId: string | undefined | null): string | undefined {
+    if (!showId) return undefined;
+    
+    // 이미 영어 ID면 그대로 반환
+    const show = getShowById(showId);
+    if (show) return show.id;
+    
+    // 한글 이름이면 영어 ID로 변환
+    const showByName = getShowByName(showId);
+    if (showByName) {
+        console.log(`[showId 변환] "${showId}" → "${showByName.id}"`);
+        return showByName.id;
+    }
+    
+    // 매칭 실패
+    console.warn(`[showId 변환 실패] "${showId}" - 등록된 프로그램을 찾을 수 없습니다.`);
+    return undefined;
+}

@@ -13,6 +13,7 @@ import {
 } from "firebase/firestore";
 import { db } from "./config";
 import { TVoteSubmission } from "@/types/t-vote/vote.types";
+import { sanitizeFieldKey } from "@/lib/utils/sanitize-firestore-key";
 
 /**
  * Firestore를 사용한 투표 관리
@@ -202,9 +203,18 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
       choice: submission.choice
     })
 
-    // 미션 정보 조회 (포인트 보상 확인용)
-    const missionRef = doc(db, "missions1", submission.missionId);
-    const missionSnap = await getDoc(missionRef);
+    // 미션 정보 조회 (missions1 또는 ai_mission에서 검색)
+    let missionRef = doc(db, "missions1", submission.missionId);
+    let missionSnap = await getDoc(missionRef);
+    let missionCollection = "missions1";
+    
+    // missions1에 없으면 ai_mission에서 검색
+    if (!missionSnap.exists()) {
+      console.log('[Firebase Votes] missions1에 없음, ai_mission에서 검색 중...')
+      missionRef = doc(db, "ai_mission", submission.missionId);
+      missionSnap = await getDoc(missionRef);
+      missionCollection = "ai_mission";
+    }
     
     if (!missionSnap.exists()) {
       console.error('[Firebase Votes] 미션을 찾을 수 없습니다:', submission.missionId)
@@ -212,6 +222,7 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
     }
     
     const missionData = missionSnap.data();
+    console.log('[Firebase Votes] 미션 찾음:', { collection: missionCollection });
     console.log('[Firebase Votes] 미션 데이터:', {
       kind: missionData.kind,
       title: missionData.title,
@@ -249,10 +260,14 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
     if (submission.choice) {
       if (Array.isArray(submission.choice)) {
         submission.choice.forEach(opt => {
-          if (opt) updateData[`optionVoteCounts.${opt}`] = increment(1);
+          if (opt) {
+            const safeKey = sanitizeFieldKey(opt);
+            updateData[`optionVoteCounts.${safeKey}`] = increment(1);
+          }
         });
       } else {
-        updateData[`optionVoteCounts.${submission.choice}`] = increment(1);
+        const safeKey = sanitizeFieldKey(submission.choice);
+        updateData[`optionVoteCounts.${safeKey}`] = increment(1);
       }
     }
 
