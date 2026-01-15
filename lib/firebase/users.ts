@@ -39,13 +39,18 @@ const mapFirestoreToUser = (id: string, data: any): TUser => ({
 // 사용자 정보 조회 (ID 기반)
 export async function getUser(userId: string): Promise<TUser | null> {
   try {
+    console.log('[Firebase Users] getUser 시작 - userId:', userId)
     const userDoc = await getDoc(doc(db, "users", userId));
+    console.log('[Firebase Users] userDoc.exists():', userDoc.exists())
     if (userDoc.exists()) {
-      return mapFirestoreToUser(userDoc.id, userDoc.data());
+      const user = mapFirestoreToUser(userDoc.id, userDoc.data());
+      console.log('[Firebase Users] 반환할 사용자:', user)
+      return user;
     }
+    console.warn('[Firebase Users] 사용자를 찾을 수 없습니다')
     return null;
   } catch (error) {
-    console.error("Error fetching user from Firestore:", error);
+    console.error("[Firebase Users] Error fetching user from Firestore:", error);
     return null;
   }
 }

@@ -366,8 +366,8 @@ export default function ProfilePage() {
                         <div className={`relative w-16 h-16 flex-shrink-0 rounded-full flex items-center justify-center mr-4 ${isCurrent ? "bg-[#3E757B]/10" : isNextTarget ? "bg-[#3E757B]/5" : "bg-gray-50"
                           }`}>
                           <Image
-                            src={tier.characterImage}
-                            alt={tier.name}
+                            src={tier?.characterImage || "/placeholder.svg"}
+                            alt={tier?.name || "Tier"}
                             width={64}
                             height={64}
                             className="w-14 h-14 object-contain"
@@ -405,8 +405,8 @@ export default function ProfilePage() {
                       <div className="relative mb-4">
                         <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2C2745]/20 to-[#3E757B]/20 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
                           <Image
-                            src={userTier.characterImage || "/placeholder.svg"}
-                            alt={userTier.name}
+                            src={userTier?.characterImage || "/placeholder.svg"}
+                            alt={userTier?.name || "Tier"}
                             width={128}
                             height={128}
                             className="w-full h-full object-contain"

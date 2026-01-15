@@ -63,15 +63,15 @@ export default function PublicProfilePage() {
             <div className="relative mb-6">
               <div className="w-32 h-32 rounded-full bg-gradient-to-br from-[#2C2745]/20 to-[#3E757B]/20 flex items-center justify-center overflow-hidden shadow-lg border-4 border-white">
                 <Image
-                  src={tier.characterImage || "/placeholder.svg"}
-                  alt={tier.name}
+                  src={tier?.characterImage || "/placeholder.svg"}
+                  alt={tier?.name || "Tier"}
                   width={128}
                   height={128}
                   className="w-full h-full object-contain"
                 />
               </div>
               <div className="absolute -bottom-2 right-0 bg-[#2C2745] text-white text-xs font-bold px-3 py-1 rounded-full border-2 border-white shadow-md">
-                {tier.name}
+                {tier?.name}
               </div>
             </div>
 

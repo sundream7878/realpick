@@ -164,7 +164,7 @@ export default function DealerLoungePage() {
 
     const myStat = stats.find(s => s.id === currentUser?.id)
     const rank = stats.findIndex(s => s.id === currentUser?.id) + 1
-    const userTierInfo = getTierFromPoints(currentUser?.f_points || 0)
+    const userTierInfo = getTierFromPoints(currentUser?.points || 0)
 
     const handleSeasonSelect = (season: string) => {
         setSelectedSeason(season)
@@ -176,8 +176,8 @@ export default function DealerLoungePage() {
                 <AppHeader
                     selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
                     onShowChange={() => { }}
-                    userNickname={currentUser?.f_nickname || ""}
-                    userPoints={currentUser?.f_points || 0}
+                    userNickname={currentUser?.nickname || ""}
+                    userPoints={currentUser?.points || 0}
                     userTier={userTierInfo}
                     onAvatarClick={() => {
                         const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
@@ -307,6 +307,8 @@ export default function DealerLoungePage() {
                 <MissionCreationModal
                     isOpen={isMissionModalOpen}
                     onClose={() => setIsMissionModalOpen(false)}
+                    initialShowId={selectedShowId}
+                    category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
                 />
             </div>
         </div>

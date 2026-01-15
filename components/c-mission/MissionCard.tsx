@@ -140,7 +140,11 @@ export function MissionCard({
             {mission.creatorNickname && (
               <div className="flex items-center gap-1 pr-1">
                 <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full overflow-hidden border border-gray-200">
-                  <img src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"} className="w-full h-full object-cover" />
+                  <img 
+                    src={mission.creatorTier ? TIERS.find(t => t.name === mission.creatorTier)?.characterImage || "/tier-rookie.png" : "/tier-rookie.png"} 
+                    className="w-full h-full object-cover" 
+                    alt="Tier"
+                  />
                 </div>
                 <span className={`text-[9px] sm:text-xs font-bold ${theme.iconText}`}>{mission.creatorNickname}</span>
               </div>

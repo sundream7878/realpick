@@ -30,6 +30,8 @@ import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getShowByName, getShowById, CATEGORIES, SHOWS } from "@/lib/constants/shows"
 import type { TShowCategory } from "@/lib/constants/shows"
 
+const ITEMS_PER_PAGE = 10
+
 export default function MyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -49,6 +51,13 @@ export default function MyPage() {
   const [matchAnswerDrafts, setMatchAnswerDrafts] = useState<Record<string, Array<{ left: string; right: string }>>>({})
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
+  const [filterCategory, setFilterCategory] = useState<TShowCategory | "ALL">("ALL")
+  const [filterShowId, setFilterShowId] = useState<string>("ALL")
+  const [createdTab, setCreatedTab] = useState<"predict" | "majority">("predict")
+  const [createdPage, setCreatedPage] = useState(1)
+  const [expandedMissionId, setExpandedMissionId] = useState<string | null>(null)
+  const [editingMissionAnswers, setEditingMissionAnswers] = useState<Record<string, boolean>>({})
+  const [submittingMissionId, setSubmittingMissionId] = useState<string | null>(null)
   
   const userId = getUserId()
 
@@ -56,6 +65,44 @@ export default function MyPage() {
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
   const [customShows, setCustomShows] = useState<any[]>([])
+
+  // 사용자 정보 로딩
+  const loadUserInfo = useCallback(async () => {
+    if (!isAuthenticated() || !userId) {
+      console.warn('[MyPage] 인증되지 않았거나 userId가 없음')
+      setUserNickname("")
+      setUserPoints(0)
+      setUserTier(getTierFromPoints(0))
+      setUserRole("PICKER")
+      // 인증이 없으면 홈으로 리다이렉트
+      router.push('/')
+      return
+    }
+
+    try {
+      console.log('[MyPage] 사용자 정보 로딩 시작 - userId:', userId)
+      const { getUser } = await import('@/lib/firebase/users')
+      const user = await getUser(userId)
+      
+      console.log('[MyPage] 사용자 정보 결과:', user)
+      
+      if (user) {
+        setUserNickname(user.nickname || "")
+        setUserPoints(user.points || 0)
+        setUserTier(getTierFromPoints(user.points || 0))
+        setUserRole(user.role || "PICKER")
+        console.log('[MyPage] 사용자 정보 설정 완료:', {
+          nickname: user.nickname,
+          points: user.points,
+          role: user.role
+        })
+      } else {
+        console.error('[MyPage] 사용자 정보 로딩 실패: 사용자를 찾을 수 없습니다')
+      }
+    } catch (error) {
+      console.error('[MyPage] 사용자 정보 로딩 중 오류:', error)
+    }
+  }, [userId])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
@@ -67,8 +114,16 @@ export default function MyPage() {
     return cleanup
   }, [])
 
+  // 사용자 정보 로딩
+  useEffect(() => {
+    loadUserInfo()
+  }, [loadUserInfo])
+
   const loadMissions = useCallback(async () => {
+    console.log('[MyPage] loadMissions 시작 - userId:', userId, '/ isAuthenticated:', isAuthenticated())
+    
     if (!isAuthenticated() || !userId) {
+      console.warn('[MyPage] 인증되지 않았거나 userId가 없음')
       setCreatedMissions([])
       setParticipatedMissions([])
       setIsLoading(false)
@@ -77,10 +132,14 @@ export default function MyPage() {
 
     setIsLoading(true)
     try {
+      console.log('[MyPage] Firebase에서 미션 데이터 가져오는 중...')
       const [createdResult, participatedResult] = await Promise.all([
         getMissionsByCreator(userId),
         getMissionsByParticipant(userId),
       ])
+      
+      console.log('[MyPage] createdResult:', createdResult)
+      console.log('[MyPage] participatedResult:', participatedResult)
 
       if (createdResult.success && createdResult.missions) {
         const created: TMission[] = createdResult.missions.map((mission: any) => {
@@ -572,34 +631,55 @@ export default function MyPage() {
 
   // 필터링 로직 추가
   const filterMissions = useCallback((missions: TMission[]) => {
-    return missions.filter(mission => {
+    console.log('[MyPage] 필터링 전 미션 개수:', missions.length)
+    console.log('[MyPage] 필터 설정 - 카테고리:', filterCategory, '/ 프로그램:', filterShowId)
+    
+    const filtered = missions.filter(mission => {
       const show = mission.showId ? getShowById(mission.showId) : null
       
       // 카테고리 필터
-      if (filterCategory !== "ALL" && show?.category !== filterCategory) {
-        return false
+      if (filterCategory !== "ALL") {
+        // showId가 없는 미션은 카테고리 필터가 ALL이 아니면 제외하지 않음 (레거시 데이터 보호)
+        if (!show || !show.category) {
+          return false // 프로그램 정보가 없는 미션은 특정 카테고리 필터 시 제외
+        }
+        if (show.category !== filterCategory) {
+          return false
+        }
       }
       
       // 프로그램 필터
-      if (filterShowId !== "ALL" && mission.showId !== filterShowId) {
-        return false
+      if (filterShowId !== "ALL") {
+        if (!mission.showId || mission.showId !== filterShowId) {
+          return false
+        }
       }
       
       return true
     })
+    
+    console.log('[MyPage] 필터링 후 미션 개수:', filtered.length)
+    return filtered
   }, [filterCategory, filterShowId])
 
   const filteredParticipatedMissions = useMemo(() => 
     filterMissions(participatedMissions), 
   [participatedMissions, filterMissions])
 
-  const filteredCreatedMissionsTotal = useMemo(() => 
-    filterMissions(createdMissions), 
-  [createdMissions, filterMissions])
+  const filteredCreatedMissionsTotal = useMemo(() => {
+    console.log('[MyPage] 원본 생성 미션 개수:', createdMissions.length)
+    const filtered = filterMissions(createdMissions)
+    console.log('[MyPage] 필터링된 생성 미션 개수:', filtered.length)
+    return filtered
+  }, [createdMissions, filterMissions])
 
-  const filteredCreatedMissionsByTab = useMemo(() => 
-    filteredCreatedMissionsTotal.filter(m => m.kind === createdTab),
-  [filteredCreatedMissionsTotal, createdTab])
+  const filteredCreatedMissionsByTab = useMemo(() => {
+    console.log('[MyPage] 현재 탭:', createdTab)
+    console.log('[MyPage] 미션별 kind:', filteredCreatedMissionsTotal.map(m => ({ id: m.id, kind: m.kind, title: m.title })))
+    const byTab = filteredCreatedMissionsTotal.filter(m => m.kind === createdTab)
+    console.log('[MyPage] 탭별 필터링 후 미션 개수:', byTab.length)
+    return byTab
+  }, [filteredCreatedMissionsTotal, createdTab])
 
   const totalCreatedPages = Math.ceil(filteredCreatedMissionsByTab.length / ITEMS_PER_PAGE)
   const currentCreatedMissions = filteredCreatedMissionsByTab.slice((createdPage - 1) * ITEMS_PER_PAGE, createdPage * ITEMS_PER_PAGE)
@@ -1136,20 +1216,32 @@ export default function MyPage() {
                   </Card>
                 ) : filteredCreatedMissionsTotal.length === 0 ? (
                   <Card className="border-gray-200">
-                    <CardContent className="py-12 text-center">
+                    <CardContent className="py-12 text-center space-y-4">
                       <p className="text-gray-500 text-lg">
                         {filterCategory === "ALL" && filterShowId === "ALL"
                           ? "아직 생성한 미션이 없습니다."
                           : "조건에 맞는 미션이 없습니다."}
                       </p>
-                      {filterCategory === "ALL" && filterShowId === "ALL" && (
-                        <Button
-                          className="mt-4 bg-purple-600 hover:bg-purple-700 text-white"
-                          onClick={() => setIsMissionModalOpen(true)}
-                        >
-                          미션 생성하기
-                        </Button>
-                      )}
+                      <div className="flex gap-2 justify-center">
+                        {filterCategory === "ALL" && filterShowId === "ALL" ? (
+                          <Button
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            onClick={() => setIsMissionModalOpen(true)}
+                          >
+                            미션 생성하기
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            onClick={() => {
+                              setFilterCategory("ALL")
+                              setFilterShowId("ALL")
+                            }}
+                          >
+                            필터 초기화
+                          </Button>
+                        )}
+                      </div>
                     </CardContent>
                   </Card>
                 ) : (
@@ -1282,9 +1374,34 @@ export default function MyPage() {
                         })}
                       </div>
                     ) : (
-                      <div className="text-center py-12 text-gray-500">
-                        해당 카테고리의 미션이 없습니다.
-                      </div>
+                      <Card className="border-gray-200">
+                        <CardContent className="py-12 text-center space-y-4">
+                          <p className="text-gray-500 text-lg">
+                            {createdTab === "predict" ? "예측픽" : "공감픽"} 미션이 없습니다.
+                          </p>
+                          <div className="flex gap-2 justify-center">
+                            {filteredCreatedMissionsTotal.filter(m => m.kind !== createdTab).length > 0 && (
+                              <Button
+                                variant="outline"
+                                onClick={() => setCreatedTab(createdTab === "predict" ? "majority" : "predict")}
+                              >
+                                {createdTab === "predict" ? "공감픽" : "예측픽"} 탭 보기
+                              </Button>
+                            )}
+                            {(filterCategory !== "ALL" || filterShowId !== "ALL") && (
+                              <Button
+                                variant="outline"
+                                onClick={() => {
+                                  setFilterCategory("ALL")
+                                  setFilterShowId("ALL")
+                                }}
+                              >
+                                필터 초기화
+                              </Button>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
                     )}
 
                     {/* Pagination */}
@@ -1339,6 +1456,7 @@ export default function MyPage() {
         <MissionCreationModal
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
+          initialShowId={selectedShowId}
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
       </div>

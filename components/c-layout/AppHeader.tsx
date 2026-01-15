@@ -148,8 +148,8 @@ export function AppHeader({
                   className="lg:hidden flex items-center justify-center p-1.5 rounded-full hover:bg-gray-100 transition-colors"
                 >
                   <img 
-                    src={userTier.characterImage || "/placeholder.svg"} 
-                    alt={userNickname || userTier.name}
+                    src={userTier?.characterImage || "/placeholder.svg"} 
+                    alt={userNickname || userTier?.name || "User"}
                     className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-contain border border-gray-200"
                   />
                 </button>

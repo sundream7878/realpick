@@ -54,7 +54,7 @@ export default function MissionsPage() {
       setIsLoading(true)
       try {
         // 1. Supabase에서 Binary/Multi/주관식 미션 가져오기
-        const result = await getMissions(50) // 미션 목록 페이지는 더 많이 가져오기
+        const result = await getMissions("missions1", 50) // 미션 목록 페이지는 더 많이 가져오기
         let realMissions: TMission[] = []
 
         if (result.success && result.missions) {
@@ -131,15 +131,8 @@ export default function MissionsPage() {
           }))
         }
 
-        // 3. 임시로 27기 Mock 데이터 추가 (실제 DB에 27기가 없을 경우)
-        const mock27Mission = mockMissions["27기-커플매칭"]
-        const has27Mission = coupleMissions.some(m => m.seasonNumber === 27)
-
-        // 4. 두 데이터 합치기
+        // 3. 두 데이터 합치기
         const combinedMissions = [...realMissions, ...coupleMissions]
-        if (!has27Mission && mock27Mission) {
-          combinedMissions.push(mock27Mission)
-        }
 
         setMissions(combinedMissions)
 
@@ -172,8 +165,8 @@ export default function MissionsPage() {
         }
       } catch (error) {
         console.error("미션 로딩 실패:", error)
-        // 에러 시 Mock 데이터 사용
-        setMissions(Object.values(mockMissions))
+        // 에러 시 빈 목록 설정
+        setMissions([])
       } finally {
         setIsLoading(false)
       }
@@ -318,8 +311,14 @@ export default function MissionsPage() {
   const filteredMissions = Array.isArray(missions) ? missions
     .filter((mission) => {
       // 1. 프로그램(카테고리) 필터링
-      if (selectedShowId && mission.showId !== selectedShowId) {
-        return false
+      if (selectedShowId) {
+        // 선택된 프로그램이 'nasolo'인 경우, showId가 'nasolo'이거나 없는(기존 데이터) 미션 표시
+        if (selectedShowId === 'nasolo') {
+          if (mission.showId && mission.showId !== 'nasolo') return false
+        } else {
+          // 다른 프로그램의 경우 해당 showId와 정확히 일치하는 미션만 표시
+          if (mission.showId !== selectedShowId) return false
+        }
       }
 
       // 2. 시즌 필터링
@@ -433,6 +432,7 @@ export default function MissionsPage() {
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
+          initialShowId={selectedShowId}
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
         />
       </div>

@@ -44,10 +44,11 @@ export function NotificationList({ onClose }: NotificationListProps) {
                     <div className="flex flex-col">
                         {notifications.map((notification) => (
                             <NotificationItem 
-                                key={notification.f_id} 
+                                key={notification.id} 
                                 notification={notification} 
                                 onClick={() => {
-                                    markAsRead(notification.f_id)
+                                    console.log('[NotificationList] 알림 클릭 - id:', notification.id)
+                                    markAsRead(notification.id)
                                     onClose()
                                 }}
                             />

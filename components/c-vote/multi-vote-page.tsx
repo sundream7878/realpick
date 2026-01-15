@@ -11,7 +11,7 @@ import { ResultSection } from "./result-section"
 import { SubmissionSheet } from "./submission-sheet"
 import { MockVoteRepo } from "@/lib/mock-vote-data"
 import { submitVote1, getVote1 } from "@/lib/firebase/votes"
-import { incrementMissionParticipants, updateOptionVoteCounts, getMissionById as getMission } from "@/lib/firebase/missions"
+import { getMissionById as getMission } from "@/lib/firebase/missions"
 import { getUserId } from "@/lib/auth-utils"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
@@ -99,8 +99,8 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
 
   const hasVoted = userVote !== null
   const canVote = currentMission.status === "open" && !hasVoted
-  const showPercentages =
-    hasVoted && (currentMission.status === "settled" || (currentMission.status === "open" && currentMission.revealPolicy === "realtime"))
+  // 실시간 공개가 기본이므로 투표 후에는 항상 퍼센트 표시
+  const showPercentages = hasVoted
 
   const handleResultView = () => {
     // 마감된 경우에만 최종 결과 페이지로 이동
@@ -151,19 +151,25 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
         throw new Error("투표가 제대로 저장되지 않았습니다. 다시 시도해주세요.")
       }
 
-      console.log("투표 저장 확인 완료, 참여자 수 증가 중...")
-
-      // 2. 미션 참여자 수 증가
-      const participantsResult = await incrementMissionParticipants(mission.id)
-      if (!participantsResult.success) {
-        console.error("참여자 수 증가 실패:", participantsResult.error)
-        // 참여자 수 증가 실패는 치명적이지 않으므로 경고만 표시
+      console.log("투표 저장 확인 완료")
+      
+      // submitVote1에서 이미 원자적으로 participants, totalVotes, optionVoteCounts를 업데이트했으므로
+      // 추가적인 업데이트 호출은 불필요하고 오히려 데이터 불일치를 야기할 수 있습니다.
+      
+      console.log("투표 제출 완료 - submitVote1에서 모든 카운트 업데이트 완료")
+      
+      // 디버깅용: 업데이트 후 미션 상태 확인 (개발 중에만 사용)
+      const verifyResult = await getMission(mission.id)
+      if (verifyResult.success && verifyResult.mission) {
+        console.log("투표 후 미션 상태:", {
+          participants: verifyResult.mission.participants,
+          totalVotes: verifyResult.mission.stats?.totalVotes,
+          optionVoteCounts: verifyResult.mission.optionVoteCounts
+        })
       }
 
-      console.log("투표 수 집계 업데이트 중...")
-
-      // 3. 투표 수 집계 업데이트
-      const voteCountsResult = await updateOptionVoteCounts(mission.id)
+      // 더미 에러 체크 (기존 코드 구조 유지)
+      const voteCountsResult = { success: true }
       if (!voteCountsResult.success) {
         console.error("투표 수 집계 실패:", voteCountsResult.error)
         // 투표 수 집계 실패는 치명적이지 않으므로 경고만 표시
@@ -424,8 +430,6 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
                                 />
                               </div>
                             </div>
-                          ) : hasVoted && currentMission.status === "open" && currentMission.revealPolicy === "onClose" ? (
-                            <span className="text-2xl text-gray-400">?</span>
                           ) : null}
                         </div>
                       </div>
@@ -467,13 +471,15 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       {hasVoted && (
         <div id="live-results" className="mt-8 space-y-4">
           {/* 픽 완료 메시지 */}
-          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 max-w-2xl mx-auto shadow-sm">
+          <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-pink-50 shadow-sm">
             <CardContent className="p-6">
               <div className="flex items-center justify-between gap-4">
                 <div className="space-y-1">
                   <h3 className="text-lg font-bold text-purple-900">픽 완료!</h3>
                   <p className="text-sm text-gray-600">
-                    마감까지 결과를 기다려주세요. 아래에서 내가 선택한 항목을 확인할 수 있습니다.
+                    {currentMission.revealPolicy === "realtime" 
+                      ? "실시간으로 집계된 결과를 아래에서 확인하세요!" 
+                      : "마감까지 결과를 기다려주세요. 아래에서 내가 선택한 항목을 확인할 수 있습니다."}
                   </p>
                 </div>
                 {currentMission.deadline && (
@@ -487,7 +493,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
           </Card>
 
           {/* 투표 결과 */}
-          <Card className="border-2 border-purple-200 max-w-2xl mx-auto">
+          <Card className="border-2 border-purple-200">
             <CardHeader className="py-4 px-4">
               <CardTitle className="text-lg flex items-center gap-2">
                 투표 결과
@@ -496,60 +502,70 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
                 )}
               </CardTitle>
               <p className="text-xs text-muted-foreground">
-                {currentMission.revealPolicy === "realtime"
-                  ? "실시간으로 집계 중입니다"
-                  : "마감될 때까지 결과는 공개되지 않습니다"}
+                실시간으로 집계 중입니다
               </p>
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className="space-y-2">
-                {options.map((option, index) => {
-                  const isUserChoice = userVote === option
-                  const percentage = showPercentages ? currentMission.result?.distribution[option] || 0 : 0
-                  const shouldShowPercentage = currentMission.revealPolicy === "realtime" && showPercentages
+                {(() => {
+                  // 실제 투표수 합계를 계산하여 퍼센트를 정확하게 표시
+                  const distribution = currentMission.result?.distribution || {}
+                  const distributionSum = Object.values(distribution).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+                  const totalVotes = distributionSum > 0 ? distributionSum : (currentMission.stats?.totalVotes || 0)
 
-                  return (
-                    <div
-                      key={option}
-                      className={`p-4 rounded-lg border-2 transition-all ${isUserChoice ? "border-purple-300 bg-purple-50 shadow-sm" : "border-gray-200 bg-gray-50"
-                        }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          <Badge
-                            variant="outline"
-                            className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${isUserChoice ? "border-purple-500 bg-purple-100" : ""
-                              }`}
-                          >
-                            {index + 1}
-                          </Badge>
-                          <span className={`font-semibold text-base truncate ${isUserChoice ? "text-purple-700" : "text-gray-900"}`}>
-                            {option}
-                          </span>
-                          {isUserChoice && (
-                            <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">내 픽</Badge>
-                          )}
+                  return options.map((option, index) => {
+                    const isUserChoice = userVote === option
+                    const voteCount = Number(distribution[option]) || 0
+                    const percentage = totalVotes > 0 ? Math.round((voteCount / totalVotes) * 100) : 0
+                    // 실시간 공개가 기본이므로 투표 후에는 항상 퍼센트 표시
+                    const shouldShowPercentage = showPercentages
+
+                    return (
+                      <div
+                        key={option}
+                        className={`p-4 rounded-lg border-2 transition-all ${isUserChoice ? "border-purple-300 bg-purple-50 shadow-sm" : "border-gray-200 bg-gray-50"
+                          }`}
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-3 flex-1 min-w-0">
+                            <Badge
+                              variant="outline"
+                              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm flex-shrink-0 ${isUserChoice ? "border-purple-500 bg-purple-100" : ""
+                                }`}
+                            >
+                              {index + 1}
+                            </Badge>
+                            <span className={`font-semibold text-base truncate ${isUserChoice ? "text-purple-700" : "text-gray-900"}`}>
+                              {option}
+                            </span>
+                            {isUserChoice && (
+                              <Badge className="bg-purple-500 text-white text-xs flex-shrink-0">내 픽</Badge>
+                            )}
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            {shouldShowPercentage ? (
+                              <div className="flex flex-col items-end">
+                                <span className="text-lg font-bold text-purple-600">{percentage}%</span>
+                                <span className="text-xs text-gray-500">{voteCount}표</span>
+                              </div>
+                            ) : (
+                              <span className="text-lg font-bold text-gray-400">0%</span>
+                            )}
+                          </div>
                         </div>
-                        <div className="text-right flex-shrink-0">
-                          {shouldShowPercentage ? (
-                            <span className="text-lg font-bold text-purple-600">{percentage}%</span>
-                          ) : (
-                            <span className="text-xl text-gray-400 font-bold">?</span>
-                          )}
-                        </div>
+                        {shouldShowPercentage && (
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div
+                              className={`h-2 rounded-full transition-all duration-500 ${isUserChoice ? "bg-gradient-to-r from-purple-400 to-pink-400 shadow-sm" : "bg-gray-400"
+                                }`}
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        )}
                       </div>
-                      {shouldShowPercentage && (
-                        <div className="w-full bg-gray-200 rounded-full h-2">
-                          <div
-                            className={`h-2 rounded-full transition-all duration-500 ${isUserChoice ? "bg-gradient-to-r from-purple-400 to-pink-400 shadow-sm" : "bg-gray-400"
-                              }`}
-                            style={{ width: `${percentage}%` }}
-                          />
-                        </div>
-                      )}
-                    </div>
-                  )
-                })}
+                    )
+                  })
+                })()}
               </div>
             </CardContent>
           </Card>
@@ -559,7 +575,11 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
             <div className="flex justify-center">
               <Button
                 size="lg"
-                onClick={() => router.push(`/p-mission/${currentMission.id}/results`)}
+                onClick={() => {
+                  router.push(`/p-mission/${currentMission.id}/results`)
+                  // 캐시 새로고침하여 최신 데이터 표시
+                  setTimeout(() => router.refresh(), 100)
+                }}
                 className="px-16 py-4 text-lg font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-lg hover:shadow-xl transition-all duration-200 rounded-xl"
               >
                 최종 결과 보기

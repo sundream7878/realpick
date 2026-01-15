@@ -57,6 +57,7 @@ interface MissionCommonFieldsProps {
   hideSeason?: boolean
   showId: string | undefined
   setShowId: (value: string) => void
+  isLocked?: boolean
 }
 
 const MissionCommonFields = ({
@@ -77,26 +78,38 @@ const MissionCommonFields = ({
   hideSeason = false,
   showId,
   setShowId,
+  isLocked = false,
 }: MissionCommonFieldsProps) => (
   <>
-    <div>
-      <Label className="text-sm font-medium">관련 프로그램 (필수)</Label>
-      <Select value={showId} onValueChange={setShowId}>
-        <SelectTrigger className="mt-1">
-          <SelectValue placeholder="프로그램을 선택해주세요" />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(SHOWS).map(([category, shows]) => (
-            <SelectGroup key={category}>
-              <SelectLabel>{CATEGORIES[category as TShowCategory].label}</SelectLabel>
-              {shows.map(show => (
-                <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
-              ))}
-            </SelectGroup>
-          ))}
-        </SelectContent>
-      </Select>
-    </div>
+    {/* 관련 프로그램 선택 - isLocked이면 숨기고 텍스트로만 표시, 아니면 선택창 표시 */}
+    {!isLocked ? (
+      <div>
+        <Label className="text-sm font-medium">관련 프로그램 (필수)</Label>
+        <Select value={showId} onValueChange={setShowId}>
+          <SelectTrigger className="mt-1">
+            <SelectValue placeholder="프로그램을 선택해주세요" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.entries(SHOWS).map(([category, shows]) => (
+              <SelectGroup key={category}>
+                <SelectLabel>{CATEGORIES[category as TShowCategory].label}</SelectLabel>
+                {shows.map(show => (
+                  <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    ) : (
+      // isLocked일 때는 어떤 프로그램인지 텍스트로만 표시 (사용자가 바꿀 수 없게)
+      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+        <Label className="text-xs text-gray-500 font-medium">게시되는 프로그램</Label>
+        <div className="text-sm font-bold text-gray-900 mt-1">
+          {Object.values(SHOWS).flat().find(s => s.id === showId)?.displayName || showId || "선택되지 않음"}
+        </div>
+      </div>
+    )}
 
     {!hideSeason && (
       <div>
@@ -465,9 +478,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
           : isLive
             ? new Date(Date.now() + (parseInt(durationMinutes) * 60 + parseInt(durationSeconds)) * 1000).toISOString()
             : deadline ? new Date(deadline).toISOString() : new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-        resultVisibility: missionFormat === "couple"
-          ? "onClose"
-          : resultVisibility === "realtime" ? "realtime" : "onClose",
+        resultVisibility: resultVisibility === "realtime" ? "realtime" : "onClose",
         referenceUrl: referenceUrl.trim() || undefined,
         description: description.trim() || undefined,
         imageUrl: imageUrl.trim() || undefined,
@@ -762,6 +773,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 handleImageUpload={handleImageUpload}
                 showId={showId}
                 setShowId={setShowId}
+                isLocked={!!initialShowId}
               />
 
               <div>

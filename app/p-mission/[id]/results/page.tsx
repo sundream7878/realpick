@@ -10,9 +10,10 @@ import { useRouter } from "next/navigation"
 import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2 } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
-import { getMission, getMission2 } from "@/lib/firebase/missions"
+import { getMissionById } from "@/lib/firebase/missions"
 import { getVote1 } from "@/lib/firebase/votes"
 import { getUserId } from "@/lib/auth-utils"
+import { auth } from "@/lib/firebase/config"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -160,10 +161,20 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     setIsDeleting(true)
     try {
       const missionType = mission.form === "match" ? "mission2" : "mission1"
-      console.log("미션 삭제 시도:", { missionId: mission.id, missionType })
+      console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId: currentUserId })
+      
+      // Firebase 인증 토큰 가져오기
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) {
+        throw new Error("인증 토큰을 가져올 수 없습니다. 다시 로그인해주세요.")
+      }
       
       const response = await fetch(`/api/missions/delete?missionId=${mission.id}&missionType=${missionType}`, {
         method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
 
       const data = await response.json()
@@ -191,75 +202,95 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
       try {
         setLoading(true)
 
-        // 먼저 t_missions2에서 커플매칭 미션 가져오기
-        const coupleResult = await getMission2(params.id)
+        // 통합 미션 조회 함수 사용 (병렬 처리로 더 빠름)
+        const result = await getMissionById(params.id)
+        
         let missionData: TMission | null = null
 
-        if (coupleResult.success && coupleResult.mission) {
-          // Firebase 데이터를 TMission 형태로 변환
-          missionData = {
-            id: coupleResult.mission.id,
-            title: coupleResult.mission.title,
-            kind: coupleResult.mission.kind,
-            form: "match",
-            seasonType: coupleResult.mission.seasonType || "전체",
-            seasonNumber: coupleResult.mission.seasonNumber || undefined,
-            options: coupleResult.mission.matchPairs, // TMatchPairs 형식
-            deadline: coupleResult.mission.deadline,
-            revealPolicy: coupleResult.mission.revealPolicy,
-            status: coupleResult.mission.status,
-            episodes: coupleResult.mission.totalEpisodes || 8,
-            episodeStatuses: coupleResult.mission.episodeStatuses || {},
-            finalAnswer: coupleResult.mission.finalAnswer || undefined,
-            stats: {
-              participants: coupleResult.mission.participants || 0
-            },
-            result: {
-              distribution: {},
-              finalAnswer: coupleResult.mission.finalAnswer || undefined,
-              totalVotes: coupleResult.mission.totalVotes || 0
-            },
-            createdAt: coupleResult.mission.createdAt?.toDate?.()?.toISOString() || coupleResult.mission.createdAt,
-            showId: coupleResult.mission.showId,
-            category: coupleResult.mission.category
-          }
-        } else {
-          // Firebase에 없으면 missions1에서 미션 데이터 가져오기
-          const result = await getMission("missions1", params.id)
+        if (result.success && result.mission) {
+          const rawMission = result.mission
+          const isCouple = rawMission.__table === "missions2"
 
-          if (result.success && result.mission) {
-            // Firebase 데이터를 TMission 형태로 변환
+          if (isCouple) {
             missionData = {
-              id: result.mission.id,
-              title: result.mission.title,
-              kind: result.mission.kind,
-              form: result.mission.form,
-              seasonType: result.mission.seasonType || "전체",
-              seasonNumber: result.mission.seasonNumber || undefined,
-              options: result.mission.options || [],
-              submissionType: result.mission.form === "subjective" ? "text" : (result.mission.submissionType || "selection"),
-              subjectivePlaceholder: result.mission.subjectivePlaceholder || undefined,
-              deadline: result.mission.deadline,
-              revealPolicy: result.mission.revealPolicy,
-              status: result.mission.status,
+              id: rawMission.id,
+              title: rawMission.title,
+              kind: rawMission.kind,
+              form: "match",
+              seasonType: rawMission.seasonType || "전체",
+              seasonNumber: rawMission.seasonNumber || undefined,
+              options: rawMission.matchPairs,
+              deadline: rawMission.deadline,
+              revealPolicy: rawMission.revealPolicy,
+              status: rawMission.status,
+              episodes: rawMission.totalEpisodes || 8,
+              episodeStatuses: rawMission.episodeStatuses || {},
+              finalAnswer: rawMission.finalAnswer || undefined,
               stats: {
-                participants: result.mission.participants || 0,
-                totalVotes: result.mission.totalVotes || 0
+                participants: rawMission.participants || 0
               },
               result: {
-                distribution: result.mission.optionVoteCounts || {},
-                correctAnswer: result.mission.correctAnswer || undefined,
-                majorityOption: result.mission.majorityOption || undefined,
-                totalVotes: result.mission.totalVotes || 0
+                distribution: {},
+                finalAnswer: rawMission.finalAnswer || undefined,
+                totalVotes: rawMission.totalVotes || 0
               },
-              createdAt: result.mission.createdAt?.toDate?.()?.toISOString() || result.mission.createdAt,
-              showId: result.mission.showId,
-              category: result.mission.category
+              createdAt: rawMission.createdAt?.toDate?.()?.toISOString() || rawMission.createdAt,
+              showId: rawMission.showId,
+              category: rawMission.category
             }
           } else {
-            // Firebase에 없으면 Mock 데이터에서 시도
-            missionData = MockVoteRepo.getMission(params.id)
+            missionData = {
+              id: rawMission.id,
+              title: rawMission.title,
+              kind: rawMission.kind,
+              form: rawMission.form,
+              seasonType: rawMission.seasonType || "전체",
+              seasonNumber: rawMission.seasonNumber || undefined,
+              options: rawMission.options || [],
+              submissionType: rawMission.form === "subjective" ? "text" : (rawMission.submissionType || "selection"),
+              subjectivePlaceholder: rawMission.subjectivePlaceholder || undefined,
+              deadline: rawMission.deadline,
+              revealPolicy: rawMission.revealPolicy,
+              status: rawMission.status,
+              stats: {
+                participants: rawMission.participants || 0,
+                totalVotes: rawMission.stats?.totalVotes || rawMission.totalVotes || 0
+              },
+              result: {
+                distribution: rawMission.optionVoteCounts || {},
+                correctAnswer: rawMission.correctAnswer || undefined,
+                majorityOption: rawMission.majorityOption || undefined,
+                totalVotes: rawMission.stats?.totalVotes || rawMission.totalVotes || 0
+              },
+              createdAt: rawMission.createdAt?.toDate?.()?.toISOString() || rawMission.createdAt,
+              showId: rawMission.showId,
+              category: rawMission.category
+            }
           }
+
+          console.log('[Results Page] 로드된 미션 데이터:', {
+            id: params.id,
+            title: missionData?.title,
+            participants: missionData?.stats?.participants,
+            totalVotes: missionData?.stats?.totalVotes,
+            optionVoteCounts: rawMission.optionVoteCounts,
+            distribution: missionData?.result?.distribution
+          })
+
+          // 추가 검증: 만약 stats.totalVotes가 0인데 distribution에 데이터가 있다면 합산해서 사용
+          if (missionData && missionData.stats && missionData.stats.totalVotes === 0 && missionData.result && missionData.result.distribution) {
+            const dist = missionData.result.distribution;
+            const sum = Object.values(dist).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+            console.log('[Results Page] stats.totalVotes가 0이지만 distribution 합계:', sum)
+            if (sum > 0) {
+              missionData.stats.totalVotes = sum
+              missionData.result.totalVotes = sum
+              console.log('[Results Page] totalVotes 업데이트:', sum)
+            }
+          }
+        } else {
+          // Firebase에 없으면 Mock 데이터에서 시도
+          missionData = MockVoteRepo.getMission(params.id)
         }
 
         // 로그인 상태일 때만 사용자 투표 데이터 가져오기
@@ -378,16 +409,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               const missionType = missionData.kind === "predict" ? "prediction" : "majority"
               const comment = getRandomComment("user123", params.id, missionType, success)
               setSuccessComment(comment)
-            } else if (missionData.revealPolicy === "onClose" || missionData.kind === "predict") {
-              // 정산 미완료 & (마감 후 공개 또는 예측 미션)인 경우: 대기 팝업
-              // 공감픽은 대기 팝업 제외 (이미 위에서 처리됨)
-              if (missionData.kind !== "majority" && (missionData as any).kind !== "poll") {
-                setIsSuccess(false) // pending 상태에서는 의미 없음
-                setCharacterPopupType(popupType)
-                setShowCharacterPopup(true)
-                setSuccessComment("정답이 아직 안나왔습니다!\n잠시만 기다려주세요!")
-              }
             }
+            // 실시간 공개가 기본이므로 "마감 후 공개" 대기 팝업 로직 제거
           }
         }
       } catch (error) {
@@ -416,6 +439,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         <MissionCreationModal
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
+          initialShowId={selectedShowId}
           category={getShowById(selectedShowId)?.category}
         />
         <div className="flex-1 flex flex-col">
@@ -486,13 +510,14 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
       <MissionCreationModal
         isOpen={isMissionModalOpen}
         onClose={() => setIsMissionModalOpen(false)}
+        initialShowId={selectedShowId}
         category={getShowById(selectedShowId)?.category}
       />
       <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         {showCharacterPopup && userVote && (
           <ResultCharacterPopup
             isSuccess={isSuccess}
-            isPending={isMissionClosed && mission.status !== "settled" && (mission.revealPolicy === "onClose" || mission.kind === "predict") && mission.kind !== "majority" && (mission as any).kind !== "poll"}
+            isPending={false}
             missionType={characterPopupType}
             comment={successComment}
             missionId={params.id}
@@ -782,8 +807,8 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                                 <div className="flex items-center gap-3">
                                   <div className="w-10 h-10 rounded-full bg-gray-100 overflow-hidden border border-gray-200">
                                     <img
-                                      src={tierInfo.characterImage}
-                                      alt={user.tier}
+                                      src={tierInfo?.characterImage || "/placeholder.svg"}
+                                      alt={user.tier || "루키"}
                                       className="w-full h-full object-cover"
                                     />
                                   </div>
@@ -885,11 +910,13 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                           <p className="text-lg font-bold text-primary">
                             {(() => {
                               // 등급 업그레이드 비율 계산 (예시)
-                              const ranking = Object.values(mission.result?.ranking || {}).sort(
+                              const ranking = Object.values(mission.result?.ranking || {})
+                              if (ranking.length === 0) return "0%"
+                              const sortedRanking = [...ranking].sort(
                                 (a: any, b: any) => b.score - a.score,
                               )
-                              const upgradedUsers = ranking.filter((u) => u.tierUpgraded).length
-                              const percentage = Math.round((upgradedUsers / ranking.length) * 100)
+                              const upgradedUsers = sortedRanking.filter((u: any) => u.tierUpgraded).length
+                              const percentage = Math.round((upgradedUsers / sortedRanking.length) * 100)
                               return `${percentage}%`
                             })()}
                           </p>
@@ -947,7 +974,10 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     size="sm"
                     variant="outline"
                     className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
-                    onClick={() => router.back()}
+                    onClick={() => {
+                      const missionsUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+                      router.push(missionsUrl)
+                    }}
                   >
                     <span className="truncate">다른 미션 보기</span>
                   </Button>
@@ -1024,30 +1054,59 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 }
 
 function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any }) {
-  if (!mission.result?.distribution) return null
-
-  // 마감 여부 확인
-  let isClosed = mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
-
-  // 커플 매칭 미션의 경우 모든 회차가 settled 상태이면 마감으로 간주
-  if (mission.form === "match" && !isClosed) {
-    const episodeStatuses = mission.episodeStatuses || {}
-    const totalEpisodes = mission.episodes || 8
-    let allEpisodesSettled = true
-    for (let i = 1; i <= totalEpisodes; i++) {
-      if (episodeStatuses[i] !== "settled") {
-        allEpisodesSettled = false
-        break
-      }
-    }
-    isClosed = allEpisodesSettled
+  // distribution이 없더라도 options가 있으면 진행
+  const distribution = mission.result?.distribution || {}
+  const options = Array.isArray(mission.options) ? mission.options : []
+  
+  console.log('[ResultsChart] 렌더링 시작:', {
+    missionId: mission.id,
+    distribution,
+    options,
+    stats: mission.stats,
+    totalVotes: mission.stats?.totalVotes
+  })
+  
+  if (options.length === 0 && Object.keys(distribution).length === 0) {
+    console.log('[ResultsChart] options와 distribution이 모두 비어있음')
+    return null
   }
 
-  // 마감 후 공개(onClose)인 경우, 정산(settled)되지 않았으면 결과를 숨김
-  // (마감 시간이 지났어도 딜러가 정답을 입력하지 않았으면 숨김)
-  const shouldHideResults = mission.revealPolicy === "onClose" && !isClosed
+  // 실시간 공개가 기본이므로 항상 결과를 표시 (shouldHideResults 로직 제거)
+  // totalVotes 계산 (항상 distribution의 실제 합계를 우선 사용)
+  const distributionSum = Object.values(distribution).reduce((a: number, b: any) => a + (Number(b) || 0), 0)
+  const totalVotes = distributionSum > 0 ? distributionSum : (mission.stats?.totalVotes || 0)
+  
+  console.log('[ResultsChart] totalVotes 계산:', {
+    'mission.stats?.totalVotes': mission.stats?.totalVotes,
+    'distribution 실제 합계': distributionSum,
+    '최종 사용 totalVotes': totalVotes
+  })
+  
+  // 모든 선택지를 순회하며 데이터 구성 (투표가 없는 항목도 포함)
+  let entries: [string, number, number][] = []
 
-  let entries = Object.entries(mission.result.distribution).sort(([, a], [, b]) => b - a)
+  if (options.length > 0) {
+    // 정의된 선택지가 있는 경우 (Binary, Multi 등)
+    entries = options.map(option => {
+      const value = Number(distribution[option]) || 0
+      const percentage = totalVotes > 0 ? Math.round((value / totalVotes) * 100) : 0
+      console.log(`[ResultsChart] ${option}:`, { value, percentage, totalVotes })
+      return [option, percentage, value] as [string, number, number]
+    })
+  } else {
+    // 선택지가 동적으로 생성되는 경우 (Text 미션 등)
+    entries = Object.entries(distribution).map(([option, value]) => {
+      const val = Number(value) || 0
+      const percentage = totalVotes > 0 ? Math.round((val / totalVotes) * 100) : 0
+      console.log(`[ResultsChart] ${option}:`, { val, percentage, totalVotes })
+      return [option, percentage, val] as [string, number, number]
+    })
+  }
+  
+  console.log('[ResultsChart] 최종 entries:', entries)
+
+  // 투표수 순으로 정렬
+  entries.sort(([, , aVal], [, , bVal]) => bVal - aVal)
 
   // 텍스트 미션은 상위 5개만 표시
   if (mission.submissionType === "text") {
@@ -1056,7 +1115,7 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
 
   return (
     <div className="space-y-4">
-      {entries.map(([option, percentage], index) => {
+      {entries.map(([option, percentage, rawValue], index) => {
         const isUserChoice = isAuthenticated() && (
           mission.form === "match"
             ? userVote?.pairs?.some((p: any) => `${p.left}-${p.right}` === option)
@@ -1064,6 +1123,7 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
               ? userVote?.choice.includes(option)
               : userVote?.choice === option
         )
+// ... (rest of the component)
 
         // 정답인 항목 확인
         let isCorrect = false
@@ -1125,31 +1185,21 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
                 )}
               </div>
               <div className="text-right flex-shrink-0">
-                {shouldHideResults ? (
-                  <span className="text-3xl text-gray-400">?</span>
-                ) : (
-                  <>
-                    <span className="text-lg font-bold">{percentage}%</span>
-                    <p className="text-xs text-muted-foreground">
-                      {Math.round((percentage / 100) * (mission.stats?.participants || 0)).toLocaleString()}표
-                    </p>
-                  </>
-                )}
+                <span className="text-lg font-bold">{percentage}%</span>
+                <p className="text-xs text-muted-foreground">
+                  {rawValue.toLocaleString()}표
+                </p>
               </div>
             </div>
-            {
-              !shouldHideResults && (
-                <Progress
-                  value={percentage}
-                  className={`h-3 ${isCorrect
-                    ? "bg-emerald-100 [&>div]:bg-emerald-500"
-                    : isUserChoice
-                      ? "bg-purple-100 [&>div]:bg-purple-500"
-                      : ""
-                    }`}
-                />
-              )
-            }
+            <Progress
+              value={percentage}
+              className={`h-3 ${isCorrect
+                ? "bg-emerald-100 [&>div]:bg-emerald-500"
+                : isUserChoice
+                  ? "bg-purple-100 [&>div]:bg-purple-500"
+                  : ""
+                }`}
+            />
           </div>
         )
       })}

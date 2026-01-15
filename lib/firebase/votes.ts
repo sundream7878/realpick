@@ -196,10 +196,29 @@ export async function getAggregatedVotesMultipleEpisodes(missionId: string, epis
 // Binary/Multi 투표 제출
 export async function submitVote1(submission: TVoteSubmission): Promise<boolean> {
   try {
+    console.log('[Firebase Votes] submitVote1 시작:', {
+      userId: submission.userId,
+      missionId: submission.missionId,
+      choice: submission.choice
+    })
+
     // 미션 정보 조회 (포인트 보상 확인용)
     const missionRef = doc(db, "missions1", submission.missionId);
     const missionSnap = await getDoc(missionRef);
+    
+    if (!missionSnap.exists()) {
+      console.error('[Firebase Votes] 미션을 찾을 수 없습니다:', submission.missionId)
+      return false;
+    }
+    
     const missionData = missionSnap.data();
+    console.log('[Firebase Votes] 미션 데이터:', {
+      kind: missionData.kind,
+      title: missionData.title,
+      currentParticipants: missionData.participants,
+      currentTotalVotes: missionData.stats?.totalVotes,
+      currentOptionVoteCounts: missionData.optionVoteCounts
+    })
 
     let pointsEarned = 0;
     if (missionData && (missionData.kind === "poll" || missionData.kind === "majority")) {
@@ -216,7 +235,9 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
       createdAt: serverTimestamp(),
     };
 
+    console.log('[Firebase Votes] pickresult1에 투표 저장 중...')
     await setDoc(doc(db, "pickresult1", voteId), voteData);
+    console.log('[Firebase Votes] pickresult1 저장 완료')
 
     // 참여자 수 및 옵션별 투표 수 업데이트 (원자적 연산)
     const updateData: any = {
@@ -235,7 +256,20 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
       }
     }
 
+    console.log('[Firebase Votes] missions1 업데이트 데이터:', updateData)
     await updateDoc(missionRef, updateData);
+    console.log('[Firebase Votes] missions1 업데이트 완료')
+
+    // 업데이트 후 데이터 확인
+    const updatedSnap = await getDoc(missionRef);
+    if (updatedSnap.exists()) {
+      const updated = updatedSnap.data();
+      console.log('[Firebase Votes] 업데이트 후 미션 데이터:', {
+        participants: updated.participants,
+        totalVotes: updated.stats?.totalVotes,
+        optionVoteCounts: updated.optionVoteCounts
+      })
+    }
 
     // 포인트 지급 (공감픽인 경우)
     if (pointsEarned > 0) {
@@ -249,9 +283,10 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
       );
     }
 
+    console.log('[Firebase Votes] submitVote1 완료')
     return true;
   } catch (error) {
-    console.error("Error submitting vote1 to Firestore:", error);
+    console.error("[Firebase Votes] Error submitting vote1 to Firestore:", error);
     return false;
   }
 }
@@ -307,35 +342,39 @@ export async function submitVote2(submission: TVoteSubmission): Promise<boolean>
   }
 }
 
-// 유저가 특정 미션들에 투표했는지 확인 (Map 반환)
+// 유저가 특정 미션들에 투표했는지 확인 (Map 반환) - 최적화 버전
 export async function getUserVotesMap(userId: string, missionIds: string[]): Promise<Record<string, any>> {
   try {
     if (!missionIds.length) return {};
     
     const votesMap: Record<string, any> = {};
     
-    // 1. pickresult1 조회
-    const q1 = query(
-      collection(db, "pickresult1"),
-      where("userId", "==", userId)
-    );
-    const snap1 = await getDocs(q1);
-    snap1.forEach(doc => {
-      const data = doc.data();
-      if (missionIds.includes(data.missionId)) {
+    // 1. pickresult1 조회 (in 쿼리 사용하여 필요한 데이터만 가져옴)
+    for (let i = 0; i < missionIds.length; i += 30) {
+      const chunk = missionIds.slice(i, i + 30);
+      const q1 = query(
+        collection(db, "pickresult1"),
+        where("userId", "==", userId),
+        where("missionId", "in", chunk)
+      );
+      const snap1 = await getDocs(q1);
+      snap1.forEach(doc => {
+        const data = doc.data();
         votesMap[data.missionId] = data.selectedOption;
-      }
-    });
+      });
+    }
     
-    // 2. pickresult2 조회
-    const q2 = query(
-      collection(db, "pickresult2"),
-      where("userId", "==", userId)
-    );
-    const snap2 = await getDocs(q2);
-    snap2.forEach(doc => {
-      const data = doc.data();
-      if (missionIds.includes(data.missionId)) {
+    // 2. pickresult2 조회 (in 쿼리 사용)
+    for (let i = 0; i < missionIds.length; i += 30) {
+      const chunk = missionIds.slice(i, i + 30);
+      const q2 = query(
+        collection(db, "pickresult2"),
+        where("userId", "==", userId),
+        where("missionId", "in", chunk)
+      );
+      const snap2 = await getDocs(q2);
+      snap2.forEach(doc => {
+        const data = doc.data();
         const episodes = Object.keys(data.votes || {});
         if (episodes.length > 0) {
           votesMap[data.missionId] = { 
@@ -343,8 +382,8 @@ export async function getUserVotesMap(userId: string, missionIds: string[]): Pro
             episodeCount: episodes.length 
           };
         }
-      }
-    });
+      });
+    }
 
     return votesMap;
   } catch (error) {

@@ -38,6 +38,8 @@ export interface TNotification {
 
 export async function getNotifications(userId: string, limitCount: number = 20): Promise<TNotification[]> {
   try {
+    console.log('[Firebase Notifications] getNotifications 시작 - userId:', userId)
+    
     const q = query(
       collection(db, "notifications"),
       where("userId", "==", userId),
@@ -45,6 +47,8 @@ export async function getNotifications(userId: string, limitCount: number = 20):
       limit(limitCount)
     );
     const snap = await getDocs(q);
+    
+    console.log('[Firebase Notifications] 쿼리 결과:', snap.docs.length, '개')
     
     const notifications = await Promise.all(snap.docs.map(async (docSnapshot) => {
       const data = docSnapshot.data();
@@ -75,22 +79,25 @@ export async function getNotifications(userId: string, limitCount: number = 20):
       return notification;
     }));
 
+    console.log('[Firebase Notifications] 반환할 알림 개수:', notifications.length)
     return notifications;
   } catch (error) {
-    console.error("Error fetching notifications from Firestore:", error);
+    console.error("[Firebase Notifications] Error fetching notifications from Firestore:", error);
     return [];
   }
 }
 
 export async function markNotificationAsRead(notificationId: string): Promise<boolean> {
   try {
+    console.log('[Firebase Notifications] markNotificationAsRead 시작 - notificationId:', notificationId)
     await updateDoc(doc(db, "notifications", notificationId), {
       isRead: true,
       updatedAt: serverTimestamp()
     });
+    console.log('[Firebase Notifications] markNotificationAsRead 성공')
     return true;
   } catch (error) {
-    console.error("Error marking notification as read:", error);
+    console.error("[Firebase Notifications] Error marking notification as read:", error);
     return false;
   }
 }

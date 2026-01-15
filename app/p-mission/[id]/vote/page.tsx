@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation"
 import { getMissionById, getMissions, getMissions2 } from "@/lib/firebase/missions"
 import { getVote1, getAllVotes2 } from "@/lib/firebase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import { auth } from "@/lib/firebase/config"
 import { getUser } from "@/lib/firebase/users"
 import { getTierFromDbOrPoints, getTierFromPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { MultiVotePage } from "@/components/c-vote/multi-vote-page"
@@ -24,6 +25,7 @@ import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
 import { ArrowLeft, Trash2, Clock, Users, Share2, List } from "lucide-react"
 import { isAdmin } from "@/lib/utils/permissions"
+import { ShareModal } from "@/components/c-share-modal/share-modal"
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,6 +50,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   
   // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
@@ -136,20 +139,11 @@ export default function VotePage({ params }: { params: { id: string } }) {
           setSelectedShowId(activeMission.showId || null)
         }
 
-        // 2. 헤더 알림 등을 위해 전체 미션 목록 가져오기
-        const [m1Result, m2Result] = await Promise.all([
-          getMissions("missions1", 30),
-          getMissions("missions2", 30)
-        ])
-
-        const combinedMissions: TMission[] = []
-        if (m1Result.success && m1Result.missions) {
-          combinedMissions.push(...m1Result.missions.map((m: any) => ({ id: m.id, showId: m.showId } as TMission)))
+        // 헤더 알림 등을 위한 전체 미션 목록 로딩은 성능을 위해 제거
+        // 대신 현재 미션 정보만 리스트에 포함
+        if (activeMission) {
+          setMissions([activeMission])
         }
-        if (m2Result.success && m2Result.missions) {
-          combinedMissions.push(...m2Result.missions.map((m: any) => ({ id: m.id, showId: m.showId } as TMission)))
-        }
-        setMissions(combinedMissions)
 
       } catch (error) {
         console.error("❌ 데이터 로딩 오류:", error)
@@ -201,9 +195,20 @@ export default function VotePage({ params }: { params: { id: string } }) {
     setIsDeleting(true)
     try {
       const missionType = mission.form === "match" ? "mission2" : "mission1"
+      console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId })
+      
+      // Firebase 인증 토큰 가져오기
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) {
+        throw new Error("인증 토큰을 가져올 수 없습니다. 다시 로그인해주세요.")
+      }
       
       const response = await fetch(`/api/missions/delete?missionId=${mission.id}&missionType=${missionType}`, {
         method: "DELETE",
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
       })
 
       const data = await response.json()
@@ -258,6 +263,31 @@ export default function VotePage({ params }: { params: { id: string } }) {
     }
   }
 
+  // 렌더링 시점에 마감 여부 재계산 (커플 매칭 고려)
+  let isMissionClosed = false
+
+  if (mission.form === "match") {
+    // 커플 매칭: status가 settled이거나 모든 회차가 settled면 마감
+    if (mission.status === "settled") {
+      isMissionClosed = true
+    } else {
+      const episodeStatuses = mission.episodeStatuses || {}
+      const totalEpisodes = mission.episodes || 8
+      let allEpisodesSettled = true
+      for (let i = 1; i <= totalEpisodes; i++) {
+        if (episodeStatuses[i] !== "settled") {
+          allEpisodesSettled = false
+          break
+        }
+      }
+      isMissionClosed = allEpisodesSettled
+    }
+  } else {
+    // 일반 미션: 마감 시간이 지났거나 상태가 settled인 경우
+    isMissionClosed = mission.deadline ? isDeadlinePassed(mission.deadline) : mission.status === "settled"
+  }
+
+  const isAdminUser = isAuthenticated() && isAdmin(userRole || undefined)
   const showInfo = getShowById(selectedShowId || "")
   const activeShowIds = new Set(missions.map(m => m.showId).filter(Boolean) as string[])
 
@@ -267,7 +297,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
         <AppHeader
           selectedShow={(showInfo?.name as any) || "나는솔로"}
           selectedShowId={selectedShowId}
-          onShowChange={() => {}}
+          onShowChange={(show) => {
+            const showObj = getShowByName(show)
+            if (showObj) setSelectedShowId(showObj.id)
+          }}
           onShowSelect={(showId) => {
             if (showId) {
               router.push(`/?show=${showId}`)
@@ -283,108 +316,108 @@ export default function VotePage({ params }: { params: { id: string } }) {
             router.push(profileUrl)
           }}
           showStatuses={showStatuses}
-          activeShowIds={activeShowIds}
-          missions={missions}
         />
 
-        <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
-          <div className="max-w-4xl">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
+          <div className="max-w-4xl mx-auto">
             {/* 뒤로가기 버튼 */}
             <div className="mb-6">
               <Button
                 variant="ghost"
+                size="sm"
                 onClick={() => router.back()}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-800 p-0"
+                className="flex items-center gap-2 text-gray-600 hover:text-gray-900"
               >
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </Button>
             </div>
 
             {/* 미션 헤더 영역 */}
-            <div className="mb-8">
-              <div className="flex flex-col gap-3">
+            <div className="space-y-6">
+              <div className="space-y-4">
                 <div className="flex items-start justify-between gap-4">
-                  <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
+                  <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate flex-1">
                     {mission.seasonNumber ? `[${mission.seasonNumber}기] ${mission.title}` : mission.title}
                   </h1>
                   <div className="flex items-center gap-2 shrink-0">
-                    {isAuthenticated() && isAdmin(userRole || undefined) && (
+                    {isAdminUser && (
                       <Button
                         variant="destructive"
                         size="sm"
                         onClick={() => setIsDeleteDialogOpen(true)}
-                        className="h-9 px-4 rounded-lg bg-rose-600 hover:bg-rose-700 font-medium flex items-center gap-2"
+                        className="flex items-center gap-2"
                       >
                         <Trash2 className="w-4 h-4" />
-                        <span>삭제</span>
+                        <span className="hidden sm:inline">삭제</span>
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-                  <div className="flex items-center gap-2">
-                    <Badge className="bg-purple-100 text-purple-700 border-none px-3 py-1 text-xs font-bold rounded-full">
-                      {isDeadlinePassed(mission.deadline) ? "마감" : "진행중"}
-                    </Badge>
+                {/* 디버깅용: role 정보 표시 (개발 중에만) */}
+                {process.env.NODE_ENV === 'development' && userRole && (
+                  <div className="text-xs text-gray-500 mb-2">
+                    현재 역할: {userRole} | 관리자 여부: {isAdminUser ? '예' : '아니오'}
                   </div>
-                  <div className="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                )}
+
+                <div className="flex flex-wrap items-center gap-3">
+                  <Badge variant={!isMissionClosed ? "default" : "secondary"} className="text-sm">
+                    {!isMissionClosed ? "진행중" : "마감됨"}
+                  </Badge>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
                     <Users className="w-4 h-4" />
-                    <span>{mission.stats.participants.toLocaleString()} 명 참여</span>
+                    <span className="font-semibold text-gray-900">
+                      {mission.stats?.participants?.toLocaleString() || 0}
+                    </span>
+                    명 참여
                   </div>
-                  {mission.deadline && !isDeadlinePassed(mission.deadline) && (
-                    <div className="flex items-center gap-1.5 text-sm text-gray-500 font-medium">
+                  {!isMissionClosed && mission.deadline && (
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Clock className="w-4 h-4" />
                       <span>{getTimeRemaining(mission.deadline)} 남음</span>
                     </div>
                   )}
                 </div>
               </div>
-            </div>
 
-            <div className="h-px bg-gray-100 w-full mb-8" />
+              <div className="h-px bg-gray-100 w-full" />
 
-            {/* 투표 컴포넌트 */}
-            <div className="w-full">
-              {renderVotePage()}
-            </div>
+              {/* 투표 컴포넌트 */}
+              <div className="w-full">
+                {renderVotePage()}
+              </div>
 
-            {/* 하단 공유 및 다른 미션 버튼 */}
-            <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-4">
-              <Button
-                className="w-full sm:w-auto h-11 px-10 rounded-full bg-[#9333EA] hover:bg-[#7E22CE] text-white font-bold flex items-center gap-2 shadow-sm border-none"
-                onClick={() => {
-                  if (navigator.share) {
-                    navigator.share({
-                      title: mission.title,
-                      text: "리얼픽에서 나의 예측 결과를 확인해보세요!",
-                      url: window.location.href,
-                    }).catch(console.error);
-                  } else {
-                    navigator.clipboard.writeText(window.location.href);
-                    alert("링크가 복사되었습니다!");
-                  }
-                }}
-              >
-                <Share2 className="w-4 h-4" />
-                <span>결과 공유하기</span>
-              </Button>
-              <Button
-                variant="outline"
-                className="w-full sm:w-auto h-11 px-10 rounded-full border-2 border-[#9333EA] text-[#9333EA] hover:bg-purple-50 bg-white font-bold flex items-center shadow-sm"
-                onClick={() => {
-                  const missionsUrl = selectedShowId ? `/p-missions?show=${selectedShowId}` : "/p-missions"
-                  router.push(missionsUrl)
-                }}
-              >
-                <span>다른 미션 보기</span>
-              </Button>
-            </div>
+              {/* 댓글 섹션 */}
+              <div className="mt-8">
+                <CommentSection
+                  missionId={mission.id}
+                  missionType={mission.form === "match" ? "mission2" : "mission1"}
+                  currentUserId={userId || undefined}
+                />
+              </div>
 
-            {/* 댓글 섹션 */}
-            <div className="mt-12 pt-12 border-t border-gray-100">
-              <div id="comments">
-                <CommentSection missionId={mission.id} missionType={mission.form === "match" ? "mission2" : "mission1"} />
+              {/* 하단 공유 및 다른 미션 버튼 */}
+              <div className="flex flex-row items-center justify-center gap-1.5 sm:gap-3 pt-6 pb-10 max-w-xl mx-auto px-2 sm:px-4">
+                <Button
+                  size="sm"
+                  className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold bg-purple-600 hover:bg-purple-700 text-white shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
+                  onClick={() => setIsShareModalOpen(true)}
+                >
+                  <Share2 className="w-3 h-3 sm:w-4 sm:h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                  <span className="truncate">결과 공유하기</span>
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
+                  onClick={() => {
+                    const missionsUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+                    router.push(missionsUrl)
+                  }}
+                >
+                  <span className="truncate">다른 미션 보기</span>
+                </Button>
               </div>
             </div>
           </div>
@@ -409,7 +442,18 @@ export default function VotePage({ params }: { params: { id: string } }) {
         <MissionCreationModal
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
+          initialShowId={selectedShowId || undefined}
           category={showInfo?.category}
+        />
+
+        {/* 공유 모달 */}
+        <ShareModal
+          isOpen={isShareModalOpen}
+          onClose={() => setIsShareModalOpen(false)}
+          title={mission.title}
+          description={`${mission.stats?.participants || 0}명이 참여한 미션 결과를 확인해보세요!`}
+          url={typeof window !== "undefined" ? window.location.href : ""}
+          hashtags={["리얼픽", mission.showId || "나는솔로", mission.kind === "predict" ? "예측픽" : "공감픽"]}
         />
 
         {/* 삭제 확인 다이얼로그 */}

@@ -122,7 +122,9 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
             currentUserId, 
             currentUserInfo.nickname, 
             currentUserInfo.tier, 
-            content
+            content,
+            missionId,
+            missionType
         )
 
         if (result.success && result.reply) {

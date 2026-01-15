@@ -316,6 +316,7 @@ export default function CastingPage() {
                     isOpen={isMissionModalOpen}
                     onClose={() => setIsMissionModalOpen(false)}
                     onMissionCreated={() => { }}
+                    initialShowId={selectedShowId}
                     category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
                 />
             </div>

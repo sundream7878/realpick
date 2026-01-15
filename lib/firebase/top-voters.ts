@@ -17,12 +17,20 @@ export async function getTopVotersByMission(missionId: string, limitCount: numbe
   tier: string
 }>> {
   try {
-    // 1. pickresult1에서 해당 미션에 투표한 유저 ID 목록 가져오기
-    const q1 = query(collection(db, "pickresult1"), where("missionId", "==", missionId));
+    // 1. pickresult1에서 해당 미션에 투표한 유저 ID 목록 가져오기 (최대 500개로 제한하여 성능 확보)
+    const q1 = query(
+      collection(db, "pickresult1"), 
+      where("missionId", "==", missionId),
+      firestoreLimit(500)
+    );
     const snap1 = await getDocs(q1);
 
-    // 2. pickresult2에서 해당 미션에 투표한 유저 ID 목록 가져오기
-    const q2 = query(collection(db, "pickresult2"), where("missionId", "==", missionId));
+    // 2. pickresult2에서 해당 미션에 투표한 유저 ID 목록 가져오기 (최대 500개로 제한)
+    const q2 = query(
+      collection(db, "pickresult2"), 
+      where("missionId", "==", missionId),
+      firestoreLimit(500)
+    );
     const snap2 = await getDocs(q2);
 
     const userIds = new Set<string>();

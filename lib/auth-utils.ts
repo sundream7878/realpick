@@ -7,7 +7,11 @@ import { auth } from "./firebase/config";
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  return !!auth.currentUser || !!localStorage.getItem("rp_auth_token")
+  const currentUser = !!auth.currentUser
+  const hasToken = !!localStorage.getItem("rp_auth_token")
+  const result = currentUser || hasToken
+  console.log('[Auth] isAuthenticated 호출 - currentUser:', currentUser, '/ hasToken:', hasToken, '/ result:', result)
+  return result
 }
 
 export function setAuthToken(token: string): void {
@@ -28,7 +32,9 @@ export function clearAuthToken(): void {
 
 export function getUserId(): string | null {
   if (typeof window === "undefined") return null
-  return localStorage.getItem("rp_user_id")
+  const userId = localStorage.getItem("rp_user_id")
+  console.log('[Auth] getUserId 호출 - userId:', userId)
+  return userId
 }
 
 export function setUserId(userId: string): void {

@@ -45,6 +45,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
       participants: 0,
+      stats: {
+        totalVotes: 0
+      }
     };
 
     if (isCouple) {
@@ -54,6 +57,7 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       };
       missionPayload.totalEpisodes = missionData.totalEpisodes || 8;
       missionPayload.episodeStatuses = {};
+      missionPayload.aggregatedStats = {}; // Initialize aggregatedStats
     } else {
       missionPayload.options = missionData.options || [];
       missionPayload.submissionType = missionData.submissionType || "selection";
@@ -82,40 +86,29 @@ export async function createMission(missionData: CreateMissionData, userId: stri
   }
 }
 
-// 미션 목록 조회 (missions1)
-export async function getMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
+// 미션 목록 조회
+export async function getMissions(type: 'missions1' | 'missions2' = 'missions1', limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
     const q = query(
-      collection(db, "missions1"),
+      collection(db, type),
       orderBy("createdAt", "desc"),
       firestoreLimit(limitCount)
     );
     const querySnapshot = await getDocs(q);
     const missions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
     
+    console.log(`[Firebase] ${type} fetched:`, missions.length);
+    
     return { success: true, missions };
   } catch (error: any) {
-    console.error("Firebase 미션 목록 조회 실패:", error);
+    console.error(`Firebase ${type} 목록 조회 실패:`, error);
     return { success: false, error: error.message };
   }
 }
 
-// 미션 목록 조회 (missions2)
+// 미션 목록 조회 (missions2 전용 - 하위 호환성 유지)
 export async function getMissions2(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
-  try {
-    const q = query(
-      collection(db, "missions2"),
-      orderBy("createdAt", "desc"),
-      firestoreLimit(limitCount)
-    );
-    const querySnapshot = await getDocs(q);
-    const missions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-    
-    return { success: true, missions };
-  } catch (error: any) {
-    console.error("Firebase 미션2 목록 조회 실패:", error);
-    return { success: false, error: error.message };
-  }
+  return getMissions("missions2", limitCount);
 }
 
 // 특정 미션 조회
@@ -132,24 +125,29 @@ export async function getMission(type: 'missions1' | 'missions2', missionId: str
   }
 }
 
-// 특정 미션 조회 (통합 - missions1 먼저 검색 후 missions2)
-export async function getMissionById(missionId: string): Promise<{ success: boolean; mission?: any; error?: string }> {
+import { cache } from "react";
+
+// 특정 미션 조회 (통합 - missions1과 missions2 병렬 검색) - 서버 사이드 캐싱 적용
+export const getMissionById = cache(async (missionId: string): Promise<{ success: boolean; mission?: any; error?: string }> => {
   try {
-    let docSnap = await getDoc(doc(db, "missions1", missionId));
-    if (docSnap.exists()) {
-      return { success: true, mission: { id: docSnap.id, ...docSnap.data(), __table: "missions1" } };
+    const [snap1, snap2] = await Promise.all([
+      getDoc(doc(db, "missions1", missionId)),
+      getDoc(doc(db, "missions2", missionId))
+    ]);
+
+    if (snap1.exists()) {
+      return { success: true, mission: { id: snap1.id, ...snap1.data(), __table: "missions1" } };
     }
     
-    docSnap = await getDoc(doc(db, "missions2", missionId));
-    if (docSnap.exists()) {
-      return { success: true, mission: { id: docSnap.id, ...docSnap.data(), __table: "missions2" } };
+    if (snap2.exists()) {
+      return { success: true, mission: { id: snap2.id, ...snap2.data(), __table: "missions2" } };
     }
     
     return { success: false, error: "미션을 찾을 수 없습니다." };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
-}
+});
 
 // 딜러 전용 특정 미션 조회
 export async function getMission2(missionId: string): Promise<{ success: boolean; mission?: any; error?: string }> {
@@ -159,16 +157,24 @@ export async function getMission2(missionId: string): Promise<{ success: boolean
 // 내가 만든 미션 조회
 export async function getMissionsByCreator(userId: string): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
+    console.log('[Firebase] getMissionsByCreator 시작 - userId:', userId)
+    
     const q1 = query(collection(db, "missions1"), where("creatorId", "==", userId));
     const q2 = query(collection(db, "missions2"), where("creatorId", "==", userId));
     
     const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
     
+    console.log('[Firebase] missions1 결과:', snap1.docs.length, '개')
+    console.log('[Firebase] missions2 결과:', snap2.docs.length, '개')
+    
     const m1 = snap1.docs.map(doc => ({ id: doc.id, ...doc.data(), __table: "missions1" }));
     const m2 = snap2.docs.map(doc => ({ id: doc.id, ...doc.data(), __table: "missions2" }));
     
+    console.log('[Firebase] 총 반환 미션:', m1.length + m2.length, '개')
+    
     return { success: true, missions: [...m1, ...m2] };
   } catch (error: any) {
+    console.error('[Firebase] getMissionsByCreator 에러:', error)
     return { success: false, error: error.message };
   }
 }
@@ -355,7 +361,7 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
 
     // 3. 미션 데이터 업데이트
     const updateData: any = { 
-      optionVoteCounts: votePercentages,
+      optionVoteCounts: voteCounts, // percentages가 아닌 실제 count 저장
       "stats.totalVotes": totalVotes,
       updatedAt: serverTimestamp()
     };

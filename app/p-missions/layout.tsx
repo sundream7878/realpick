@@ -9,8 +9,10 @@ export async function generateMetadata(
   { searchParams }: { searchParams?: { [key: string]: string | string[] | undefined } },
   parent: ResolvingMetadata
 ): Promise<Metadata> {
-  // Layout에서는 searchParams를 직접 받을 수 없으므로 안전하게 처리
   const showId = typeof searchParams?.show === 'string' ? searchParams.show : null
+  
+  // DB에 저장된 프로그램 정보를 우선적으로 고려하기 위해 캐시된 데이터나 별도 로직 필요
+  // 여기서는 기존 getShowById를 사용하되, 나중에 DB에서 가져오는 로직으로 확장 가능
   const showInfo = showId ? getShowById(showId) : null
   
   const title = showInfo ? `${showInfo.displayName} 미션 목록` : "미션 목록 | 리얼픽"

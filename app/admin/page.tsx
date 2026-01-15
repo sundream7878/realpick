@@ -13,16 +13,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow } from "@/lib/firebase/admin-settings"
+import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow, updateShowInfo } from "@/lib/firebase/admin-settings"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
-import { SHOWS, CATEGORIES, type TShowCategory } from "@/lib/constants/shows"
+import { SHOWS, CATEGORIES, type TShowCategory, getShowById } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
 import { auth, db } from "@/lib/firebase/config"
 import { doc, getDoc } from "firebase/firestore"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2 } from "lucide-react"
+import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2, Edit } from "lucide-react"
 import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 
 export default function AdminPage() {
@@ -61,8 +61,9 @@ export default function AdminPage() {
     const [programCategoryFilter, setProgramCategoryFilter] = useState<string>("ALL")
     const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL")
     
-    // Add Show Dialog State
-    const [isAddShowDialogOpen, setIsAddShowDialogOpen] = useState(false)
+    // Add/Edit Show Dialog State
+    const [isShowDialogOpen, setIsShowDialogOpen] = useState(false)
+    const [editingShowId, setEditingShowId] = useState<string | null>(null)
     const [newShow, setNewShow] = useState({
         id: "",
         name: "",
@@ -397,11 +398,19 @@ export default function AdminPage() {
         }
 
         try {
-            const result = await addCustomShow(newShow)
+            let result;
+            if (editingShowId) {
+                // 수정 모드
+                result = await updateShowInfo(editingShowId, newShow)
+            } else {
+                // 추가 모드
+                result = await addCustomShow(newShow)
+            }
+
             if (result.success) {
                 toast({
-                    title: "프로그램 추가 성공",
-                    description: `${newShow.displayName}이(가) 추가되었습니다.`
+                    title: editingShowId ? "프로그램 수정 성공" : "프로그램 추가 성공",
+                    description: `${newShow.displayName}이(가) ${editingShowId ? '수정' : '추가'}되었습니다.`
                 })
                 
                 // 목록 새로고침
@@ -434,17 +443,30 @@ export default function AdminPage() {
                     category: "LOVE",
                     officialUrl: ""
                 })
-                setIsAddShowDialogOpen(false)
+                setEditingShowId(null)
+                setIsShowDialogOpen(false)
             } else {
-                throw new Error(result.error || "추가 실패")
+                throw new Error(result.error || (editingShowId ? "수정 실패" : "추가 실패"))
             }
         } catch (error: any) {
             toast({
-                title: "프로그램 추가 실패",
-                description: error.message || "프로그램 추가 중 오류가 발생했습니다.",
+                title: editingShowId ? "프로그램 수정 실패" : "프로그램 추가 실패",
+                description: error.message || `프로그램 ${editingShowId ? '수정' : '추가'} 중 오류가 발생했습니다.`,
                 variant: "destructive"
             })
         }
+    }
+
+    const handleEditShow = (show: any) => {
+        setNewShow({
+            id: show.id,
+            name: show.name,
+            displayName: show.displayName,
+            category: show.category as TShowCategory,
+            officialUrl: show.officialUrl || ""
+        })
+        setEditingShowId(show.id)
+        setIsShowDialogOpen(true)
     }
 
     const handleDeleteShow = async (showId: string, showName: string) => {
@@ -453,11 +475,24 @@ export default function AdminPage() {
         }
 
         try {
-            const result = await deleteCustomShow(showId)
+            // 커스텀 프로그램인지 기본 프로그램인지 확인
+            const isCustom = validCustomShows.some((s: any) => s.id === showId);
+            
+            let result;
+            if (isCustom) {
+                // 커스텀 프로그램은 DB에서 삭제
+                result = await deleteCustomShow(showId)
+            } else {
+                // 기본 프로그램은 숨김 처리로 대응 (물리적 삭제는 코드 수정 필요하므로)
+                const newVisibility = { ...showVisibility, [showId]: false }
+                result = await updateShowVisibility(newVisibility)
+                setShowVisibility(newVisibility)
+            }
+
             if (result.success) {
                 toast({
                     title: "프로그램 삭제 성공",
-                    description: `${showName}이(가) 삭제되었습니다.`
+                    description: isCustom ? `${showName}이(가) 삭제되었습니다.` : `${showName}이(가) 목록에서 제거(숨김)되었습니다.`
                 })
                 
                 // 목록 새로고침
@@ -485,6 +520,7 @@ export default function AdminPage() {
                 throw new Error("삭제 실패")
             }
         } catch (error) {
+            console.error("Delete failed:", error);
             toast({
                 title: "프로그램 삭제 실패",
                 description: "프로그램 삭제 중 오류가 발생했습니다.",
@@ -700,7 +736,11 @@ export default function AdminPage() {
                                     </Button>
                                 ))}
                             </div>
-                            <Button onClick={() => setIsAddShowDialogOpen(true)} className="gap-2 bg-purple-600 hover:bg-purple-700 w-full sm:w-auto">
+                            <Button onClick={() => {
+                                setEditingShowId(null)
+                                setNewShow({ id: "", name: "", displayName: "", category: "LOVE", officialUrl: "" })
+                                setIsShowDialogOpen(true)
+                            }} className="gap-2 bg-purple-600 hover:bg-purple-700 w-full sm:w-auto">
                                 <Plus className="w-4 h-4" />
                                 프로그램 추가
                             </Button>
@@ -740,17 +780,24 @@ export default function AdminPage() {
                                                             >
                                                                 {isVisible ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4 text-gray-400" />}
                                                             </Button>
-                                                            {validCustomShows.some((s: any) => s.id === show.id) && (
-                                                                <Button
-                                                                    variant="ghost"
-                                                                    size="sm"
-                                                                    onClick={() => handleDeleteShow(show.id, show.displayName)}
-                                                                    className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                    title="프로그램 삭제"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </Button>
-                                                            )}
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleEditShow(show)}
+                                                                className="h-7 w-7 p-0 text-blue-500 hover:text-blue-700 hover:bg-blue-50"
+                                                                title="프로그램 수정"
+                                                            >
+                                                                <Edit className="w-4 h-4" />
+                                                            </Button>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleDeleteShow(show.id, show.displayName)}
+                                                                className="h-7 w-7 p-0 text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                title="프로그램 삭제"
+                                                            >
+                                                                <Trash2 className="w-4 h-4" />
+                                                            </Button>
                                                         </div>
                                                         <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
                                                             {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
@@ -938,11 +985,11 @@ export default function AdminPage() {
             </main>
             <BottomNavigation />
             
-            {/* 프로그램 추가 다이얼로그 */}
-            <Dialog open={isAddShowDialogOpen} onOpenChange={setIsAddShowDialogOpen}>
+            {/* 프로그램 추가/수정 다이얼로그 */}
+            <Dialog open={isShowDialogOpen} onOpenChange={setIsShowDialogOpen}>
                 <DialogContent className="max-w-md">
                     <DialogHeader>
-                        <DialogTitle>새 프로그램 추가</DialogTitle>
+                        <DialogTitle>{editingShowId ? "프로그램 수정" : "새 프로그램 추가"}</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4 py-4">
                         <div className="space-y-2">
@@ -951,8 +998,9 @@ export default function AdminPage() {
                                 placeholder="예: new-show-1"
                                 value={newShow.id}
                                 onChange={(e) => setNewShow({ ...newShow, id: e.target.value })}
+                                disabled={!!editingShowId}
                             />
-                            <p className="text-xs text-gray-500">영문 소문자, 숫자, 하이픈만 사용</p>
+                            {!editingShowId && <p className="text-xs text-gray-500">영문 소문자, 숫자, 하이픈만 사용</p>}
                         </div>
                         
                         <div className="space-y-2">
@@ -1000,7 +1048,7 @@ export default function AdminPage() {
                         </div>
                         
                         <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleAddShow}>
-                            추가하기
+                            {editingShowId ? "수정하기" : "추가하기"}
                         </Button>
                     </div>
                 </DialogContent>

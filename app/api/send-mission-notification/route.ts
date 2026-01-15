@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { adminDb } from '@/lib/firebase/admin';
 import { getShowById } from '@/lib/constants/shows';
+import { FieldValue } from 'firebase-admin/firestore';
 
 // Resend 클라이언트는 필요할 때 초기화 (환경 변수 체크 후)
 let resend: Resend | null = null;
@@ -241,13 +242,17 @@ export async function POST(request: NextRequest) {
     let userIdsToNotify: string[] = [];
 
     if (type === 'new') {
-      // 1. 새 미션 알림 대상 조회 (Firestore 'notification_preferences')
+      // 1. 새 미션 알림 대상 조회 (카테고리 구독자 모두)
       const prefsSnapshot = await adminDb.collection('notification_preferences')
-        .where('emailEnabled', '==', true)
         .where('categories', 'array-contains', category)
         .get();
 
       userIdsToNotify = prefsSnapshot.docs.map(doc => doc.id);
+      
+      // 작성자 본인도 알림을 받고 싶어 한다면 목록에 추가 (이미 있으면 중복 제거)
+      if (payload.creatorId && !userIdsToNotify.includes(payload.creatorId)) {
+        userIdsToNotify.push(payload.creatorId);
+      }
     } else if (type === 'deadline') {
       // 1. 마감 미션 참여자 조회 (Firestore 'pickresult1' & 'pickresult2')
       const [snap1, snap2] = await Promise.all([
@@ -277,13 +282,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: 'No users to notify', sent: 0 });
     }
 
-    // 2. 사용자 정보 조회 (Firestore 'users')
-    // userIdsToNotify가 30개 이상일 경우 Firebase 'in' 쿼리 제한(30개) 때문에 나눠서 조회해야 함
+    // 2. 사용자 정보 및 설정 조회 (Firestore 'users' & 'notification_preferences')
     const users: any[] = [];
+    const preferencesMap: Record<string, any> = {};
+
     for (let i = 0; i < userIdsToNotify.length; i += 30) {
       const chunk = userIdsToNotify.slice(i, i + 30);
-      const userSnaps = await adminDb.collection('users').where('__name__', 'in', chunk).get();
-      users.push(...userSnaps.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      
+      const [userSnaps, prefSnaps] = await Promise.all([
+        adminDb.collection('users').where('__name__', 'in', chunk).get(),
+        adminDb.collection('notification_preferences').where('__name__', 'in', chunk).get()
+      ]);
+
+      userSnaps.docs.forEach(doc => users.push({ id: doc.id, ...doc.data() }));
+      prefSnaps.docs.forEach(doc => preferencesMap[doc.id] = doc.data());
     }
 
     // 3. 미션 URL 생성
@@ -296,7 +308,7 @@ export async function POST(request: NextRequest) {
       ? `${baseUrl}/p-mission/${missionId}/results`
       : `${baseUrl}/p-mission/${missionId}/vote`;
 
-    // 4. 이메일 발송
+    // 4. 알림 생성 (Email & In-App)
     const results = [];
     const fromEmail = formatFromEmail(process.env.RESEND_FROM_EMAIL);
     const displayCategory = showName ? `${getCategoryName(category)} [${showName}]` : getCategoryName(category);
@@ -304,46 +316,74 @@ export async function POST(request: NextRequest) {
       ? `[리얼픽] 참여하신 ${displayCategory} 미션이 마감되었습니다: ${missionTitle}`
       : `[리얼픽] ${displayCategory} 새 미션이 게시되었습니다!`;
 
+    // In-app 알림 배치를 위한 준비
+    const notificationBatch = adminDb.batch();
+    const notificationCollection = adminDb.collection('notifications');
+
     for (const user of users) {
-      if (!user.email) continue;
+      // 4-1. In-App 알림 생성
+      const notificationRef = notificationCollection.doc();
+      notificationBatch.set(notificationRef, {
+        userId: user.id,
+        type: type === 'deadline' ? 'MISSION_CLOSED' : 'NEW_MISSION',
+        title: type === 'deadline' ? '미션 마감 알림' : '새로운 미션 알림',
+        content: type === 'deadline' 
+          ? `참여하신 미션 '${missionTitle}'이(가) 마감되었습니다. 결과를 확인해보세요!`
+          : `'${displayCategory}'에 새로운 미션 '${missionTitle}'이(가) 게시되었습니다!`,
+        missionId,
+        creatorId: payload.creatorId || null,
+        isRead: false,
+        createdAt: FieldValue.serverTimestamp(),
+      });
 
-      try {
-        const emailHtml = type === 'deadline'
-          ? generateDeadlineEmailHtml({
-              missionTitle,
-              category,
-              categoryName: getCategoryName(category),
-              showName,
-              userNickname: user.nickname || '사용자',
-              resultsUrl: missionUrl,
-              baseUrl,
-            })
-          : generateEmailHtml({
-              missionTitle,
-              category,
-              categoryName: getCategoryName(category),
-              showName,
-              userNickname: user.nickname || '사용자',
-              missionUrl,
-              baseUrl,
-            });
+      // 4-2. Email 발송 (설정된 경우만)
+      const userPrefs = preferencesMap[user.id];
+      const isEmailEnabled = type === 'deadline' 
+        ? userPrefs?.deadlineEmailEnabled !== false // 기본값 true
+        : userPrefs?.emailEnabled !== false; // 기본값 true
 
-        const sendResult = await resendClient.emails.send({
-          from: fromEmail,
-          to: user.email,
-          subject: subject,
-          html: emailHtml,
-        });
+      if (user.email && isEmailEnabled) {
+        try {
+          const emailHtml = type === 'deadline'
+            ? generateDeadlineEmailHtml({
+                missionTitle,
+                category,
+                categoryName: getCategoryName(category),
+                showName,
+                userNickname: user.nickname || '사용자',
+                resultsUrl: missionUrl,
+                baseUrl,
+              })
+            : generateEmailHtml({
+                missionTitle,
+                category,
+                categoryName: getCategoryName(category),
+                showName,
+                userNickname: user.nickname || '사용자',
+                missionUrl,
+                baseUrl,
+              });
 
-        results.push({ success: !sendResult.error, email: user.email });
-        
-        // Rate limit 회피 (안전하게 200ms)
-        await new Promise(resolve => setTimeout(resolve, 200));
-      } catch (err) {
-        console.error(`Failed to send email to ${user.email}:`, err);
-        results.push({ success: false, email: user.email });
+          const sendResult = await resendClient.emails.send({
+            from: fromEmail,
+            to: user.email,
+            subject: subject,
+            html: emailHtml,
+          });
+
+          results.push({ success: !sendResult.error, email: user.email });
+        } catch (err) {
+          console.error(`Failed to send email to ${user.email}:`, err);
+          results.push({ success: false, email: user.email });
+        }
       }
+      
+      // Rate limit 회피 (안전하게 50ms)
+      await new Promise(resolve => setTimeout(resolve, 50));
     }
+
+    // In-App 알림 배치 커밋
+    await notificationBatch.commit();
 
     const successCount = results.filter(r => r.success).length;
     return NextResponse.json({

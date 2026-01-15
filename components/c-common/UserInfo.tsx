@@ -28,8 +28,8 @@ export function UserInfo({
       className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-full bg-gray-200 cursor-pointer hover:opacity-80 transition-opacity flex-shrink-0 border border-gray-100"
       onClick={onAvatarClick}
     >
-      <AvatarImage src={tier.characterImage || "/placeholder.svg"} alt={nickname || tier.name} />
-      <AvatarFallback>{(nickname || tier.name)[0]}</AvatarFallback>
+      <AvatarImage src={tier?.characterImage || "/placeholder.svg"} alt={nickname || tier?.name || "User"} />
+      <AvatarFallback>{(nickname || tier?.name || "U")[0]}</AvatarFallback>
     </Avatar>
   )
 
@@ -49,7 +49,7 @@ export function UserInfo({
           </span>
           <span className="text-gray-400">|</span>
           {avatarElement}
-          <span className="text-pink-600 font-medium">{tier.name}</span>
+          <span className="text-pink-600 font-medium">{tier?.name}</span>
         </div>
       )}
       {/* 모바일/태블릿용 축약 정보 */}

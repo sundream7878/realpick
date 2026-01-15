@@ -106,7 +106,9 @@ export default function HomePage() {
         let realMissions: TMission[] = []
         if (result.success && result.missions) {
           // Firebase 데이터를 TMission 형태로 변환
-          realMissions = result.missions.map((mission: any) => ({
+          realMissions = result.missions
+            .filter(Boolean)
+            .map((mission: any) => ({
             id: mission.id,
             title: mission.title,
             kind: mission.kind,
@@ -142,7 +144,9 @@ export default function HomePage() {
         // 2. 커플매칭 미션 변환
         let coupleMissions: TMission[] = []
         if (coupleResult.success && coupleResult.missions) {
-          coupleMissions = coupleResult.missions.map((mission: any) => ({
+          coupleMissions = coupleResult.missions
+            .filter(Boolean)
+            .map((mission: any) => ({
             id: mission.id,
             title: mission.title,
             kind: mission.kind,
@@ -262,7 +266,15 @@ export default function HomePage() {
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
     // 1. Show ID 필터링
-    if (selectedShowId && mission.showId !== selectedShowId) return false
+    if (selectedShowId) {
+      // 선택된 프로그램이 'nasolo'인 경우, showId가 'nasolo'이거나 없는(기존 데이터) 미션 표시
+      if (selectedShowId === 'nasolo') {
+        if (mission.showId && mission.showId !== 'nasolo') return false
+      } else {
+        // 다른 프로그램의 경우 해당 showId와 정확히 일치하는 미션만 표시
+        if (mission.showId !== selectedShowId) return false
+      }
+    }
 
     // 2. 상태 필터링
     if (selectedFilter === "전체") return true

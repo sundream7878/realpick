@@ -13,6 +13,7 @@ import { hasMinimumRole } from "@/lib/utils/permissions"
 import type { TUserRole } from "@/lib/utils/permissions"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
+import { getShowById } from "@/lib/constants/shows"
 
 interface BottomNavigationProps {
   onMissionClick?: () => void
@@ -209,7 +210,12 @@ export function BottomNavigation({
           }
         }}
       />
-      <MissionCreationModal isOpen={isMissionModalOpen} onClose={() => setIsMissionModalOpen(false)} />
+      <MissionCreationModal 
+        isOpen={isMissionModalOpen} 
+        onClose={() => setIsMissionModalOpen(false)} 
+        initialShowId={selectedShowId || undefined}
+        category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+      />
       <PointHistoryModal 
         isOpen={showPointHistoryModal} 
         onClose={() => setShowPointHistoryModal(false)} 

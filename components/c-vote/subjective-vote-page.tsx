@@ -7,7 +7,7 @@ import { Input } from "@/components/c-ui/input"
 import { Badge } from "@/components/c-ui/badge"
 import { Clock, Users } from "lucide-react"
 import { submitVote1, getVote1 } from "@/lib/firebase/votes"
-import { incrementMissionParticipants, getMissionById as getMission } from "@/lib/firebase/missions"
+import { getMissionById as getMission } from "@/lib/firebase/missions"
 import { getUserId } from "@/lib/auth-utils"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
@@ -84,10 +84,11 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
         throw new Error("투표 제출 실패")
       }
 
-      // 2. 미션 참여자 수 증가
-      await incrementMissionParticipants(mission.id)
+      console.log("투표 제출 완료 - submitVote1에서 모든 카운트 업데이트 완료")
+      // submitVote1에서 이미 participants, totalVotes, optionVoteCounts를 원자적으로 업데이트했으므로
+      // incrementMissionParticipants 호출은 중복이며 제거합니다.
 
-      // 3. 업데이트된 미션 데이터 다시 가져오기
+      // 2. 업데이트된 미션 데이터 다시 가져오기
       const updatedMissionResult = await getMission(mission.id)
       if (updatedMissionResult.success && updatedMissionResult.mission) {
         const m = updatedMissionResult.mission;

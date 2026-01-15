@@ -12,18 +12,6 @@ export async function DELETE(request: Request) {
     const decodedToken = await adminAuth.verifyIdToken(idToken)
     const userId = decodedToken.uid
 
-    // Check if user is admin
-    const userDoc = await adminDb.collection("users").doc(userId).get()
-    const userData = userDoc.data()
-
-    if (userData?.role?.toUpperCase() !== "ADMIN") {
-      console.log("권한 없음:", { userId, role: userData?.role })
-      return NextResponse.json({ 
-        error: "Forbidden",
-        details: `Admin role required. Current role: ${userData?.role}` 
-      }, { status: 403 })
-    }
-
     const { searchParams } = new URL(request.url)
     const missionId = searchParams.get("missionId")
     const missionType = searchParams.get("missionType") || "mission1" // mission1 or mission2
@@ -31,6 +19,33 @@ export async function DELETE(request: Request) {
     if (!missionId) {
       return NextResponse.json({ error: "Mission ID is required" }, { status: 400 })
     }
+
+    // Get mission to check creator
+    const missionTable = missionType === "mission2" ? "missions2" : "missions1"
+    const missionDoc = await adminDb.collection(missionTable).doc(missionId).get()
+    
+    if (!missionDoc.exists) {
+      return NextResponse.json({ error: "Mission not found" }, { status: 404 })
+    }
+
+    const missionData = missionDoc.data()
+    const creatorId = missionData?.creatorId || missionData?.userId
+
+    // Check if user is admin or creator
+    const userDoc = await adminDb.collection("users").doc(userId).get()
+    const userData = userDoc.data()
+    const isAdmin = userData?.role?.toUpperCase() === "ADMIN"
+    const isCreator = userId === creatorId
+
+    if (!isAdmin && !isCreator) {
+      console.log("권한 없음:", { userId, role: userData?.role, creatorId, isAdmin, isCreator })
+      return NextResponse.json({ 
+        error: "Forbidden",
+        details: `관리자이거나 미션 생성자만 삭제할 수 있습니다.` 
+      }, { status: 403 })
+    }
+
+    console.log("삭제 권한 확인:", { userId, role: userData?.role, creatorId, isAdmin, isCreator })
 
     // Delete related data first (votes, comments, etc.)
     const batch = adminDb.batch()
@@ -49,7 +64,6 @@ export async function DELETE(request: Request) {
     pointLogsQuery.forEach(doc => batch.delete(doc.ref))
 
     // 4. Delete the mission itself
-    const missionTable = missionType === "mission2" ? "missions2" : "missions1"
     batch.delete(adminDb.collection(missionTable).doc(missionId))
 
     await batch.commit()

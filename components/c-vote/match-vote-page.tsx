@@ -1094,7 +1094,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
               <div>
                 <h3 className="text-lg font-semibold text-purple-900 mb-1">제출 완료!</h3>
                 <p className="text-sm text-gray-600">
-                  마감까지 결과를 기다려주세요. 나중에 내가 선택한 커플 매칭을 확인할 수 있습니다.
+                  {mission.revealPolicy === "realtime"
+                    ? "실시간으로 집계된 결과를 아래에서 확인하세요!"
+                    : "마감까지 결과를 기다려주세요. 나중에 내가 선택한 커플 매칭을 확인할 수 있습니다."}
                 </p>
               </div>
               {/* 커플매칭 미션은 회차별 관리이므로 마감 시간 표시하지 않음 */}

@@ -31,7 +31,7 @@ const mapFirestoreToComment = (id: string, data: any, replies: TComment[] = []):
   userNickname: data.userNickname || "알 수 없음",
   userTier: data.userTier || "루키",
   content: data.isDeleted ? "삭제된 댓글입니다." : data.content,
-  parentId: data.parentId || null,
+  parentId: data.parentId || data.commentId || null,
   createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,
   likesCount: data.likesCount || 0,
   repliesCount: data.repliesCount || 0,
@@ -159,7 +159,9 @@ export async function createReply(
   userId: string,
   userNickname: string,
   userTier: string,
-  content: string
+  content: string,
+  missionId: string,
+  missionType: string
 ): Promise<{ success: boolean; reply?: TComment; error?: string }> {
   try {
     const payload = {
@@ -168,6 +170,8 @@ export async function createReply(
       userNickname,
       userTier,
       content,
+      missionId,
+      missionType,
       likesCount: 0,
       isDeleted: false,
       createdAt: serverTimestamp(),
@@ -194,9 +198,19 @@ export async function createReply(
 // 댓글 삭제 (Soft Delete)
 export async function deleteComment(commentId: string, userId: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const commentRef = doc(db, "comments", commentId);
-    const snap = await getDoc(commentRef);
-    if (!snap.exists() || snap.data().userId !== userId) {
+    // 1. 먼저 comments 컬렉션 확인
+    let commentRef = doc(db, "comments", commentId);
+    let snap = await getDoc(commentRef);
+    let collectionName = "comments";
+
+    // 2. 없으면 replies 컬렉션 확인
+    if (!snap.exists()) {
+      commentRef = doc(db, "replies", commentId);
+      snap = await getDoc(commentRef);
+      collectionName = "replies";
+    }
+
+    if (!snap.exists() || snap.data()?.userId !== userId) {
       return { success: false, error: "권한이 없거나 댓글이 존재하지 않습니다." };
     }
 
@@ -227,12 +241,25 @@ export async function toggleCommentLike(commentId: string, userId: string): Prom
       diff = 1;
     }
 
-    await updateDoc(doc(db, "comments", commentId), {
+    // 대상이 comments인지 replies인지 확인
+    let targetRef = doc(db, "comments", commentId);
+    let targetSnap = await getDoc(targetRef);
+
+    if (!targetSnap.exists()) {
+      targetRef = doc(db, "replies", commentId);
+      targetSnap = await getDoc(targetRef);
+    }
+
+    if (!targetSnap.exists()) {
+      return { success: false, error: "댓글을 찾을 수 없습니다." };
+    }
+
+    await updateDoc(targetRef, {
       likesCount: increment(diff)
     });
 
-    const commentSnap = await getDoc(doc(db, "comments", commentId));
-    return { success: true, isLiked, likesCount: commentSnap.data()?.likesCount };
+    const updatedSnap = await getDoc(targetRef);
+    return { success: true, isLiked, likesCount: updatedSnap.data()?.likesCount };
   } catch (error: any) {
     return { success: false, error: error.message };
   }
