@@ -5,8 +5,20 @@ const getAdminConfig = () => {
   const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
+  console.log('[Firebase Admin] 환경 변수 체크:', {
+    hasProjectId: !!projectId,
+    hasClientEmail: !!clientEmail,
+    hasPrivateKey: !!privateKey,
+    projectId: projectId,
+    clientEmail: clientEmail
+  });
+
   if (!projectId || !clientEmail || !privateKey) {
-    console.error("❌ Firebase Admin 환경 변수가 누락되었습니다. .env.local 파일을 확인해주세요.");
+    console.error("❌ Firebase Admin 환경 변수가 누락되었습니다:");
+    console.error("  - FIREBASE_PROJECT_ID:", !!projectId);
+    console.error("  - FIREBASE_CLIENT_EMAIL:", !!clientEmail);
+    console.error("  - FIREBASE_PRIVATE_KEY:", !!privateKey);
+    console.error("배포 환경(Vercel 등)의 환경 변수 설정을 확인해주세요.");
     return null;
   }
 
