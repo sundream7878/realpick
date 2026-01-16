@@ -323,11 +323,15 @@ export default function AdminPage() {
     }
 
     const handleShowStatusUpdate = async (showId: string, status: string) => {
+        console.log('[Admin] 프로그램 상태 변경 시작:', { showId, status });
         const newStatuses = { ...showStatuses, [showId]: status }
+        console.log('[Admin] 새로운 상태 객체:', newStatuses);
         setShowStatuses(newStatuses) // Optimistic update
 
         try {
+            console.log('[Admin] updateShowStatuses 호출 중...');
             const result = await updateShowStatuses(newStatuses)
+            console.log('[Admin] updateShowStatuses 결과:', result);
             if (result.success) {
                 // localStorage를 사용하여 여러 탭 간 통신 (강제 업데이트를 위해 먼저 제거)
                 const timestamp = Date.now()
