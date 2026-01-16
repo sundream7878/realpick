@@ -190,11 +190,21 @@ export default function AdminPage() {
 
     const loadUsers = async (page: number = 0, role: string = userRoleFilter) => {
         try {
+            console.log('[Admin] loadUsers 시작:', { page, role, currentFilter: userRoleFilter });
+            
             // Reset pagination if filter changed
             const isFilterChanged = role !== userRoleFilter
+            console.log('[Admin] 필터 변경 여부:', isFilterChanged);
+            
             const currentLastDoc = (page === 0 || isFilterChanged) ? null : pageDocs[page - 1]
             
+            console.log('[Admin] getAllUsers 호출 전...');
             const { users: fetchedUsers, lastVisible, total } = await getAllUsers(usersPerPage, currentLastDoc, role)
+            console.log('[Admin] getAllUsers 결과:', { 
+                fetchedCount: fetchedUsers.length, 
+                total,
+                hasLastVisible: !!lastVisible 
+            });
             
             setUsers(fetchedUsers)
             setTotalUsers(total)
@@ -202,6 +212,7 @@ export default function AdminPage() {
             setLastDoc(lastVisible)
             
             if (isFilterChanged) {
+                console.log('[Admin] 필터 상태 업데이트:', role);
                 setPageDocs({})
                 setUserRoleFilter(role)
             }
@@ -211,7 +222,7 @@ export default function AdminPage() {
                 setPageDocs(prev => ({ ...prev, [page]: lastVisible }))
             }
         } catch (error) {
-            console.error("Failed to load users", error)
+            console.error("[Admin] Failed to load users", error)
             toast({
                 title: "유저 로딩 실패",
                 description: "유저 목록을 불러오는 중 오류가 발생했습니다.",
@@ -247,25 +258,29 @@ export default function AdminPage() {
 
     const handleRoleUpdate = async (userId: string, newRole: TUserRole) => {
         try {
+            console.log('[Admin] 권한 수정 시작:', { userId, newRole })
             const success = await updateUserRole(userId, newRole)
+            console.log('[Admin] 권한 수정 결과:', success)
+            
             if (success) {
                 toast({
                     title: "권한 수정 성공",
-                    description: "유저 권한이 수정되었습니다."
+                    description: `유저 권한이 ${getRoleDisplayName(newRole)}(으)로 수정되었습니다.`
                 })
                 // Refresh list
                 if (searchQuery.trim()) {
-                    handleSearch()
+                    await handleSearch()
                 } else {
-                    loadUsers(currentPage)
+                    await loadUsers(currentPage)
                 }
             } else {
                 throw new Error("Update failed")
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error('[Admin] 권한 수정 실패:', error)
             toast({
                 title: "권한 수정 실패",
-                description: "권한 수정 중 오류가 발생했습니다.",
+                description: error.message || "권한 수정 중 오류가 발생했습니다. 콘솔을 확인해주세요.",
                 variant: "destructive"
             })
         }

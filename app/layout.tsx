@@ -137,7 +137,7 @@ export default function RootLayout({
         </Suspense>
         <SeoFooter />
         <Toaster />
-        <Analytics />
+        {/* <Analytics /> */}
       </body>
     </html>
   )

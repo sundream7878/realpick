@@ -133,7 +133,7 @@ function generateEmailHtml(params: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding-top: 10px; padding-bottom: 20px;">
-                    <a href="${missionUrl}" style="display: inline-block; background-color: ${categoryColor}; color: #FFFFFF; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">미션 확인하기 →</a>
+                    <a href="${missionUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: ${categoryColor}; color: #FFFFFF; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">미션 확인하기 →</a>
                   </td>
                 </tr>
               </table>
@@ -205,7 +205,7 @@ function generateDeadlineEmailHtml(params: {
               <table width="100%" cellpadding="0" cellspacing="0">
                 <tr>
                   <td align="center" style="padding-top: 10px; padding-bottom: 20px;">
-                    <a href="${resultsUrl}" style="display: inline-block; background-color: ${categoryColor}; color: #FFFFFF; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">결과 확인하기 →</a>
+                    <a href="${resultsUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background-color: ${categoryColor}; color: #FFFFFF; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: bold; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">결과 확인하기 →</a>
                   </td>
                 </tr>
               </table>
@@ -299,14 +299,19 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. 미션 URL 생성
-    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://realpick.kr';
+    let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://real-pick.com';
     baseUrl = baseUrl.replace(/\/$/, '');
+    
+    console.log('[Mission Notification] Base URL:', baseUrl);
+    console.log('[Mission Notification] Mission ID:', missionId);
     
     const showInfo = showId ? getShowById(showId) : undefined;
     const showName = showInfo?.displayName || showInfo?.name;
     const missionUrl = type === 'deadline' 
       ? `${baseUrl}/p-mission/${missionId}/results`
       : `${baseUrl}/p-mission/${missionId}/vote`;
+    
+    console.log('[Mission Notification] Generated URL:', missionUrl);
 
     // 4. 알림 생성 (Email & In-App)
     const results = [];
@@ -363,6 +368,12 @@ export async function POST(request: NextRequest) {
                 missionUrl,
                 baseUrl,
               });
+
+          // 디버깅: 생성된 이메일 HTML 확인
+          console.log('[Mission Notification] Email HTML for', user.email, '- Mission URL:', missionUrl);
+          if (emailHtml.includes('image.png')) {
+            console.error('[Mission Notification] ⚠️ Email HTML contains "image.png" - this might cause issues');
+          }
 
           const sendResult = await resendClient.emails.send({
             from: fromEmail,

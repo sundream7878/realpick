@@ -184,6 +184,7 @@ export async function getAllUsers(
   roleFilter: string = "ALL"
 ): Promise<{ users: TUser[]; lastVisible: any; total: number }> {
   try {
+    console.log('[Firebase Users] getAllUsers 시작:', { limitCount, roleFilter, hasLastDoc: !!lastDoc });
     const coll = collection(db, "users");
     
     // 1. 전체 개수 조회
@@ -193,22 +194,30 @@ export async function getAllUsers(
     }
     const countSnapshot = await getCountFromServer(countQuery);
     const total = countSnapshot.data().count;
+    console.log('[Firebase Users] 전체 사용자 수:', total);
 
     // 2. 쿼리 작성
-    let q = query(coll);
+    let q = query(coll, orderBy("createdAt", "desc"));
     
     if (roleFilter !== "ALL") {
-      q = query(q, where("role", "==", roleFilter));
+      q = query(coll, where("role", "==", roleFilter), orderBy("createdAt", "desc"));
     }
     
-    q = query(q, orderBy("createdAt", "desc"), firestoreLimit(limitCount));
+    q = query(q, firestoreLimit(limitCount));
 
     if (lastDoc) {
       q = query(q, startAfter(lastDoc));
     }
 
+    console.log('[Firebase Users] 쿼리 실행 중...');
     const querySnapshot = await getDocs(q);
-    const users = querySnapshot.docs.map(doc => mapFirestoreToUser(doc.id, doc.data()));
+    console.log('[Firebase Users] 조회된 사용자 수:', querySnapshot.docs.length);
+    
+    const users = querySnapshot.docs.map(doc => {
+      const user = mapFirestoreToUser(doc.id, doc.data());
+      console.log('[Firebase Users] 사용자:', { id: user.id, nickname: user.nickname, role: user.role });
+      return user;
+    });
     const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
     
     return { 
@@ -217,7 +226,7 @@ export async function getAllUsers(
       total 
     };
   } catch (error) {
-    console.error("Error fetching all users from Firestore:", error);
+    console.error("[Firebase Users] Error fetching all users from Firestore:", error);
     return { users: [], lastVisible: null, total: 0 };
   }
 }
@@ -247,17 +256,33 @@ export async function searchUsers(searchQuery: string): Promise<TUser[]> {
 // 사용자 역할 업데이트
 export async function updateUserRole(userId: string, role: string): Promise<boolean> {
   try {
-    // 클라이언트 사이드에서 직접 업데이트 (보안상 좋지 않지만 기존 코드 흐름 유지)
-    // 실제로는 Admin SDK를 사용하는 API Route를 호출하는 것이 좋음
+    // Get auth token
+    const { auth } = await import('./config');
+    const currentUser = auth.currentUser;
+    
+    if (!currentUser) {
+      console.error("No authenticated user");
+      return false;
+    }
+
+    const idToken = await currentUser.getIdToken();
+    
     const response = await fetch('/api/admin/users/role', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${idToken}`,
       },
       body: JSON.stringify({ userId, role }),
     });
 
-    return response.ok;
+    if (!response.ok) {
+      const errorData = await response.json();
+      console.error("Error updating user role:", errorData);
+      return false;
+    }
+
+    return true;
   } catch (error) {
     console.error("Error updating user role:", error);
     return false;

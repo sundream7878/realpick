@@ -109,13 +109,42 @@ export async function createMission(missionData: CreateMissionData, userId: stri
 // 미션 목록 조회
 export async function getMissions(type: 'missions1' | 'missions2' = 'missions1', limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
+    // showId 변환 함수 import
+    const { normalizeShowId, getShowById } = await import("@/lib/constants/shows");
+    
     const q = query(
       collection(db, type),
       orderBy("createdAt", "desc"),
       firestoreLimit(limitCount)
     );
     const querySnapshot = await getDocs(q);
-    const missions = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const missions = querySnapshot.docs.map(doc => {
+      const data = doc.data();
+      const originalShowId = data.showId;
+      const normalizedShowId = normalizeShowId(originalShowId);
+      
+      // showId로 프로그램 정보 가져오기 (category도 자동 설정)
+      const show = normalizedShowId ? getShowById(normalizedShowId) : null;
+      const category = show ? show.category : data.category;
+      
+      if (originalShowId && originalShowId !== normalizedShowId) {
+        console.log(`[Firebase ${type}] showId 변환:`, {
+          id: doc.id,
+          title: data.title,
+          원본: originalShowId,
+          변환: normalizedShowId,
+          category원본: data.category,
+          category변환: category
+        });
+      }
+      
+      return {
+        id: doc.id,
+        ...data,
+        showId: normalizedShowId || originalShowId, // 한글 → 영어 변환
+        category: category || data.category // show에서 가져온 정확한 category
+      };
+    });
     
     console.log(`[Firebase] ${type} fetched:`, missions.length);
     
@@ -366,42 +395,58 @@ export async function getMissionsByParticipant(userId: string): Promise<{ succes
 // 미션 정산 (일반 미션)
 export async function settleMissionWithFinalAnswer(missionId: string, correctAnswer: string): Promise<{ success: boolean; error?: string }> {
   try {
+    console.log(`[settleMissionWithFinalAnswer] 시작 - missionId: ${missionId}, correctAnswer: ${correctAnswer}`);
+    
     // missions1 또는 ai_mission에서 검색
     let missionRef = doc(db, "missions1", missionId);
     let missionSnap = await getDoc(missionRef);
     let missionCollection = "missions1";
     
+    console.log(`[settleMissionWithFinalAnswer] missions1 검색 결과: ${missionSnap.exists()}`);
+    
     if (!missionSnap.exists()) {
       // ai_mission에서 검색
+      console.log(`[settleMissionWithFinalAnswer] ai_mission에서 검색 시도...`);
       missionRef = doc(db, "ai_mission", missionId);
       missionSnap = await getDoc(missionRef);
       missionCollection = "ai_mission";
+      console.log(`[settleMissionWithFinalAnswer] ai_mission 검색 결과: ${missionSnap.exists()}`);
     }
     
     if (!missionSnap.exists()) {
+      console.error(`[settleMissionWithFinalAnswer] 미션을 찾을 수 없음: ${missionId}`);
       return { success: false, error: "미션을 찾을 수 없습니다." };
     }
     
     const missionData = missionSnap.data();
-    console.log(`[정답 확정] 미션 찾음: ${missionCollection}`);
+    console.log(`[settleMissionWithFinalAnswer] 미션 찾음: ${missionCollection}`, missionData);
     
     // 미션 상태 업데이트
+    console.log(`[settleMissionWithFinalAnswer] 미션 상태 업데이트 중...`);
     await updateDoc(missionRef, {
       status: "settled",
       correctAnswer,
       updatedAt: serverTimestamp()
     });
+    console.log(`[settleMissionWithFinalAnswer] 미션 상태 업데이트 완료`);
     
     // 포인트 분배 실행
+    console.log(`[settleMissionWithFinalAnswer] 포인트 분배 시작...`);
     try {
       await distributePointsForMission1(missionId, correctAnswer, missionData);
+      console.log(`[settleMissionWithFinalAnswer] 포인트 분배 완료`);
     } catch (pointError: any) {
-      console.error("포인트 분배 중 오류:", pointError);
+      console.error("[settleMissionWithFinalAnswer] 포인트 분배 중 오류:", pointError);
+      console.error("[settleMissionWithFinalAnswer] 포인트 분배 에러 스택:", pointError?.stack);
       // 포인트 분배 실패해도 미션은 settled 상태로 유지
+      return { success: false, error: `포인트 분배 실패: ${pointError.message}` };
     }
     
+    console.log(`[settleMissionWithFinalAnswer] 완료`);
     return { success: true };
   } catch (error: any) {
+    console.error("[settleMissionWithFinalAnswer] 예상치 못한 에러:", error);
+    console.error("[settleMissionWithFinalAnswer] 에러 스택:", error?.stack);
     return { success: false, error: error.message };
   }
 }
@@ -419,18 +464,23 @@ async function distributePointsForMission1(
   missionData: any
 ): Promise<void> {
   try {
+    console.log(`[distributePointsForMission1] 시작 - missionId: ${missionId}`);
+    
     // 1. 미션 타입 확인
     const missionKind = missionData.kind || missionData.type || "predict"; // predict or poll
+    console.log(`[distributePointsForMission1] 미션 타입: ${missionKind}`);
     
     // 2. 모든 투표 조회
+    console.log(`[distributePointsForMission1] 투표 조회 중...`);
     const votesQuery = query(
       collection(db, "pickresult1"),
       where("missionId", "==", missionId)
     );
     const votesSnap = await getDocs(votesQuery);
+    console.log(`[distributePointsForMission1] 조회된 투표 수: ${votesSnap.docs.length}`);
     
     if (votesSnap.empty) {
-      console.log("투표가 없어 포인트 분배를 건너뜁니다.");
+      console.log("[distributePointsForMission1] 투표가 없어 포인트 분배를 건너뜁니다.");
       return;
     }
     
@@ -448,48 +498,66 @@ async function distributePointsForMission1(
       pointsForIncorrect = -50;
     }
     
-    console.log(`[포인트 분배] 미션 ${missionId}, 타입: ${missionKind}, 정답: ${correctAnswer}`);
-    console.log(`[포인트 규칙] 정답: ${pointsForCorrect}P, 오답: ${pointsForIncorrect}P`);
+    console.log(`[distributePointsForMission1] 포인트 규칙 - 정답: ${pointsForCorrect}P, 오답: ${pointsForIncorrect}P`);
     
     // 4. 각 투표자에게 포인트 분배
+    console.log(`[distributePointsForMission1] points 모듈 import 중...`);
     const { addPointLog } = await import("./points");
+    console.log(`[distributePointsForMission1] points 모듈 import 완료`);
+    
+    let successCount = 0;
+    let errorCount = 0;
     
     for (const voteDoc of votesSnap.docs) {
-      const voteData = voteDoc.data();
-      const userId = voteData.userId;
-      const userChoice = voteData.choice || voteData.selectedOption;
-      
-      // 정답 비교
-      let isCorrect = false;
-      
-      if (Array.isArray(userChoice)) {
-        // 배열인 경우 (다중 선택 가능성)
-        isCorrect = userChoice.includes(correctAnswer);
-      } else if (typeof userChoice === "string") {
-        // 문자열 비교 (대소문자 무시, 공백 제거)
-        isCorrect = userChoice.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+      try {
+        const voteData = voteDoc.data();
+        const userId = voteData.userId;
+        const userChoice = voteData.choice || voteData.selectedOption;
+        
+        console.log(`[distributePointsForMission1] 처리 중 - userId: ${userId}, choice: ${userChoice}`);
+        
+        // 정답 비교
+        let isCorrect = false;
+        
+        if (Array.isArray(userChoice)) {
+          // 배열인 경우 (다중 선택 가능성)
+          isCorrect = userChoice.includes(correctAnswer);
+        } else if (typeof userChoice === "string") {
+          // 문자열 비교 (대소문자 무시, 공백 제거)
+          isCorrect = userChoice.trim().toLowerCase() === correctAnswer.trim().toLowerCase();
+        }
+        
+        // 포인트 지급 (공감 픽은 무조건 +10P, 예측 픽은 정답/오답 구분)
+        const pointDiff = isCorrect ? pointsForCorrect : pointsForIncorrect;
+        const reason = missionKind === "poll" || missionKind === "majority"
+          ? `미션 참여: ${missionData.title || "미션"}`
+          : `미션 ${isCorrect ? "정답" : "오답"}: ${missionData.title || "미션"}`;
+        
+        console.log(`[distributePointsForMission1] addPointLog 호출 - userId: ${userId}, pointDiff: ${pointDiff}`);
+        await addPointLog(
+          userId,
+          pointDiff,
+          reason,
+          missionId,
+          "mission1"
+        );
+        
+        console.log(`[distributePointsForMission1] ✅ 사용자 ${userId}에게 ${pointDiff}P 지급 완료 (${isCorrect ? "정답" : "오답"})`);
+        successCount++;
+      } catch (userError: any) {
+        console.error(`[distributePointsForMission1] ❌ 사용자 포인트 지급 실패:`, userError);
+        errorCount++;
       }
-      
-      // 포인트 지급 (공감 픽은 무조건 +10P, 예측 픽은 정답/오답 구분)
-      const pointDiff = isCorrect ? pointsForCorrect : pointsForIncorrect;
-      const reason = missionKind === "poll" || missionKind === "majority"
-        ? `미션 참여: ${missionData.title || "미션"}`
-        : `미션 ${isCorrect ? "정답" : "오답"}: ${missionData.title || "미션"}`;
-      
-      await addPointLog(
-        userId,
-        pointDiff,
-        reason,
-        missionId,
-        "mission1"
-      );
-      
-      console.log(`[포인트 지급] 사용자 ${userId}에게 ${pointDiff}P 지급 (${isCorrect ? "정답" : "오답"})`);
     }
     
-    console.log(`[포인트 분배 완료] 미션 ${missionId}`);
-  } catch (error) {
-    console.error("포인트 분배 중 오류:", error);
+    console.log(`[distributePointsForMission1] 완료 - 성공: ${successCount}, 실패: ${errorCount}`);
+    
+    if (errorCount > 0) {
+      throw new Error(`포인트 분배 중 ${errorCount}건 실패`);
+    }
+  } catch (error: any) {
+    console.error("[distributePointsForMission1] 오류:", error);
+    console.error("[distributePointsForMission1] 에러 스택:", error?.stack);
     throw error;
   }
 }

@@ -183,3 +183,29 @@ export async function deleteCustomShow(showId: string) {
   }
 }
 
+// 프로그램 정보 수정 (이름, 표시 이름, 카테고리 등)
+export async function updateShowInfo(showId: string, updatedData: { name: string, displayName: string, category: string, officialUrl?: string }) {
+  try {
+    const { success, shows } = await getCustomShows();
+    if (!success) return { success: false, error: "Failed to fetch existing shows" };
+
+    let updatedShows = [...shows];
+    const showIndex = updatedShows.findIndex((s: any) => s.id === showId);
+    
+    if (showIndex > -1) {
+      // 기존 커스텀 프로그램 수정
+      updatedShows[showIndex] = { ...updatedShows[showIndex], ...updatedData };
+    } else {
+      // 기본 프로그램(SHOWS)에 있는 것을 처음 수정하는 경우, 커스텀 목록에 추가하여 덮어쓰기 효과
+      updatedShows.push({ id: showId, ...updatedData });
+    }
+
+    await setDoc(doc(db, "admin_settings", "CUSTOM_SHOWS"), {
+      value: updatedShows,
+      updatedAt: serverTimestamp()
+    }, { merge: true });    return { success: true };
+  } catch (error) {
+    console.error("Error updating show info:", error);
+    return { success: false, error };
+  }
+}

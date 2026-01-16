@@ -914,6 +914,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
+                showId={showId}
+                setShowId={setShowId}
+                isLocked={!!initialShowId}
               />
 
               {/* Submission Type Selection */}
@@ -1092,6 +1095,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 hideSeason={true}
                 showId={showId}
                 setShowId={setShowId}
+                isLocked={!!initialShowId}
               />
 
               <div>
@@ -1240,6 +1244,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
+                showId={showId}
+                setShowId={setShowId}
+                isLocked={!!initialShowId}
               />
 
               <div>
@@ -1369,6 +1376,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
+                showId={showId}
+                setShowId={setShowId}
+                isLocked={!!initialShowId}
               />
 
               <div>

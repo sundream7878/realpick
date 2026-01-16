@@ -473,30 +473,10 @@ export default function ProfilePage() {
                         </div>
                       )}
                     </div>
-
-                    <div className="space-y-3">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4">계정 관리</h3>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-gray-200 text-gray-700 hover:bg-gray-50 bg-white/70 h-12"
-                        onClick={handleLogout}
-                      >
-                        <LogOut className="w-5 h-5 mr-3" />
-                        로그아웃
-                      </Button>
-                      <Button
-                        variant="outline"
-                        className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 bg-white/70 h-12"
-                        onClick={handleDeleteAccount}
-                      >
-                        <UserX className="w-5 h-5 mr-3" />
-                        계정 탈퇴
-                      </Button>
-                    </div>
                   </div>
 
                   {/* 이메일 알림 설정 */}
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#3E757B]/20 p-8">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#3E757B]/20 p-8 mb-6">
                     <div className="flex items-center gap-2 mb-6">
                       <Bell className="w-5 h-5 text-[#3E757B]" />
                       <h3 className="text-lg font-semibold text-gray-800">이메일 알림</h3>
@@ -593,6 +573,29 @@ export default function ProfilePage() {
                     >
                       {isSavingNotification ? "저장 중..." : "알림 설정 저장"}
                     </Button>
+                  </div>
+
+                  {/* 계정 관리 */}
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-lg border border-[#3E757B]/20 p-8">
+                    <h3 className="text-lg font-semibold text-gray-800 mb-4">계정 관리</h3>
+                    <div className="space-y-3">
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start border-gray-200 text-gray-700 hover:bg-gray-50 bg-white/70 h-12"
+                        onClick={handleLogout}
+                      >
+                        <LogOut className="w-5 h-5 mr-3" />
+                        로그아웃
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="w-full justify-start border-red-200 text-red-600 hover:bg-red-50 bg-white/70 h-12"
+                        onClick={handleDeleteAccount}
+                      >
+                        <UserX className="w-5 h-5 mr-3" />
+                        계정 탈퇴
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
