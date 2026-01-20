@@ -288,6 +288,44 @@ export default function HomePage() {
     loadMissions()
   }, [userId, refreshKey])
 
+  // 투표 후 페이지로 돌아올 때 투표 데이터만 다시 로드
+  useEffect(() => {
+    const reloadVoteData = async () => {
+      if (missions.length === 0) return
+      
+      console.log('[홈페이지] 투표 데이터 재로드...')
+      
+      if (await isAuthenticated()) {
+        const missionIds = missions.map(m => m.id)
+        const choicesMap = await getUserVotesMap(userId, missionIds)
+        
+        setUserChoices(choicesMap)
+        setVotedMissions(new Set(Object.keys(choicesMap)))
+        console.log('[홈페이지] 투표 데이터 재로드 완료:', Object.keys(choicesMap).length)
+      }
+    }
+
+    const handleFocus = () => {
+      console.log('[홈페이지] 페이지 포커스 받음, 투표 데이터 재로드...')
+      reloadVoteData()
+    }
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log('[홈페이지] 페이지 다시 표시됨, 투표 데이터 재로드...')
+        reloadVoteData()
+      }
+    }
+
+    window.addEventListener('focus', handleFocus)
+    window.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      window.removeEventListener('focus', handleFocus)
+      window.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [missions, userId])
+
   // 미션 생성 성공 후 목록 새로고침
   const handleMissionCreated = () => {
     setRefreshKey(prev => prev + 1)
@@ -565,7 +603,7 @@ export default function HomePage() {
                       <div className="pointer-events-none transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-y-6">
                         <MissionCard
                           mission={mainMission}
-                          shouldShowResults={false}
+                          shouldShowResults={votedMissions.has(mainMission.id) || isDeadlinePassed(mainMission.deadline)}
                           onViewPick={() => { }}
                           variant="hot"
                           userChoice={userChoices[mainMission.id]}
@@ -862,7 +900,7 @@ export default function HomePage() {
                   <div className="pointer-events-none transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-y-6">
                     <MissionCard
                       mission={mainMission}
-                      shouldShowResults={false}
+                      shouldShowResults={votedMissions.has(mainMission.id) || isDeadlinePassed(mainMission.deadline)}
                       onViewPick={() => { }}
                       variant="hot"
                       userChoice={userChoices[mainMission.id]}

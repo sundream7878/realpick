@@ -47,10 +47,24 @@ export async function GET() {
         if (typeof statuses !== 'object' || statuses === null) statuses = {}
         if (typeof visibility !== 'object' || visibility === null) visibility = {}
 
+        console.log('[Public Shows API] 응답 데이터:', {
+            statuses,
+            visibility,
+            customShowsCount: customShows.length
+        })
+
+        // 캐싱 방지 헤더 추가 (Netlify/Vercel 환경에서 필수)
         return NextResponse.json({ 
             statuses: statuses || {}, 
             visibility: visibility || {}, 
             customShows: customShows || [] 
+        }, {
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0',
+                'Surrogate-Control': 'no-store'
+            }
         })
     } catch (error: any) {
         console.error("❌ Error in public shows API:", error)
@@ -61,6 +75,13 @@ export async function GET() {
             statuses: {}, 
             visibility: {}, 
             customShows: [] 
-        }, { status: 500 })
+        }, { 
+            status: 500,
+            headers: {
+                'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+                'Pragma': 'no-cache',
+                'Expires': '0'
+            }
+        })
     }
 }

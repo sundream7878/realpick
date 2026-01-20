@@ -7,6 +7,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/c-ui/dialog"
 import { getUserPointLogs } from "@/lib/firebase/points"
 import { getUserId } from "@/lib/auth-utils"
@@ -40,14 +41,22 @@ export function PointHistoryModal({ isOpen, onClose, totalPoints }: PointHistory
 
   async function loadLogs() {
     const userId = getUserId()
-    if (!userId) return
+    console.log('[PointHistoryModal] 포인트 내역 로드 시작 - userId:', userId)
+    
+    if (!userId) {
+      console.warn('[PointHistoryModal] userId가 없습니다')
+      setIsLoading(false)
+      return
+    }
 
     setIsLoading(true)
     try {
       const pointLogs = await getUserPointLogs(userId)
+      console.log('[PointHistoryModal] 포인트 내역 로드 완료:', pointLogs.length, '건')
+      console.log('[PointHistoryModal] 첫 번째 로그:', pointLogs[0])
       setLogs(pointLogs)
     } catch (error) {
-      console.error("포인트 내역 로딩 실패:", error)
+      console.error('[PointHistoryModal] 포인트 내역 로딩 실패:', error)
     } finally {
       setIsLoading(false)
     }
@@ -61,6 +70,9 @@ export function PointHistoryModal({ isOpen, onClose, totalPoints }: PointHistory
             <Coins className="w-6 h-6 text-amber-500" />
             포인트 내역
           </DialogTitle>
+          <DialogDescription className="sr-only">
+            포인트 적립 및 차감 내역을 확인할 수 있습니다.
+          </DialogDescription>
         </DialogHeader>
 
         {/* 요약 영역 */}
