@@ -6,6 +6,7 @@ import { CATEGORIES, SHOWS, type TShowCategory, getShowById } from "@/lib/consta
 import { useRouter } from "next/navigation"
 import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
 import type { TMission } from "@/types/t-vote/vote.types"
+import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
 
 interface TShowMenuProps {
     category: TShowCategory
@@ -18,12 +19,16 @@ interface TShowMenuProps {
     missions?: TMission[]
 }
 
-export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses: initialShowStatuses, hasUnreadMissions, unreadMissionIds, missions }: TShowMenuProps) {
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses: initialShowStatuses, hasUnreadMissions, unreadMissionIds: propUnreadIds, missions }: TShowMenuProps) {
+    const { getUnreadCountForShow: getRealtimeUnreadCount, unreadMissionIds: hookUnreadIds } = useNewMissionNotifications()
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
     const categoryInfo = CATEGORIES[category]
     const shows = SHOWS[category] || []
+    
+    // Props와 Hook에서 온 ID들 통합
+    const unreadMissionIds = Array.from(new Set([...(propUnreadIds || []), ...(hookUnreadIds || [])]))
     
     // 실시간 업데이트를 위한 상태
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>(initialShowStatuses || {})
@@ -67,10 +72,19 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     const selectedShow = allShowsInCategory.find(s => s.id === selectedShowId)
     const isCategoryActive = !!selectedShow
     
-    // 각 프로그램별 읽지 않은 미션 개수 계산
+    // 각 프로그램별 읽지 않은 미션 개수 계산 (메모리상의 미션 목록 + 실시간 감지 목록 통합)
     const getUnreadCountForShow = (showId: string) => {
-        if (!missions || !unreadMissionIds) return 0
-        return missions.filter(m => m.showId === showId && unreadMissionIds.includes(m.id)).length
+        // 1. Hook에서 직접 제공하는 실시간 개수
+        const realtimeCount = getRealtimeUnreadCount(showId);
+        
+        // 2. Props로 전달된 미션 목록에서의 개수
+        let propsCount = 0;
+        if (missions && propUnreadIds) {
+            propsCount = missions.filter(m => m.showId === showId && propUnreadIds.includes(m.id)).length
+        }
+        
+        // 두 소스를 합치되, 중복 방지를 위해 hook 데이터가 있으면 우선함 (또는 통합 관리)
+        return Math.max(realtimeCount, propsCount);
     }
 
     // 외부 클릭 감지

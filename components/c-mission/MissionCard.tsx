@@ -11,6 +11,8 @@ import { TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
 import { getThemeColors } from "@/lib/utils/u-theme/themeUtils"
 
+import { useRouter } from "next/navigation"
+
 interface TMissionCardProps {
   mission: TMission
   shouldShowResults: boolean
@@ -30,6 +32,7 @@ export function MissionCard({
   className = "",
   userChoice,
 }: TMissionCardProps) {
+  const router = useRouter()
   let showInfo = undefined
   try {
     if (mission.showId) {
@@ -132,7 +135,11 @@ export function MissionCard({
             {displayThumbnailUrl && (
               <div 
                 className="w-20 h-12 sm:w-32 sm:h-20 rounded-lg overflow-hidden border border-gray-100 shadow-sm cursor-pointer"
-                onClick={(e) => { if (targetUrl) { e.stopPropagation(); window.open(targetUrl, "_blank"); } }}
+                onClick={(e) => { 
+                  e.stopPropagation(); 
+                  const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
+                  router.push(targetPath);
+                }}
               >
                 <img src={displayThumbnailUrl} alt="thumb" className="w-full h-full object-cover" />
               </div>

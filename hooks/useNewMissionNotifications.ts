@@ -1,23 +1,19 @@
-"use client"
-
 import { useEffect, useState } from "react"
 import { collection, query, orderBy, limit, onSnapshot, Timestamp } from "firebase/firestore"
 import { db } from "@/lib/firebase/config"
+import { normalizeShowId } from "@/lib/constants/shows"
 
 interface NewMissionData {
     id: string
     category: string
     showId: string
-    createdAt: any
+    createdAt: number
 }
 
-const UNREAD_KEY = "rp_unread_missions"
+const UNREAD_KEY = "rp_unread_missions_v3" // 버전 업데이트
 const LAST_CHECK_KEY = "rp_last_mission_check"
 
-/**
- * 읽지 않은 미션 목록 가져오기 (localStorage)
- */
-function getUnreadMissions(): string[] {
+function getUnreadMissions(): NewMissionData[] {
     if (typeof window === "undefined") return []
     try {
         const stored = localStorage.getItem(UNREAD_KEY)
@@ -27,55 +23,22 @@ function getUnreadMissions(): string[] {
     }
 }
 
-/**
- * 읽지 않은 미션 목록 저장 (localStorage)
- */
-function setUnreadMissions(ids: string[]) {
+function setUnreadMissions(missions: NewMissionData[]) {
     if (typeof window === "undefined") return
-    localStorage.setItem(UNREAD_KEY, JSON.stringify(ids))
+    localStorage.setItem(UNREAD_KEY, JSON.stringify(missions))
 }
 
-/**
- * 새로운 미션 생성 알림을 감지하는 커스텀 훅
- * Firestore onSnapshot을 사용하여 실시간으로 새 미션 감지
- */
 export function useNewMissionNotifications() {
-    const [unreadMissionIds, setUnreadMissionIds] = useState<string[]>([])
+    const [unreadMissions, setUnreadMissionsState] = useState<NewMissionData[]>([])
 
     useEffect(() => {
-        // 1. 초기 로드: localStorage에서 읽지 않은 미션 목록 가져오기
         const initialUnread = getUnreadMissions()
-        setUnreadMissionIds(initialUnread)
+        setUnreadMissionsState(initialUnread)
 
-        // 2. 마지막 확인 시간 가져오기 (이 시간 이후의 미션만 "New"로 간주)
         const lastCheckStr = localStorage.getItem(LAST_CHECK_KEY)
-        const lastCheckTime = lastCheckStr ? parseInt(lastCheckStr) : Date.now() - (24 * 60 * 60 * 1000) // 기본값 24시간 전
+        const lastCheckTime = lastCheckStr ? parseInt(lastCheckStr) : Date.now() - (24 * 60 * 60 * 1000)
 
-        // 3. 브라우저 내부 이벤트 리스너 (기존 호환성 유지)
-        const handleMarkAsRead = (event: any) => {
-            const { missionIds } = event.detail || {}
-            if (missionIds && missionIds.length > 0) {
-                setUnreadMissionIds(prev => {
-                    const updated = prev.filter(id => !missionIds.includes(id))
-                    setUnreadMissions(updated)
-                    return updated
-                })
-            }
-        }
-
-        const handleNewMissionCreated = (event: any) => {
-            const { missionId } = event.detail || {}
-            if (missionId) {
-                setUnreadMissionIds(prev => {
-                    if (prev.includes(missionId)) return prev
-                    const updated = [...prev, missionId]
-                    setUnreadMissions(updated)
-                    return updated
-                })
-            }
-        }
-
-        // 4. Firestore 실시간 리스너 설정 (missions1, missions2, ai_mission)
+        // Firestore 실시간 리스너
         const collections = ["missions1", "missions2", "ai_mission"]
         const unsubscribes = collections.map(colName => {
             const q = query(
@@ -91,12 +54,21 @@ export function useNewMissionNotifications() {
                         const missionId = change.doc.id
                         const createdAt = data.createdAt instanceof Timestamp ? data.createdAt.toMillis() : Date.now()
 
-                        // 컴포넌트 마운트 시점 또는 마지막 확인 시점 이후에 생성된 것만 처리
                         if (createdAt > lastCheckTime) {
-                            console.log(`[Notification] 실시간 새 미션 감지 (${colName}):`, missionId)
-                            setUnreadMissionIds(prev => {
-                                if (prev.includes(missionId)) return prev
-                                const updated = [...prev, missionId]
+                            // 💡 showId 정규화 추가 (한글 이름 대응)
+                            const normalizedId = normalizeShowId(data.showId) || data.showId || ""
+                            
+                            console.log(`[Notification] 새 미션 상세 감지 (${colName}):`, { missionId, showId: normalizedId })
+                            
+                            setUnreadMissionsState(prev => {
+                                if (prev.some(m => m.id === missionId)) return prev
+                                const newMission: NewMissionData = {
+                                    id: missionId,
+                                    showId: normalizedId,
+                                    category: data.category || "",
+                                    createdAt
+                                }
+                                const updated = [...prev, newMission]
                                 setUnreadMissions(updated)
                                 return updated
                             })
@@ -106,42 +78,50 @@ export function useNewMissionNotifications() {
             })
         })
 
+        const handleMarkAsRead = (event: any) => {
+            const { missionIds } = event.detail || {}
+            if (missionIds && missionIds.length > 0) {
+                setUnreadMissionsState(prev => {
+                    const updated = prev.filter(m => !missionIds.includes(m.id))
+                    setUnreadMissions(updated)
+                    return updated
+                })
+            }
+        }
+
         window.addEventListener('mark-missions-as-read', handleMarkAsRead)
-        window.addEventListener('new-mission-created', handleNewMissionCreated)
         window.addEventListener('storage', (e) => {
             if (e.key === UNREAD_KEY && e.newValue) {
-                setUnreadMissionIds(JSON.parse(e.newValue))
+                setUnreadMissionsState(JSON.parse(e.newValue))
             }
         })
 
         return () => {
             unsubscribes.forEach(unsub => unsub())
             window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
-            window.removeEventListener('new-mission-created', handleNewMissionCreated)
         }
     }, [])
 
-    /**
-     * 미션을 읽음 처리
-     */
     const markAsRead = (missionId: string) => {
-        const updated = unreadMissionIds.filter(id => id !== missionId)
+        const updated = unreadMissions.filter(m => m.id !== missionId)
         setUnreadMissions(updated)
-        setUnreadMissionIds(updated)
-        // 마지막 확인 시간 업데이트
+        setUnreadMissionsState(updated)
         localStorage.setItem(LAST_CHECK_KEY, Date.now().toString())
     }
 
     const markAllAsRead = () => {
         setUnreadMissions([])
-        setUnreadMissionIds([])
+        setUnreadMissionsState([])
         localStorage.setItem(LAST_CHECK_KEY, Date.now().toString())
     }
 
     return {
-        unreadMissionIds,
+        unreadMissions,
+        unreadMissionIds: unreadMissions.map(m => m.id),
         markAsRead,
         markAllAsRead,
-        hasUnread: unreadMissionIds.length > 0
+        hasUnread: unreadMissions.length > 0,
+        getUnreadCountForShow: (showId: string) => unreadMissions.filter(m => m.showId === showId).length,
+        getHasUnreadForCategory: (category: string) => unreadMissions.some(m => m.category === category)
     }
 }

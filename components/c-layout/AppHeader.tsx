@@ -52,12 +52,12 @@ export function AppHeader({
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showPointHistoryModal, setShowPointHistoryModal] = useState(false)
-  const { unreadMissionIds } = useNewMissionNotifications()
+  const { unreadMissionIds, getHasUnreadForCategory } = useNewMissionNotifications()
 
-  //  각 카테고리별 읽지 않은 미션 개수 계산
-  const hasUnreadLove = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "LOVE")
-  const hasUnreadVictory = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "VICTORY")
-  const hasUnreadStar = missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "STAR")
+  // 각 카테고리별 읽지 않은 미션 개수 계산 (메모리상의 미션 목록 + 실시간 감지 목록 통합 체크)
+  const hasUnreadLove = getHasUnreadForCategory("LOVE") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "LOVE")
+  const hasUnreadVictory = getHasUnreadForCategory("VICTORY") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "VICTORY")
+  const hasUnreadStar = getHasUnreadForCategory("STAR") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "STAR")
 
   useEffect(() => {
     setIsLoggedIn(isAuthenticated())

@@ -39,8 +39,16 @@ export function useNotifications() {
         fetchNotifications()
         deleteOldNotifications(userId)
 
+        // 다른 인스턴스에서의 업데이트 감지
+        const handleRefresh = () => {
+            console.log('[useNotifications] 알림 업데이트 이벤트 수신, 리프레시 실행')
+            fetchNotifications()
+        }
+
+        window.addEventListener('notifications-updated', handleRefresh)
+
         return () => {
-            // 클린업 없음
+            window.removeEventListener('notifications-updated', handleRefresh)
         }
     }, [userId])
 
@@ -59,7 +67,10 @@ export function useNotifications() {
                 prev.map(n => n.id === notificationId ? { ...n, isRead: true } : n)
             )
             setUnreadCount(prev => Math.max(0, prev - 1))
-            console.log('[useNotifications] 읽음 상태 업데이트 완료')
+            
+            // 다른 인스턴스에 알림
+            window.dispatchEvent(new CustomEvent('notifications-updated'))
+            console.log('[useNotifications] 읽음 상태 업데이트 완료 및 이벤트 발송')
         } else {
             console.error('[useNotifications] 읽음 상태 업데이트 실패')
         }
@@ -72,6 +83,9 @@ export function useNotifications() {
         if (success) {
             setNotifications(prev => prev.map(n => ({ ...n, isRead: true })))
             setUnreadCount(0)
+            
+            // 다른 인스턴스에 알림
+            window.dispatchEvent(new CustomEvent('notifications-updated'))
         }
     }
 
