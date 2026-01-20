@@ -55,14 +55,44 @@ export function useNewMissionNotifications() {
                 })
             }
         }
-        window.addEventListener('mark-missions-as-read', handleMarkAsRead)
 
-        // 임시로 Realtime 구독 비활성화 (성능 문제 해결을 위해)
-        console.log("[Realtime] 임시로 비활성화됨 - 성능 최적화를 위해")
+        // 새 미션 생성 이벤트 리스너
+        const handleNewMission = (event: any) => {
+            const { missionId } = event.detail || {}
+            if (missionId) {
+                console.log('[Notification] 새 미션 감지:', missionId)
+                setUnreadMissionIds(prev => {
+                    // 중복 체크
+                    if (prev.includes(missionId)) return prev
+                    const updated = [...prev, missionId]
+                    setUnreadMissions(updated)
+                    return updated
+                })
+            }
+        }
+
+        // localStorage 변경 감지 (다른 탭에서의 변경사항)
+        const handleStorageChange = (e: StorageEvent) => {
+            if (e.key === UNREAD_KEY && e.newValue) {
+                try {
+                    const newUnread = JSON.parse(e.newValue)
+                    setUnreadMissionIds(newUnread)
+                } catch (error) {
+                    console.error('[Notification] localStorage 파싱 실패:', error)
+                }
+            }
+        }
+
+        window.addEventListener('mark-missions-as-read', handleMarkAsRead)
+        window.addEventListener('new-mission-created', handleNewMission)
+        window.addEventListener('storage', handleStorageChange)
+
+        console.log("[Notification] 실시간 알림 활성화")
         
-        // 클린업만 반환
         return () => {
             window.removeEventListener('mark-missions-as-read', handleMarkAsRead)
+            window.removeEventListener('new-mission-created', handleNewMission)
+            window.removeEventListener('storage', handleStorageChange)
         }
     }, [])
 

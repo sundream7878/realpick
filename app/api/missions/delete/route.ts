@@ -14,14 +14,20 @@ export async function DELETE(request: Request) {
 
     const { searchParams } = new URL(request.url)
     const missionId = searchParams.get("missionId")
-    const missionType = searchParams.get("missionType") || "mission1" // mission1 or mission2
+    const missionType = searchParams.get("missionType") || "mission1" // mission1, mission2, or ai_mission
 
     if (!missionId) {
       return NextResponse.json({ error: "Mission ID is required" }, { status: 400 })
     }
 
-    // Get mission to check creator
-    const missionTable = missionType === "mission2" ? "missions2" : "missions1"
+    // Get mission to check creator - support ai_mission
+    let missionTable = "missions1"
+    if (missionType === "mission2") {
+      missionTable = "missions2"
+    } else if (missionType === "ai_mission") {
+      missionTable = "ai_mission"
+    }
+    
     const missionDoc = await adminDb.collection(missionTable).doc(missionId).get()
     
     if (!missionDoc.exists) {
@@ -51,16 +57,20 @@ export async function DELETE(request: Request) {
     const batch = adminDb.batch()
 
     // 1. Delete votes
+    // AI 미션은 pickresult1에 저장됨
     const votesCollection = missionType === "mission2" ? "pickresult2" : "pickresult1"
     const votesQuery = await adminDb.collection(votesCollection).where("missionId", "==", missionId).get()
+    console.log(`투표 데이터 삭제: ${votesQuery.size}개`)
     votesQuery.forEach(doc => batch.delete(doc.ref))
 
     // 2. Delete comments
     const commentsQuery = await adminDb.collection("comments").where("missionId", "==", missionId).get()
+    console.log(`댓글 데이터 삭제: ${commentsQuery.size}개`)
     commentsQuery.forEach(doc => batch.delete(doc.ref))
 
     // 3. Delete point logs
     const pointLogsQuery = await adminDb.collection("pointlogs").where("missionId", "==", missionId).get()
+    console.log(`포인트 로그 삭제: ${pointLogsQuery.size}개`)
     pointLogsQuery.forEach(doc => batch.delete(doc.ref))
 
     // 4. Delete the mission itself
@@ -68,7 +78,7 @@ export async function DELETE(request: Request) {
 
     await batch.commit()
 
-    console.log("미션 삭제 성공:", missionId)
+    console.log(`미션 삭제 성공: ${missionId} (테이블: ${missionTable})`)
 
     return NextResponse.json({ success: true })
   } catch (error) {

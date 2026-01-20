@@ -18,7 +18,7 @@ import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-t
 import { getUser, updateUserProfile } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import Image from "next/image"
-import { getShowByName, getShowById, CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
+import { getShowByName, getShowById, normalizeShowId, CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
 import { db } from "@/lib/firebase/config"
 import { doc, getDoc, setDoc, updateDoc } from "firebase/firestore"
 
@@ -288,7 +288,9 @@ export default function ProfilePage() {
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             if (showId) {
-              router.push(`/?show=${showId}`)
+              // showId를 영어로 정규화
+              const normalizedShowId = normalizeShowId(showId)
+              router.push(`/?show=${normalizedShowId || showId}`)
             } else {
               router.push("/")
             }

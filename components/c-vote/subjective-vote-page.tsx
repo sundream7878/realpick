@@ -18,7 +18,6 @@ import { ArrowLeft } from "lucide-react"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { isAuthenticated } from "@/lib/auth-utils"
 import { CardHeader, CardTitle } from "@/components/c-ui/card"
-import { isYoutubeUrl, getYoutubeEmbedUrl } from "@/lib/utils/u-media/youtube.util"
 
 interface SubjectiveVotePageProps {
   mission: TMission
@@ -276,30 +275,6 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
 
         </div>
       )}
-
-      {/* 참조 URL - 유튜브 임베드 플레이어 */}
-      {currentMission.referenceUrl && isYoutubeUrl(currentMission.referenceUrl) ? (
-        <div className="mt-6 flex justify-center">
-          <div className="w-full max-w-2xl">
-            <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
-              <iframe
-                className="absolute top-0 left-0 w-full h-full"
-                src={getYoutubeEmbedUrl(currentMission.referenceUrl) || ''}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      ) : currentMission.referenceUrl ? (
-        <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
-          <Link href={currentMission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            🔗 참고 링크 확인하기
-          </Link>
-        </div>
-      ) : null}
 
       {/* 제출 확인 시트 */}
       {showSubmissionSheet && (

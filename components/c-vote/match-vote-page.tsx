@@ -21,7 +21,6 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { isAuthenticated, getUserId } from "@/lib/auth-utils"
-import { isYoutubeUrl, getYoutubeEmbedUrl } from "@/lib/utils/u-media/youtube.util"
 
 interface MatchVotePageProps {
   mission: TMission
@@ -1515,30 +1514,6 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
           )}
         </div>
       )}
-
-      {/* 참조 URL - 유튜브 임베드 플레이어 */}
-      {mission.referenceUrl && isYoutubeUrl(mission.referenceUrl) ? (
-        <div className="mt-6 flex justify-center">
-          <div className="w-full max-w-2xl">
-            <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
-              <iframe
-                className="absolute top-0 left-0 w-full h-full"
-                src={getYoutubeEmbedUrl(mission.referenceUrl) || ''}
-                title="YouTube video player"
-                frameBorder="0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </div>
-      ) : mission.referenceUrl ? (
-        <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
-          <Link href={mission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-            🔗 참고 링크 확인하기
-          </Link>
-        </div>
-      ) : null}
 
       {/* 로그인 모달 */}
       <LoginModal

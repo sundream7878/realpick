@@ -46,6 +46,23 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       console.error("생성자 정보 조회 실패:", error);
     }
     
+    // 유튜브 링크인 경우 자동으로 썸네일 추출
+    let finalThumbnailUrl = missionData.imageUrl || null;
+    let finalReferenceUrl = missionData.referenceUrl || null;
+    
+    if (finalReferenceUrl) {
+      const { isYoutubeUrl, getYoutubeVideoId, getYoutubeThumbnailUrl } = await import("../utils/u-media/youtube.util");
+      
+      if (isYoutubeUrl(finalReferenceUrl)) {
+        const videoId = getYoutubeVideoId(finalReferenceUrl);
+        if (videoId && !finalThumbnailUrl) {
+          // 썸네일이 없으면 유튜브 썸네일 자동 추출
+          finalThumbnailUrl = getYoutubeThumbnailUrl(videoId, 'hqdefault');
+          console.log('유튜브 썸네일 자동 설정:', finalThumbnailUrl);
+        }
+      }
+    }
+    
     const missionPayload: any = {
       title: missionData.title,
       kind: isCouple ? "predict" : (missionData.type === "prediction" ? "predict" : missionData.type),
@@ -56,7 +73,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
       creatorNickname: creatorNickname,
       creatorTier: creatorTier,
       status: "open",
-      thumbnailUrl: missionData.imageUrl || null,
+      thumbnailUrl: finalThumbnailUrl,
+      referenceUrl: finalReferenceUrl,
+      description: missionData.description || null,
       isLive: missionData.isLive || false,
       showId: missionData.showId || null,
       category: missionData.category || null,
@@ -196,6 +215,8 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
         ...data,
         showId: normalizedShowId, // 한글 → 영어 변환
         category: category, // show에서 가져온 정확한 category
+        creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성", // 채널명을 생성자 닉네임으로
+        creatorTier: "AI", // AI 생성 미션 표시
         __table: "ai_mission", // AI 미션임을 표시
         isAIMission: true // AI 미션 플래그
       };
@@ -308,6 +329,8 @@ export const getMissionById = cache(async (missionId: string): Promise<{ success
           ...data, 
           showId: normalizedShowId,
           category: show ? show.category : data.category,
+          creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성", // 채널명을 생성자 닉네임으로
+          creatorTier: "AI", // AI 생성 미션 표시
           __table: "ai_mission", 
           isAIMission: true 
         } 

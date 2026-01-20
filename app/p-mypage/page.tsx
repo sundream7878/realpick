@@ -27,7 +27,7 @@ import { getUser } from "@/lib/firebase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getShowByName, getShowById, CATEGORIES, SHOWS } from "@/lib/constants/shows"
+import { getShowByName, getShowById, normalizeShowId, CATEGORIES, SHOWS } from "@/lib/constants/shows"
 import type { TShowCategory } from "@/lib/constants/shows"
 
 const ITEMS_PER_PAGE = 10
@@ -49,6 +49,7 @@ export default function MyPage() {
   const [userChoices, setUserChoices] = useState<Record<string, any>>({})
   const [answerDrafts, setAnswerDrafts] = useState<Record<string, string>>({})
   const [matchAnswerDrafts, setMatchAnswerDrafts] = useState<Record<string, Array<{ left: string; right: string }>>>({})
+  const [matchPairSelections, setMatchPairSelections] = useState<Record<string, Record<string, string>>>({})
   const [selectedMissionForView, setSelectedMissionForView] = useState<TMission | null>(null)
   const [isPickViewModalOpen, setIsPickViewModalOpen] = useState(false)
   const [filterCategory, setFilterCategory] = useState<TShowCategory | "ALL">("ALL")
@@ -60,6 +61,7 @@ export default function MyPage() {
   const [submittingMissionId, setSubmittingMissionId] = useState<string | null>(null)
   
   const userId = getUserId()
+  const { toast } = useToast()
 
   // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
@@ -143,10 +145,13 @@ export default function MyPage() {
 
       if (createdResult.success && createdResult.missions) {
         const created: TMission[] = createdResult.missions.map((mission: any) => {
+          // showId 정규화 (한글 → 영어)
+          const normalizedShowId = normalizeShowId(mission.showId)
+          
           if (mission.__table === "missions2") {
             return {
               id: mission.id,
-              showId: mission.showId,
+              showId: normalizedShowId,
               title: mission.title,
               kind: mission.kind || "predict",
               form: "match",
@@ -177,10 +182,10 @@ export default function MyPage() {
               isLive: mission.isLive,
             } as TMission
           }
-
+          
           return {
             id: mission.id,
-            showId: mission.showId,
+            showId: normalizedShowId,
             title: mission.title,
             kind: mission.kind,
             form: mission.form,
@@ -218,33 +223,38 @@ export default function MyPage() {
         const choicesMap = await getUserVotesMap(userId, participatedIds)
         setUserChoices(choicesMap)
 
-        const participated: TMission[] = participatedResult.missions.map((mission: any) => ({
-          id: mission.id,
-          showId: mission.showId,
-          title: mission.title,
-          kind: mission.kind,
-          form: mission.form,
-          seasonType: mission.seasonType || "전체",
-          seasonNumber: mission.seasonNumber || undefined,
-          options: mission.options || [],
-          deadline: mission.deadline,
-          revealPolicy: mission.revealPolicy,
-          status: mission.status,
-          stats: {
-            participants: mission.participants || 0,
-            totalVotes: mission.totalVotes || 0,
-          },
-          result: {
-            distribution: mission.optionVoteCounts || {},
-            correctAnswer: mission.correctAnswer || undefined,
-            majorityOption: mission.majorityOption || undefined,
-            totalVotes: mission.totalVotes || 0,
-          },
-          createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
-          thumbnailUrl: mission.thumbnailUrl,
-          referenceUrl: mission.referenceUrl,
-          isLive: mission.isLive,
-        }))
+        const participated: TMission[] = participatedResult.missions.map((mission: any) => {
+          // showId 정규화 (한글 → 영어)
+          const normalizedShowId = normalizeShowId(mission.showId)
+          
+          return {
+            id: mission.id,
+            showId: normalizedShowId,
+            title: mission.title,
+            kind: mission.kind,
+            form: mission.form,
+            seasonType: mission.seasonType || "전체",
+            seasonNumber: mission.seasonNumber || undefined,
+            options: mission.options || [],
+            deadline: mission.deadline,
+            revealPolicy: mission.revealPolicy,
+            status: mission.status,
+            stats: {
+              participants: mission.participants || 0,
+              totalVotes: mission.totalVotes || 0,
+            },
+            result: {
+              distribution: mission.optionVoteCounts || {},
+              correctAnswer: mission.correctAnswer || undefined,
+              majorityOption: mission.majorityOption || undefined,
+              totalVotes: mission.totalVotes || 0,
+            },
+            createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
+            thumbnailUrl: mission.thumbnailUrl,
+            referenceUrl: mission.referenceUrl,
+            isLive: mission.isLive,
+          }
+        })
         setParticipatedMissions(participated)
       }
     } catch (error) {
@@ -1095,7 +1105,9 @@ export default function MyPage() {
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             if (showId) {
-              router.push(`/?show=${showId}`)
+              // showId를 영어로 정규화
+              const normalizedShowId = normalizeShowId(showId)
+              router.push(`/?show=${normalizedShowId || showId}`)
             } else {
               router.push("/")
             }

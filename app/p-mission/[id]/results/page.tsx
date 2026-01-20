@@ -7,7 +7,7 @@ import { Badge } from "@/components/c-ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/c-ui/avatar"
 import { Progress } from "@/components/c-ui/progress"
 import { useRouter } from "next/navigation"
-import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2 } from "lucide-react"
+import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2, ExternalLink } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
 import { getMissionById } from "@/lib/firebase/missions"
@@ -44,7 +44,7 @@ import {
 } from "@/components/c-ui/alert-dialog"
 
 import { calculatePotentialPoints } from "@/lib/utils/u-points/pointSystem.util"
-import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { getShowByName, getShowById, normalizeShowId } from "@/lib/constants/shows"
 import { isYoutubeUrl, getYoutubeEmbedUrl } from "@/lib/utils/u-media/youtube.util"
 
 function calculateEarnedPoints(mission: TMission, userVote: any): number {
@@ -115,6 +115,17 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
   const [customShows, setCustomShows] = useState<any[]>([])
 
+  // 🔔 미션 읽음 처리 (페이지 진입 시)
+  useEffect(() => {
+    if (params.id) {
+      // 읽음 처리 이벤트 발생
+      window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
+        detail: { missionIds: [params.id] }
+      }))
+      console.log('[Notification] 미션 읽음 처리:', params.id)
+    }
+  }, [params.id])
+
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
     const cleanup = setupShowStatusSync(
@@ -161,8 +172,15 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
     setIsDeleting(true)
     try {
-      const missionType = mission.form === "match" ? "mission2" : "mission1"
-      console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId: currentUserId })
+      // AI 미션, 커플 매칭, 일반 미션 구분
+      let missionType = "mission1"
+      if ((mission as any).isAIMission || (mission as any).__table === "ai_mission") {
+        missionType = "ai_mission"
+      } else if (mission.form === "match") {
+        missionType = "mission2"
+      }
+      
+      console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId: currentUserId, isAIMission: (mission as any).isAIMission })
       
       // Firebase 인증 토큰 가져오기
       const token = await auth.currentUser?.getIdToken()
@@ -233,11 +251,26 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               result: {
                 distribution: {},
                 finalAnswer: rawMission.finalAnswer || undefined,
-                totalVotes: rawMission.totalVotes || 0
+                totalVotes: rawMission.totalVotes || 0,
+                ranking: rawMission.ranking || {}
               },
               createdAt: rawMission.createdAt?.toDate?.()?.toISOString() || rawMission.createdAt,
               showId: rawMission.showId,
-              category: rawMission.category
+              category: rawMission.category,
+              creatorNickname: rawMission.creatorNickname,
+              creatorTier: rawMission.creatorTier,
+              referenceUrl: rawMission.referenceUrl,
+              thumbnailUrl: rawMission.thumbnailUrl,
+              description: rawMission.description,
+              __table: rawMission.__table, // 테이블 정보 보존
+              isAIMission: rawMission.isAIMission // AI 미션 플래그 보존
+            } as any
+            
+            // 🏆 커플 매칭 미션의 랭킹 데이터 설정
+            if (rawMission.ranking) {
+              const rankingArray = Object.values(rawMission.ranking).sort((a: any, b: any) => b.score - a.score)
+              setRanking(rankingArray)
+              console.log('[Results Page] 랭킹 데이터 로드:', rankingArray)
             }
           } else {
             missionData = {
@@ -265,8 +298,15 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
               },
               createdAt: rawMission.createdAt?.toDate?.()?.toISOString() || rawMission.createdAt,
               showId: rawMission.showId,
-              category: rawMission.category
-            }
+              category: rawMission.category,
+              creatorNickname: rawMission.creatorNickname,
+              creatorTier: rawMission.creatorTier,
+              referenceUrl: rawMission.referenceUrl,
+              thumbnailUrl: rawMission.thumbnailUrl,
+              description: rawMission.description,
+              __table: rawMission.__table, // 테이블 정보 보존
+              isAIMission: rawMission.isAIMission // AI 미션 플래그 보존
+            } as any
           }
 
           console.log('[Results Page] 로드된 미션 데이터:', {
@@ -337,7 +377,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         if (missionData) {
           setMission(missionData)
           if (missionData.showId) {
-            setSelectedShowId(missionData.showId)
+            // showId를 영어로 정규화
+            const normalizedShowId = normalizeShowId(missionData.showId)
+            setSelectedShowId(normalizedShowId || missionData.showId)
           }
           setUserVote(userVoteData)
 
@@ -453,7 +495,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             }}
             onShowSelect={(showId) => {
               if (showId) {
-                router.push(`/?show=${showId}`)
+                // showId를 영어로 정규화
+                const normalizedShowId = normalizeShowId(showId)
+                router.push(`/?show=${normalizedShowId || showId}`)
               } else {
                 router.push("/")
               }
@@ -535,7 +579,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             }}
             onShowSelect={(showId) => {
               if (showId) {
-                router.push(`/?show=${showId}`)
+                // showId를 영어로 정규화
+                const normalizedShowId = normalizeShowId(showId)
+                router.push(`/?show=${normalizedShowId || showId}`)
               } else {
                 router.push("/")
               }
@@ -565,8 +611,16 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
               <div className="space-y-6">
                 <div className="space-y-4">
-                  <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-lg md:text-xl font-bold text-gray-900 truncate flex-1">{mission.title}</h1>
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 space-y-2">
+                      <h1 className="text-lg md:text-xl font-bold text-gray-900">{mission.title}</h1>
+                      {/* 미션 생성자 닉네임 */}
+                      {mission.creatorNickname && (
+                        <div className="text-sm text-gray-600">
+                          <span className="text-gray-500">생성자:</span> <span className="font-medium">{mission.creatorNickname}</span>
+                        </div>
+                      )}
+                    </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {isAdminUser && (
                         <Button
@@ -637,30 +691,6 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     )}
                   </div>
                 </div >
-
-                {/* 참조 URL - 유튜브 임베드 플레이어 */}
-                {mission.referenceUrl && isYoutubeUrl(mission.referenceUrl) ? (
-                  <div className="mt-6 flex justify-center">
-                    <div className="w-full max-w-2xl">
-                      <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
-                        <iframe
-                          className="absolute top-0 left-0 w-full h-full"
-                          src={getYoutubeEmbedUrl(mission.referenceUrl) || ''}
-                          title="YouTube video player"
-                          frameBorder="0"
-                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                          allowFullScreen
-                        />
-                      </div>
-                    </div>
-                  </div>
-                ) : mission.referenceUrl ? (
-                  <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
-                    <Link href={mission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
-                      🔗 참고 링크 확인하기
-                    </Link>
-                  </div>
-                ) : null}
 
                 {userVote && successComment && mission.deadline && isDeadlinePassed(mission.deadline) && (
                   <Card
@@ -850,6 +880,30 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                   </Card>
                 )}
 
+                {/* 참조 URL - 유튜브 임베드 플레이어 */}
+                {mission.referenceUrl && isYoutubeUrl(mission.referenceUrl) ? (
+                  <div className="mt-6 flex justify-center">
+                    <div className="w-full max-w-2xl">
+                      <div className="relative w-full overflow-hidden rounded-lg shadow-md" style={{ paddingBottom: '56.25%' }}>
+                        <iframe
+                          className="absolute top-0 left-0 w-full h-full"
+                          src={getYoutubeEmbedUrl(mission.referenceUrl) || ''}
+                          title="YouTube video player"
+                          frameBorder="0"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ) : mission.referenceUrl ? (
+                  <div className="flex items-center gap-2 text-sm text-blue-600 mt-6">
+                    <Link href={mission.referenceUrl} target="_blank" rel="noopener noreferrer" className="hover:underline flex items-center gap-1">
+                      🔗 참고 링크 확인하기
+                    </Link>
+                  </div>
+                ) : null}
+
                 {/* 주관식 정답 및 내 답변 표시 (정산 완료 시) */}
                 {mission.submissionType === "text" && mission.status === "settled" && (
                   <Card>
@@ -976,7 +1030,9 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     variant="outline"
                     className="flex-1 min-w-0 px-2 py-2 sm:px-6 sm:py-4 text-[10px] sm:text-base font-bold border-2 border-purple-600 text-purple-600 hover:bg-purple-50 shadow-md hover:shadow-lg transition-all duration-200 rounded-xl"
                     onClick={() => {
-                      const missionsUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
+                      // showId를 영어로 정규화하여 URL 생성
+                      const normalizedShowId = normalizeShowId(selectedShowId)
+                      const missionsUrl = normalizedShowId ? `/?show=${normalizedShowId}` : "/"
                       router.push(missionsUrl)
                     }}
                   >

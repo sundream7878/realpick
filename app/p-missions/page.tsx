@@ -21,7 +21,7 @@ import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-sys
 import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import { getUser } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
-import { getShowByName, getShowById } from "@/lib/constants/shows"
+import { getShowByName, getShowById, normalizeShowId } from "@/lib/constants/shows"
 
 export default function MissionsPage() {
   const router = useRouter()
@@ -92,7 +92,9 @@ export default function MissionsPage() {
             createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
             thumbnailUrl: mission.thumbnailUrl,
             referenceUrl: mission.referenceUrl,
-            isLive: mission.isLive
+            isLive: mission.isLive,
+            creatorNickname: mission.creatorNickname,
+            creatorTier: mission.creatorTier
           }))
         }
 
@@ -131,7 +133,9 @@ export default function MissionsPage() {
             createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
             thumbnailUrl: mission.thumbnailUrl,
             referenceUrl: mission.referenceUrl,
-            isLive: mission.isLive
+            isLive: mission.isLive,
+            creatorNickname: mission.creatorNickname,
+            creatorTier: mission.creatorTier
           }))
         }
 
@@ -166,6 +170,8 @@ export default function MissionsPage() {
                 deadline: mission.deadline,
                 revealPolicy: mission.revealPolicy || "realtime",
                 status: mission.status,
+                creatorNickname: mission.channelName || mission.creatorNickname || mission.creator || "AI 생성",
+                creatorTier: "AI",
                 stats: {
                   participants: mission.participants || 0,
                   totalVotes: mission.totalVotes || 0
@@ -428,7 +434,9 @@ export default function MissionsPage() {
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             if (showId) {
-              router.push(`/?show=${showId}`)
+              // showId를 영어로 정규화
+              const normalizedShowId = normalizeShowId(showId)
+              router.push(`/?show=${normalizedShowId || showId}`)
             } else {
               router.push("/")
             }

@@ -24,7 +24,7 @@ import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { getMainMissionId } from "@/lib/firebase/admin-settings"
-import { getShowById } from "@/lib/constants/shows"
+import { getShowById, normalizeShowId } from "@/lib/constants/shows"
 
 export default function HomePage() {
   const router = useRouter()
@@ -525,9 +525,11 @@ export default function HomePage() {
             onAvatarClick={() => {}}
             selectedShowId={selectedShowId}
             onShowSelect={(showId) => {
-              setSelectedShowId(showId)
+              // showId를 영어로 정규화
+              const normalizedShowId = normalizeShowId(showId)
+              setSelectedShowId(normalizedShowId || showId)
               // URL 업데이트
-              router.push(`/?show=${showId}`)
+              router.push(`/?show=${normalizedShowId || showId}`)
               window.scrollTo({ top: 0, behavior: 'smooth' })
             }}
             activeShowIds={activeShowIds}

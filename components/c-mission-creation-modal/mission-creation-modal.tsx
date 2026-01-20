@@ -20,6 +20,7 @@ import { canCreateMission, hasMinimumRole, getRoleDisplayName } from "@/lib/util
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getUserId } from "@/lib/auth-utils"
 import { onAuthStateChanged } from "firebase/auth"
+import { isYoutubeUrl, getYoutubeVideoId, getYoutubeThumbnailUrl } from "@/lib/utils/u-media/youtube.util"
 
 interface MissionCreationModalProps {
   isOpen: boolean
@@ -286,6 +287,22 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     }
   }, [isOpen, initialShowId])
 
+  // 유튜브 링크 감지 및 자동 썸네일 추출
+  useEffect(() => {
+    if (referenceUrl && isYoutubeUrl(referenceUrl)) {
+      const videoId = getYoutubeVideoId(referenceUrl)
+      if (videoId) {
+        const thumbnailUrl = getYoutubeThumbnailUrl(videoId, 'hqdefault')
+        console.log('유튜브 썸네일 자동 추출:', thumbnailUrl)
+        setImageUrl(thumbnailUrl)
+        toast({
+          title: "유튜브 썸네일 자동 추출",
+          description: "유튜브 영상의 썸네일이 자동으로 설정되었습니다.",
+        })
+      }
+    }
+  }, [referenceUrl])
+
       const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0]
         if (!file) return
@@ -506,6 +523,14 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       }
 
       console.log("미션 게시 성공:", result.missionId)
+
+      // 🔔 새 미션 생성 이벤트 발생 (실시간 알림용)
+      if (result.missionId) {
+        window.dispatchEvent(new CustomEvent('new-mission-created', {
+          detail: { missionId: result.missionId }
+        }))
+        console.log('[Notification] 새 미션 생성 이벤트 발생:', result.missionId)
+      }
 
       setShowAIModal(false)
       onClose()
