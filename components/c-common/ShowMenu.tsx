@@ -32,18 +32,30 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
 
     // 초기 showStatuses가 변경되면 동기화
     useEffect(() => {
+        console.log('[ShowMenu] initialShowStatuses 변경 감지:', initialShowStatuses)
         if (initialShowStatuses) {
             setShowStatuses(initialShowStatuses)
+            console.log('[ShowMenu] showStatuses 업데이트 완료:', initialShowStatuses)
         }
     }, [initialShowStatuses])
 
     // 실시간 업데이트 이벤트 리스너 및 데이터 로드
     useEffect(() => {
+        console.log('[ShowMenu] setupShowStatusSync 초기화 시작')
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
         const cleanup = setupShowStatusSync(
-            setShowStatuses,
-            setShowVisibility,
-            setCustomShows
+            (statuses) => {
+                console.log('[ShowMenu] showStatuses 업데이트됨:', statuses)
+                setShowStatuses(statuses)
+            },
+            (visibility) => {
+                console.log('[ShowMenu] showVisibility 업데이트됨:', visibility)
+                setShowVisibility(visibility)
+            },
+            (shows) => {
+                console.log('[ShowMenu] customShows 업데이트됨:', shows)
+                setCustomShows(shows)
+            }
         )
 
         return cleanup
@@ -197,7 +209,11 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     <div className="py-1 sm:py-1.5">
                         {allShowsInCategory.filter(show => showVisibility[show.id] !== false).slice().sort((a, b) => {
                             // Status Priority: ACTIVE (0) > UNDECIDED (1) > UPCOMING (2)
-                            const getStatus = (id: string) => showStatuses?.[id] || 'ACTIVE'
+                            const getStatus = (id: string) => {
+                                const status = showStatuses?.[id] || 'ACTIVE'
+                                console.log(`[ShowMenu] ${id} 상태:`, status)
+                                return status
+                            }
                             const getPriority = (status: string) => {
                                 if (status === 'ACTIVE') return 0
                                 if (status === 'UNDECIDED') return 1

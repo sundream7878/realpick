@@ -23,7 +23,31 @@ const getAdminConfig = () => {
   }
 
   // 프라이빗 키의 줄바꿈 처리 및 따옴표 제거
-  privateKey = privateKey.replace(/\\n/g, "\n").replace(/^"(.*)"$/, "$1");
+  if (privateKey) {
+    // 1. 역슬래시+n 문자열을 실제 줄바꿈 문자로 변환
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    // 2. 앞뒤의 모든 종류의 따옴표(쌍따옴표, 홑따옴표) 제거
+    // 여러 번 감싸져 있을 경우를 대비해 반복적으로 제거
+    while (
+      (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+      (privateKey.startsWith("'") && privateKey.endsWith("'"))
+    ) {
+      privateKey = privateKey.slice(1, -1);
+    }
+    
+    // 3. 앞뒤 공백 제거
+    privateKey = privateKey.trim();
+
+    // 4. 만약 여전히 따옴표가 포함되어 있다면 (예: \"... \") 추가 처리
+    privateKey = privateKey.replace(/\\"/g, '"').replace(/\\'/g, "'");
+  }
+
+  console.log('[Firebase Admin] 프라이빗 키 처리 완료:', {
+    length: privateKey?.length,
+    startsWith: privateKey?.substring(0, 20),
+    endsWith: privateKey?.substring(privateKey.length - 20)
+  });
 
   return {
     projectId,
