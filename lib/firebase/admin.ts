@@ -1,8 +1,11 @@
 import * as admin from "firebase-admin";
 
 const getAdminConfig = () => {
-  const projectId = process.env.FIREBASE_PROJECT_ID;
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL;
+  // 1. 모든 환경 변수에 대해 강력한 공백 및 특수 문자 제거
+  const cleanValue = (val: string | undefined) => val?.replace(/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g, '');
+  
+  const projectId = cleanValue(process.env.FIREBASE_PROJECT_ID);
+  const clientEmail = cleanValue(process.env.FIREBASE_CLIENT_EMAIL);
   let privateKey = process.env.FIREBASE_PRIVATE_KEY;
 
   console.log('[Firebase Admin] 환경 변수 체크:', {
@@ -14,39 +17,42 @@ const getAdminConfig = () => {
   });
 
   if (!projectId || !clientEmail || !privateKey) {
-    console.error("❌ Firebase Admin 환경 변수가 누락되었습니다:");
-    console.error("  - FIREBASE_PROJECT_ID:", !!projectId);
-    console.error("  - FIREBASE_CLIENT_EMAIL:", !!clientEmail);
-    console.error("  - FIREBASE_PRIVATE_KEY:", !!privateKey);
-    console.error("배포 환경(Vercel 등)의 환경 변수 설정을 확인해주세요.");
+    console.error("❌ Firebase Admin 환경 변수가 누락되었습니다.");
     return null;
   }
 
-  // 프라이빗 키의 줄바꿈 처리 및 따옴표 제거
+  // 2. 이메일 내부의 프로젝트 ID와 설정된 ID가 일치하는지 확인 (디버깅용)
+  const emailProjectId = clientEmail.split('@')[1]?.split('.')[0];
+  if (emailProjectId && projectId !== emailProjectId) {
+    console.warn(`⚠️ 경고: FIREBASE_PROJECT_ID(${projectId})와 이메일 도메인(${emailProjectId})이 일치하지 않을 수 있습니다.`);
+  }
+
+  // 3. 프라이빗 키 정밀 처리
   if (privateKey) {
-    // 1. 역슬래시+n 문자열을 실제 줄바꿈 문자로 변환
-    privateKey = privateKey.replace(/\\n/g, '\n');
-    
-    // 2. 앞뒤의 모든 종류의 따옴표(쌍따옴표, 홑따옴표) 제거
-    // 여러 번 감싸져 있을 경우를 대비해 반복적으로 제거
+    privateKey = privateKey.trim();
+
+    // 앞뒤 따옴표 제거 (여러 겹일 경우 포함)
     while (
       (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
       (privateKey.startsWith("'") && privateKey.endsWith("'"))
     ) {
-      privateKey = privateKey.slice(1, -1);
+      privateKey = privateKey.slice(1, -1).trim();
     }
     
-    // 3. 앞뒤 공백 제거
-    privateKey = privateKey.trim();
+    // 역슬래시+n 문자열을 실제 줄바꿈 문자로 변환
+    privateKey = privateKey.replace(/\\n/g, '\n');
+    
+    // 만약 \r\n이 섞여 있다면 \n으로 통일
+    privateKey = privateKey.replace(/\r\n/g, '\n');
 
-    // 4. 만약 여전히 따옴표가 포함되어 있다면 (예: \"... \") 추가 처리
+    // 이스케이프된 따옴표 처리
     privateKey = privateKey.replace(/\\"/g, '"').replace(/\\'/g, "'");
   }
 
-  console.log('[Firebase Admin] 프라이빗 키 처리 완료:', {
+  console.log('[Firebase Admin] 프라이빗 키 처리 결과:', {
     length: privateKey?.length,
-    startsWith: privateKey?.substring(0, 20),
-    endsWith: privateKey?.substring(privateKey.length - 20)
+    startsWith: privateKey?.substring(0, 30),
+    isProperFormat: privateKey?.includes('BEGIN PRIVATE KEY') && privateKey?.includes('END PRIVATE KEY')
   });
 
   return {
@@ -65,7 +71,12 @@ if (!admin.apps.length) {
   if (config) {
     try {
       admin.initializeApp({
-        credential: admin.credential.cert(config),
+        credential: admin.credential.cert({
+          projectId: config.projectId,
+          clientEmail: config.clientEmail,
+          privateKey: config.privateKey,
+        }),
+        projectId: config.projectId, // 명시적으로 한 번 더 지정
       });
       console.log("✅ Firebase Admin SDK 초기화 성공");
       
@@ -74,18 +85,9 @@ if (!admin.apps.length) {
       adminStorage = admin.storage();
     } catch (error) {
       console.error("❌ Firebase Admin SDK 초기화 실패:", error);
-      adminDb = null;
-      adminAuth = null;
-      adminStorage = null;
     }
-  } else {
-    console.error("❌ Firebase Admin 설정을 가져올 수 없습니다. 환경 변수를 확인하세요.");
-    adminDb = null;
-    adminAuth = null;
-    adminStorage = null;
   }
 } else {
-  // 이미 초기화된 경우
   adminDb = admin.firestore();
   adminAuth = admin.auth();
   adminStorage = admin.storage();
