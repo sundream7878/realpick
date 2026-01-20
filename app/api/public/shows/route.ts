@@ -6,14 +6,39 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
     try {
         console.log('[Public Shows API] 요청 시작');
+        console.log('[Public Shows API] 환경 변수 체크:', {
+            hasProjectId: !!process.env.FIREBASE_PROJECT_ID,
+            hasClientEmail: !!process.env.FIREBASE_CLIENT_EMAIL,
+            hasPrivateKey: !!process.env.FIREBASE_PRIVATE_KEY,
+        });
         
         // adminDb가 제대로 초기화되었는지 확인
         if (!adminDb) {
-            console.error('[Public Shows API] adminDb가 초기화되지 않았습니다');
-            throw new Error('Firebase Admin DB가 초기화되지 않았습니다');
+            console.error('[Public Shows API] ❌ adminDb가 초기화되지 않았습니다');
+            console.error('[Public Shows API] Netlify 환경 변수 설정을 확인하세요:');
+            console.error('  1. Netlify Dashboard → Site settings → Environment variables');
+            console.error('  2. 다음 변수들이 설정되어 있는지 확인:');
+            console.error('     - FIREBASE_PROJECT_ID');
+            console.error('     - FIREBASE_CLIENT_EMAIL');
+            console.error('     - FIREBASE_PRIVATE_KEY');
+            
+            return NextResponse.json({ 
+                error: 'Firebase Admin DB가 초기화되지 않았습니다. 환경 변수를 확인하세요.',
+                details: 'Netlify 대시보드에서 FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, FIREBASE_PRIVATE_KEY 환경 변수를 설정해야 합니다.',
+                statuses: {}, 
+                visibility: {}, 
+                customShows: [] 
+            }, { 
+                status: 500,
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0',
+                    'Pragma': 'no-cache',
+                    'Expires': '0'
+                }
+            });
         }
         
-        console.log('[Public Shows API] adminDb 초기화 확인 완료');
+        console.log('[Public Shows API] ✅ adminDb 초기화 확인 완료');
         const settingsRef = adminDb.collection("admin_settings")
         
         console.log('[Public Shows API] 문서 조회 중...');

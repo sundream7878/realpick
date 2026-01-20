@@ -32,6 +32,10 @@ const getAdminConfig = () => {
   };
 };
 
+let adminDb: admin.firestore.Firestore | null = null;
+let adminAuth: admin.auth.Auth | null = null;
+let adminStorage: admin.storage.Storage | null = null;
+
 if (!admin.apps.length) {
   const config = getAdminConfig();
   if (config) {
@@ -40,15 +44,29 @@ if (!admin.apps.length) {
         credential: admin.credential.cert(config),
       });
       console.log("✅ Firebase Admin SDK 초기화 성공");
+      
+      adminDb = admin.firestore();
+      adminAuth = admin.auth();
+      adminStorage = admin.storage();
     } catch (error) {
       console.error("❌ Firebase Admin SDK 초기화 실패:", error);
+      adminDb = null;
+      adminAuth = null;
+      adminStorage = null;
     }
+  } else {
+    console.error("❌ Firebase Admin 설정을 가져올 수 없습니다. 환경 변수를 확인하세요.");
+    adminDb = null;
+    adminAuth = null;
+    adminStorage = null;
   }
+} else {
+  // 이미 초기화된 경우
+  adminDb = admin.firestore();
+  adminAuth = admin.auth();
+  adminStorage = admin.storage();
+  console.log("✅ Firebase Admin SDK 이미 초기화됨");
 }
-
-const adminDb = admin.firestore();
-const adminAuth = admin.auth();
-const adminStorage = admin.storage();
 
 export { adminDb, adminAuth, adminStorage };
 
