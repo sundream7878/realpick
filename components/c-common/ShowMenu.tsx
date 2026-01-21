@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation"
 import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
+import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 
 interface TShowMenuProps {
     category: TShowCategory
@@ -17,10 +18,12 @@ interface TShowMenuProps {
     hasUnreadMissions?: boolean
     unreadMissionIds?: string[]
     missions?: TMission[]
+    aliveCount?: number
+    showCounts?: Record<string, number>
 }
 
-export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses: initialShowStatuses, hasUnreadMissions, unreadMissionIds: propUnreadIds, missions }: TShowMenuProps) {
-    const { getUnreadCountForShow: getRealtimeUnreadCount, unreadMissionIds: hookUnreadIds } = useNewMissionNotifications()
+export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds, showStatuses: initialShowStatuses, hasUnreadMissions, unreadMissionIds: propUnreadIds, missions, aliveCount, showCounts }: TShowMenuProps) {
+    const { getUnreadCountForShow: getRealtimeUnreadCount, unreadMissionIds: hookUnreadIds, unreadMissions: hookUnreadMissions } = useNewMissionNotifications()
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
@@ -72,19 +75,26 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     const selectedShow = allShowsInCategory.find(s => s.id === selectedShowId)
     const isCategoryActive = !!selectedShow
     
-    // 각 프로그램별 읽지 않은 미션 개수 계산 (메모리상의 미션 목록 + 실시간 감지 목록 통합)
+    // 각 프로그램별 읽지 않은 미션 개수 계산 (실시간 감지 목록 + Props 통합)
     const getUnreadCountForShow = (showId: string) => {
-        // 1. Hook에서 직접 제공하는 실시간 개수
-        const realtimeCount = getRealtimeUnreadCount(showId);
+        // 1. Hook에서 관리하는 실시간 미션들 중 해당 프로그램의 것
+        const realtimeIds = hookUnreadMissions
+            .filter(m => m.showId === showId)
+            .map(m => m.id)
+            
+        // 2. Props로 전달된 미션들 중 해당 프로그램의 것
+        const propIds = missions && propUnreadIds
+            ? missions.filter(m => m.showId === showId && propUnreadIds.includes(m.id)).map(m => m.id)
+            : []
+            
+        // 통합 (중복 제거)
+        const combinedIds = Array.from(new Set([...realtimeIds, ...propIds]))
         
-        // 2. Props로 전달된 미션 목록에서의 개수
-        let propsCount = 0;
-        if (missions && propUnreadIds) {
-            propsCount = missions.filter(m => m.showId === showId && propUnreadIds.includes(m.id)).length
+        if (combinedIds.length > 0) {
+            console.log(`[ShowMenu] ${showId} unread count:`, combinedIds.length, combinedIds)
         }
         
-        // 두 소스를 합치되, 중복 방지를 위해 hook 데이터가 있으면 우선함 (또는 통합 관리)
-        return Math.max(realtimeCount, propsCount);
+        return combinedIds.length
     }
 
     // 외부 클릭 감지
@@ -107,18 +117,22 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     const handleShowClick = (showId: string) => {
         setIsOpen(false)
         
-        // 해당 프로그램의 모든 읽지 않은 미션들을 읽음 처리
-        if (unreadMissionIds && missions) {
-            const unreadIdsForShow = missions
-                .filter(m => m.showId === showId && unreadMissionIds.includes(m.id))
-                .map(m => m.id)
+        // 1. Props로 전달된 미션들 중 해당 프로그램의 미션들
+        const unreadFromProps = missions 
+            ? missions.filter(m => m.showId === showId && propUnreadIds?.includes(m.id)).map(m => m.id)
+            : []
             
-            if (unreadIdsForShow.length > 0) {
-                // 이벤트를 발생시켜 useNewMissionNotifications에서 상태 업데이트 유도
-                window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
-                    detail: { missionIds: unreadIdsForShow }
-                }))
-            }
+        // 2. Hook(실시간)에서 감지된 해당 프로그램의 미션들
+        const unreadFromHook = hookUnreadMissions
+            .filter(m => m.showId === showId)
+            .map(m => m.id)
+            
+        const allUnreadIds = Array.from(new Set([...unreadFromProps, ...unreadFromHook]))
+        
+        if (allUnreadIds.length > 0) {
+            window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
+                detail: { missionIds: allUnreadIds }
+            }))
         }
 
         if (onShowSelect) {
@@ -158,14 +172,22 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
         setIsOpen(nextState)
         
         // 메뉴를 열 때 해당 카테고리의 모든 미션을 읽음 처리
-        if (nextState && hasUnreadMissions && unreadMissionIds && missions) {
-            const unreadIdsForCategory = missions
-                .filter(m => m.showId && getShowById(m.showId)?.category === category && unreadMissionIds.includes(m.id))
-                .map(m => m.id)
+        if (nextState && (hasUnreadMissions || hookUnreadMissions.some(m => m.category === category))) {
+            // 1. Props 기준
+            const unreadFromProps = missions
+                ? missions.filter(m => m.showId && getShowById(m.showId)?.category === category && propUnreadIds?.includes(m.id)).map(m => m.id)
+                : []
             
-            if (unreadIdsForCategory.length > 0) {
+            // 2. Hook 기준
+            const unreadFromHook = hookUnreadMissions
+                .filter(m => m.category === category)
+                .map(m => m.id)
+                
+            const allUnreadIds = Array.from(new Set([...unreadFromProps, ...unreadFromHook]))
+            
+            if (allUnreadIds.length > 0) {
                 window.dispatchEvent(new CustomEvent('mark-missions-as-read', {
-                    detail: { missionIds: unreadIdsForCategory }
+                    detail: { missionIds: allUnreadIds }
                 }))
             }
         }
@@ -200,10 +222,27 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
                 />
 
-                {/* 읽지 않은 미션 배지 - 버튼 내부 우측에 위치 */}
-                {hasUnreadMissions && (
-                    <div className="ml-0.5 flex-shrink-0 scale-75 sm:scale-90">
-                        <BreathingLightBadge />
+                {/* 카테고리별 또는 선택된 프로그램별 살아있는 미션 개수 배지 (Trendy UI) */}
+                {((isCategoryActive && selectedShowId && showCounts?.[selectedShowId]) || (!isCategoryActive && aliveCount > 0)) && (
+                    <div className="relative ml-1 flex-shrink-0">
+                        <span className={`
+                            inline-flex items-center justify-center 
+                            min-w-[16px] h-[16px] md:min-w-[20px] md:h-[20px] px-1
+                            text-[9px] md:text-[11px] font-bold text-white
+                            ${isOpen || isCategoryActive ? 'bg-black/20' : 'bg-gray-100 text-gray-700'}
+                            backdrop-blur-sm border border-white/20
+                            rounded-full shadow-sm
+                            transition-all duration-300
+                        `}>
+                            {isCategoryActive && selectedShowId ? (showCounts?.[selectedShowId] || 0) : aliveCount}
+                        </span>
+                        {/* 새로운 미션(안 읽음)이 있을 경우 표시되는 포인트 도트 */}
+                        {hasUnreadMissions && (
+                            <span className="absolute -top-0.5 -right-0.5 flex h-2 w-2">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                            </span>
+                        )}
                     </div>
                 )}
             </button>
@@ -278,12 +317,28 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                                         <span className="truncate">{show.displayName}</span>
                                         {isUpcoming && <span className="text-[10px] sm:text-xs text-gray-400 font-normal whitespace-nowrap">(예정)</span>}
                                         {isUndecided && <span className="text-[10px] sm:text-xs text-gray-400 font-normal whitespace-nowrap">(미정)</span>}
-                                        {/* 프로그램별 읽지 않은 미션 배지 - 크기 축소 */}
-                                        {unreadCount > 0 && (
-                                            <span className="inline-flex items-center justify-center min-w-[14px] h-[14px] sm:min-w-[16px] sm:h-[16px] px-0.5 sm:px-1 text-[8px] sm:text-[9px] font-bold text-white bg-red-500 rounded-full animate-pulse">
-                                                {unreadCount}
-                                            </span>
-                                        )}
+                                        
+                                        <div className="flex items-center gap-1.5 ml-auto pl-2">
+                                            {/* 프로그램별 살아있는 미션 개수 - 텍스트형 배지 */}
+                                            {showCounts && showCounts[show.id] > 0 && (
+                                                <span className={`
+                                                    inline-flex items-center justify-center 
+                                                    min-w-[16px] h-[16px] px-1 
+                                                    text-[9px] font-bold 
+                                                    ${isSelected ? 'text-gray-900 bg-gray-200' : 'text-gray-500 bg-gray-100'}
+                                                    rounded-md transition-colors
+                                                `}>
+                                                    {showCounts[show.id]}
+                                                </span>
+                                            )}
+                                            {/* 새로운 미션(안 읽음)이 있을 경우의 강렬한 레드 닷 */}
+                                            {unreadCount > 0 && (
+                                                <span className="relative flex h-1.5 w-1.5">
+                                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                                                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-red-500"></span>
+                                                </span>
+                                            )}
+                                        </div>
                                     </span>
                                 </button>
                             )

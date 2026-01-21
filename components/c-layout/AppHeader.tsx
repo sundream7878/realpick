@@ -15,6 +15,8 @@ import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
 import { getShowById } from "@/lib/constants/shows"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { NotificationBell } from "./NotificationBell"
+import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
+import { useAliveMissionCounts } from "@/hooks/useAliveMissionCounts"
 
 interface TAppHeaderProps {
   selectedShow: "나는솔로" | "돌싱글즈"
@@ -23,6 +25,7 @@ interface TAppHeaderProps {
   userPoints: number
   userTier: TTierInfo
   onAvatarClick?: () => void
+  onPointsClick?: () => void
   logoClassName?: string
   className?: string
   selectedShowId?: string | null
@@ -40,6 +43,7 @@ export function AppHeader({
   userPoints,
   userTier,
   onAvatarClick,
+  onPointsClick,
   logoClassName = "w-auto cursor-pointer hover:opacity-80 transition-opacity h-10 sm:h-12 md:h-14 lg:h-16",
   className = "",
   selectedShowId,
@@ -53,11 +57,15 @@ export function AppHeader({
   const [showLoginModal, setShowLoginModal] = useState(false)
   const [showPointHistoryModal, setShowPointHistoryModal] = useState(false)
   const { unreadMissionIds, getHasUnreadForCategory } = useNewMissionNotifications()
+  const { categoryCounts, showCounts } = useAliveMissionCounts()
 
-  // 각 카테고리별 읽지 않은 미션 개수 계산 (메모리상의 미션 목록 + 실시간 감지 목록 통합 체크)
-  const hasUnreadLove = getHasUnreadForCategory("LOVE") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "LOVE")
-  const hasUnreadVictory = getHasUnreadForCategory("VICTORY") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "VICTORY")
-  const hasUnreadStar = getHasUnreadForCategory("STAR") || missions.some(m => m.showId && unreadMissionIds.includes(m.id) && getShowById(m.showId)?.category === "STAR")
+  const loveAliveCount = categoryCounts["LOVE"] || 0
+  const victoryAliveCount = categoryCounts["VICTORY"] || 0
+  const starAliveCount = categoryCounts["STAR"] || 0
+
+  const hasUnreadLove = getHasUnreadForCategory("LOVE")
+  const hasUnreadVictory = getHasUnreadForCategory("VICTORY")
+  const hasUnreadStar = getHasUnreadForCategory("STAR")
 
   useEffect(() => {
     setIsLoggedIn(isAuthenticated())
@@ -105,6 +113,8 @@ export function AppHeader({
               hasUnreadMissions={hasUnreadLove}
               unreadMissionIds={unreadMissionIds}
               missions={missions}
+              aliveCount={loveAliveCount}
+              showCounts={showCounts}
             />
             <ShowMenu 
               category="VICTORY" 
@@ -115,6 +125,8 @@ export function AppHeader({
               hasUnreadMissions={hasUnreadVictory}
               unreadMissionIds={unreadMissionIds}
               missions={missions}
+              aliveCount={victoryAliveCount}
+              showCounts={showCounts}
             />
             <ShowMenu 
               category="STAR" 
@@ -125,6 +137,8 @@ export function AppHeader({
               hasUnreadMissions={hasUnreadStar}
               unreadMissionIds={unreadMissionIds}
               missions={missions}
+              aliveCount={starAliveCount}
+              showCounts={showCounts}
             />
           </div>
 
@@ -139,7 +153,7 @@ export function AppHeader({
                     points={userPoints}
                     tier={userTier}
                     onAvatarClick={onAvatarClick}
-                    onPointsClick={() => setShowPointHistoryModal(true)}
+                    onPointsClick={onPointsClick || (() => setShowPointHistoryModal(true))}
                     showFullInfo={true}
                   />
                 </div>

@@ -8,6 +8,7 @@ import { Label } from "@/components/c-ui/label"
 import { Switch } from "@/components/c-ui/switch"
 import { Edit2, LogOut, UserX, Bell, Mail, Clock } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
+import { PointHistoryModal } from "@/components/c-common/PointHistoryModal"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -39,6 +40,7 @@ export default function ProfilePage() {
   const [isEditing, setIsEditing] = useState(false)
   const [editedNickname, setEditedNickname] = useState("")
   const [isSaving, setIsSaving] = useState(false)
+  const [showPointHistoryModal, setShowPointHistoryModal] = useState(false)
 
   // Notification States
   const [emailNotification, setEmailNotification] = useState(false)
@@ -285,6 +287,7 @@ export default function ProfilePage() {
             // 프로필 페이지에서는 페이지 상단으로 스크롤
             window.scrollTo({ top: 0, behavior: 'smooth' })
           }}
+          onPointsClick={() => setShowPointHistoryModal(true)}
           selectedShowId={selectedShowId}
           onShowSelect={(showId) => {
             if (showId) {
@@ -424,7 +427,10 @@ export default function ProfilePage() {
                         <h2 className="text-2xl font-bold text-gray-800">{userNickname}</h2>
                         <p className="text-gray-600">{userEmail}</p>
                         <div className="flex items-center justify-center gap-4 mt-4">
-                          <div className="bg-gradient-to-r from-purple-100 to-pink-100 px-5 py-2.5 rounded-full">
+                          <div 
+                            className="bg-gradient-to-r from-purple-100 to-pink-100 px-5 py-2.5 rounded-full cursor-pointer hover:shadow-md transition-all active:scale-95"
+                            onClick={() => setShowPointHistoryModal(true)}
+                          >
                             <span className="text-base font-bold text-[#3E757B]">{userPoints.toLocaleString()} <span className="font-semibold">Point</span></span>
                           </div>
                         </div>
@@ -620,6 +626,12 @@ export default function ProfilePage() {
           activeNavItem={undefined}
           category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
           selectedShowId={selectedShowId}
+        />
+
+        <PointHistoryModal
+          isOpen={showPointHistoryModal}
+          onClose={() => setShowPointHistoryModal(false)}
+          totalPoints={userPoints}
         />
       </div>
     </div>

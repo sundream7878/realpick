@@ -4,6 +4,7 @@ import { Settings, Check } from "lucide-react"
 import { useNotifications, TNotification } from "@/hooks/useNotifications"
 import { NotificationItem } from "./NotificationItem"
 import { Button } from "@/components/c-ui/button"
+import { useRouter } from "next/navigation"
 
 interface NotificationListProps {
     onClose: () => void
@@ -11,6 +12,7 @@ interface NotificationListProps {
 
 export function NotificationList({ onClose }: NotificationListProps) {
     const { notifications, isLoading, markAsRead, markAllAsRead } = useNotifications()
+    const router = useRouter()
 
     return (
         <div className="flex flex-col h-full max-h-[500px] w-[320px] sm:w-[380px] bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
@@ -27,7 +29,15 @@ export function NotificationList({ onClose }: NotificationListProps) {
                         <Check className="w-3 h-3" />
                         모두 읽음
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-gray-500">
+                    <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-8 w-8 p-0 text-gray-500"
+                        onClick={() => {
+                            onClose();
+                            router.push('/p-profile');
+                        }}
+                    >
                         <Settings className="w-4 h-4" />
                     </Button>
                 </div>
@@ -56,9 +66,15 @@ export function NotificationList({ onClose }: NotificationListProps) {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
-                        <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4">
+                        <button 
+                            className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-4 hover:bg-gray-100 transition-colors"
+                            onClick={() => {
+                                onClose();
+                                router.push('/p-profile');
+                            }}
+                        >
                             <Settings className="w-8 h-8 text-gray-300" />
-                        </div>
+                        </button>
                         <p className="text-gray-900 font-semibold mb-1">새로운 알림이 없습니다</p>
                         <p className="text-xs text-gray-500">새로운 미션이 등록되거나 참여하신 미션이 마감되면 알려드릴게요!</p>
                     </div>

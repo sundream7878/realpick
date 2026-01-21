@@ -80,10 +80,16 @@ export function useNewMissionNotifications() {
 
         const handleMarkAsRead = (event: any) => {
             const { missionIds } = event.detail || {}
+            console.log('[useNewMissionNotifications] mark-missions-as-read 이벤트 수신:', missionIds)
             if (missionIds && missionIds.length > 0) {
                 setUnreadMissionsState(prev => {
                     const updated = prev.filter(m => !missionIds.includes(m.id))
+                    console.log(`[useNewMissionNotifications] 상태 업데이트: ${prev.length} -> ${updated.length}`)
                     setUnreadMissions(updated)
+                    
+                    // 읽음 처리 시 마지막 확인 시간 업데이트 (새로고침 시 다시 뜨는 것 방지)
+                    localStorage.setItem(LAST_CHECK_KEY, Date.now().toString())
+                    
                     return updated
                 })
             }

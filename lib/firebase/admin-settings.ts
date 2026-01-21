@@ -198,9 +198,7 @@ export async function updateShowInfo(showId: string, updatedData: { name: string
     } else {
       // 기본 프로그램(SHOWS)에 있는 것을 처음 수정하는 경우, 커스텀 목록에 추가하여 덮어쓰기 효과
       updatedShows.push({ id: showId, ...updatedData });
-    }
-
-    await setDoc(doc(db, "admin_settings", "CUSTOM_SHOWS"), {
+    }    await setDoc(doc(db, "admin_settings", "CUSTOM_SHOWS"), {
       value: updatedShows,
       updatedAt: serverTimestamp()
     }, { merge: true });    return { success: true };

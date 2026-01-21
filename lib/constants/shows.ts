@@ -129,3 +129,22 @@ export function normalizeShowId(showId: string | undefined | null): string | und
     console.warn(`[showId 변환 실패] "${showId}" - 등록된 프로그램을 찾을 수 없습니다.`);
     return undefined;
 }
+
+// 카테고리 이름이나 ID를 표준 ID("LOVE", "VICTORY", "STAR")로 변환
+export function normalizeCategory(category: string | undefined | null): TShowCategory | undefined {
+    if (!category) return undefined;
+    
+    const upper = category.toUpperCase();
+    if (upper === "LOVE" || upper === "VICTORY" || upper === "STAR" || upper === "UNIFIED") {
+        return upper as TShowCategory;
+    }
+    
+    // 한글 설명으로 찾기
+    for (const [id, info] of Object.entries(CATEGORIES)) {
+        if (info.description === category || info.label === category) {
+            return id as TShowCategory;
+        }
+    }
+    
+    return undefined;
+}
