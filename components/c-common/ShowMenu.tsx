@@ -52,15 +52,15 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
         console.log('[ShowMenu] setupShowStatusSync 초기화 시작')
         const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
         const cleanup = setupShowStatusSync(
-            (statuses) => {
+            (statuses: Record<string, string>) => {
                 console.log('[ShowMenu] showStatuses 업데이트됨:', statuses)
                 setShowStatuses(statuses)
             },
-            (visibility) => {
+            (visibility: Record<string, boolean>) => {
                 console.log('[ShowMenu] showVisibility 업데이트됨:', visibility)
                 setShowVisibility(visibility)
             },
-            (shows) => {
+            (shows: any[]) => {
                 console.log('[ShowMenu] customShows 업데이트됨:', shows)
                 setCustomShows(shows)
             }
@@ -203,6 +203,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
           transition-all duration-200
           min-w-[50px] sm:min-w-[60px] md:min-w-[75px] lg:min-w-[85px]
           h-9 sm:h-auto
+          cursor-pointer
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
                         : "bg-white text-gray-700 hover:bg-gray-50 hover:shadow-md"
@@ -223,7 +224,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 />
 
                 {/* 카테고리별 또는 선택된 프로그램별 살아있는 미션 개수 배지 (Trendy UI) */}
-                {((isCategoryActive && selectedShowId && showCounts?.[selectedShowId]) || (!isCategoryActive && aliveCount > 0)) && (
+                {((isCategoryActive && selectedShowId && showCounts?.[selectedShowId]) || (!isCategoryActive && (aliveCount || 0) > 0)) && (
                     <div className="relative ml-1 flex-shrink-0">
                         <span className={`
                             inline-flex items-center justify-center 
@@ -233,8 +234,9 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                             backdrop-blur-sm border border-white/20
                             rounded-full shadow-sm
                             transition-all duration-300
+                            cursor-pointer
                         `}>
-                            {isCategoryActive && selectedShowId ? (showCounts?.[selectedShowId] || 0) : aliveCount}
+                            {isCategoryActive && selectedShowId ? (showCounts?.[selectedShowId] || 0) : (aliveCount || 0)}
                         </span>
                         {/* 새로운 미션(안 읽음)이 있을 경우 표시되는 포인트 도트 */}
                         {hasUnreadMissions && (
@@ -305,12 +307,12 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                       relative w-full px-2 sm:px-3 py-1.5 sm:py-2 text-left text-xs sm:text-sm
                       transition-all duration-150
                       flex items-center justify-between
-                      ${isSelected
-                                            ? 'bg-gray-50 font-bold text-gray-900'
-                                            : shouldDisable
-                                                ? 'text-gray-400 cursor-not-allowed opacity-60'
-                                                : `text-gray-700 hover:bg-gradient-to-r ${theme.itemHover}`
-                                        }
+                      ${shouldDisable 
+                        ? 'text-gray-400 cursor-not-allowed opacity-60' 
+                        : isSelected
+                            ? 'bg-gray-50 font-bold text-gray-900 cursor-pointer'
+                            : `text-gray-700 hover:bg-gradient-to-r ${theme.itemHover} cursor-pointer`
+                      }
                     `}
                                 >
                                     <span className="flex items-center gap-1">

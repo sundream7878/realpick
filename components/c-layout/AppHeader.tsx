@@ -159,7 +159,7 @@ export function AppHeader({
                 </div>
                 <button
                   onClick={onAvatarClick}
-                  className="lg:hidden relative p-1.5 rounded-full hover:bg-gray-100 transition-colors"
+                  className="lg:hidden relative p-1.5 rounded-full hover:bg-gray-100 transition-colors cursor-pointer"
                 >
                   <img 
                     src={userTier?.characterImage || "/placeholder.svg"} 

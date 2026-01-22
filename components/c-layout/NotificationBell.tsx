@@ -37,7 +37,7 @@ export function NotificationBell() {
             <button
                 onClick={handleToggle}
                 className={`
-                    relative p-1.5 sm:p-2 rounded-full transition-all duration-200 flex items-center justify-center
+                    relative p-1.5 sm:p-2 rounded-full transition-all duration-200 flex items-center justify-center cursor-pointer
                     ${isOpen ? 'bg-gray-100 text-gray-900' : 'text-gray-600 hover:bg-gray-100 hover:text-gray-900'}
                 `}
             >

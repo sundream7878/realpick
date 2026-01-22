@@ -125,7 +125,13 @@ export function MissionCard({
 
         {/* 2. 중앙 영역: 제목과 썸네일 */}
         <div className="flex justify-between items-center gap-2.5 flex-1 py-0.5 sm:py-1">
-          <CardTitle className="text-sm sm:text-lg md:text-xl text-gray-900 font-bold leading-snug sm:leading-tight line-clamp-3 sm:line-clamp-2 flex-1 self-center">
+          <CardTitle 
+            className="text-sm sm:text-lg md:text-xl text-gray-900 font-bold leading-snug sm:leading-tight line-clamp-3 sm:line-clamp-2 flex-1 self-center cursor-pointer hover:text-gray-700 transition-colors"
+            onClick={() => {
+              const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
+              router.push(targetPath);
+            }}
+          >
             {(showInfo?.id === 'nasolo' || showInfo?.id === 'nasolsagye') && mission.seasonNumber 
               ? `[${mission.seasonNumber}기] ${mission.title}` 
               : mission.title}
@@ -166,7 +172,13 @@ export function MissionCard({
         {/* 3. 하단 영역: 그래프와 버튼 */}
         <div className="flex items-end gap-2.5 sm:gap-4 shrink-0 mt-auto pt-0.5 sm:pt-1">
           {/* 그래프 영역: 4개 막대 기준 고정 너비 부여하여 버튼 시작점 고정 */}
-          <div className="flex items-end gap-1.5 sm:gap-2 h-10 sm:h-14 w-[90px] sm:w-[120px] shrink-0">
+          <div 
+            className="flex items-end gap-1.5 sm:gap-2 h-10 sm:h-14 w-[90px] sm:w-[120px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+            onClick={() => {
+              const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
+              router.push(targetPath);
+            }}
+          >
             {(() => {
               const distribution = mission.result?.distribution || {};
               const options = Array.isArray(mission.options) ? mission.options : [];
