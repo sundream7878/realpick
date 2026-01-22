@@ -72,29 +72,51 @@ export function SidebarNavigation({
       const { onAuthStateChanged } = await import("firebase/auth")
 
       const getUserRole = async (userId: string) => {
-        const user = await getUser(userId)
-        if (user) {
-          setUserRole(user.role)
-        } else {
+        try {
+          const user = await getUser(userId)
+          if (user) {
+            console.log('[Sidebar] 유저 역할 로드 완료:', user.role)
+            setUserRole(user.role)
+          } else {
+            setUserRole(null)
+          }
+        } catch (error) {
+          console.error('[Sidebar] 유저 역할 로드 실패:', error)
           setUserRole(null)
         }
       }
 
       // 초기 상태 확인
-      if (auth.currentUser) {
+      const currentUserId = localStorage.getItem("rp_user_id")
+      if (currentUserId) {
+        getUserRole(currentUserId)
+      } else if (auth.currentUser) {
         getUserRole(auth.currentUser.uid)
       }
 
-      // 인증 상태 변경 감지
+      // 인증 상태 변경 감지 (로그인/로그아웃)
+      const handleAuthChange = () => {
+        const newUserId = localStorage.getItem("rp_user_id")
+        if (newUserId) {
+          getUserRole(newUserId)
+        } else {
+          setUserRole(null)
+        }
+      }
+
+      window.addEventListener("auth-change", handleAuthChange)
+      
       const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
           getUserRole(user.uid)
         } else {
-          setUserRole(null)
+          const localId = localStorage.getItem("rp_user_id")
+          if (!localId) setUserRole(null)
         }
       })
 
       return () => {
+        window.removeEventListener("auth-change", handleAuthChange)
         unsubscribe()
       }
     }
@@ -139,10 +161,10 @@ export function SidebarNavigation({
           <Link href={castingUrl}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all ${
+              className={`w-full justify-start gap-3 transition-all font-bold ${
                 activeNavItem === "casting" 
-                  ? `${theme.subBadge} ${theme.text}` 
-                  : `${theme.text} ${theme.subBadgeHover}`
+                  ? `${theme.subBadge} ${theme.subBadgeText}` 
+                  : `${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`
               }`}
             >
               <Megaphone className="w-5 h-5" />
@@ -156,7 +178,7 @@ export function SidebarNavigation({
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all ${theme.text} ${theme.subBadgeHover}`}
+              className={`w-full justify-start gap-3 transition-all font-bold ${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`}
               onClick={handleMissionClick}
             >
               <Plus className="w-5 h-5" />
@@ -167,10 +189,10 @@ export function SidebarNavigation({
           <Link href={myPageUrl} onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all ${
+              className={`w-full justify-start gap-3 transition-all font-bold ${
                 activeNavItem === "mypage" 
-                  ? `${theme.subBadge} ${theme.text}` 
-                  : `${theme.text} ${theme.subBadgeHover}`
+                  ? `${theme.subBadge} ${theme.subBadgeText}` 
+                  : `${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`
               }`}
             >
               <User className="w-5 h-5" />
@@ -182,7 +204,11 @@ export function SidebarNavigation({
             <Link href={dealerLoungeUrl}>
               <Button
                 variant="ghost"
-                className={`w-full justify-start gap-3 ${activeNavItem === "dealer" ? "bg-purple-100 text-purple-700 hover:bg-purple-100" : "hover:bg-purple-50 text-purple-700"} font-medium`}
+                className={`w-full justify-start gap-3 transition-all font-bold ${
+                  activeNavItem === "dealer" 
+                    ? "bg-purple-100 text-purple-900" 
+                    : "text-purple-700 hover:bg-purple-100 hover:text-purple-900"
+                }`}
               >
                 <User className="w-5 h-5 text-purple-600" />
                 딜러 라운지
@@ -194,7 +220,11 @@ export function SidebarNavigation({
             <Link href={adminUrl}>
               <Button
                 variant="ghost"
-                className={`w-full justify-start gap-3 ${activeNavItem === "admin" ? "bg-red-100 text-red-700 hover:bg-red-100" : "hover:bg-red-50 text-red-700"} font-medium`}
+                className={`w-full justify-start gap-3 transition-all font-bold ${
+                  activeNavItem === "admin" 
+                    ? "bg-red-100 text-red-900" 
+                    : "text-red-700 hover:bg-red-100 hover:text-red-900"
+                }`}
               >
                 <Shield className="w-5 h-5 text-red-600" />
                 관리자 페이지

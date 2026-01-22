@@ -508,13 +508,13 @@ async function distributePointsForMission1(
     }
     
     // 3. 포인트 계산 규칙
-    let pointsForCorrect = 10;
+    let pointsForCorrect = 50;
     let pointsForIncorrect = 0;
     
     if (missionKind === "poll" || missionKind === "majority") {
-      // 공감 픽: 참여만 해도 +10P (오답 개념 없음)
-      pointsForCorrect = 10;
-      pointsForIncorrect = 10; // 오답도 +10P
+      // 공감 픽: 참여만 해도 +50P (오답 개념 없음)
+      pointsForCorrect = 50;
+      pointsForIncorrect = 50; // 오답도 +50P
     } else {
       // 예측 픽 (predict): 정답 +100P / 오답 -50P
       pointsForCorrect = 100;

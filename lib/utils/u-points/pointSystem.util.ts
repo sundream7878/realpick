@@ -18,12 +18,12 @@ export const calculatePotentialPoints = (
     optionsCount: number = 2
 ): TPointInfo => {
     // 1. 공감 픽 (Poll/Majority)
-    // 무조건 참여 시 +10P
+    // 무조건 참여 시 +50P
     if (kind === 'poll' || kind === 'majority') {
         return {
-            win: 10,
+            win: 50,
             lose: 0,
-            label: "+10P"
+            label: "+50P"
         };
     }
 
@@ -49,8 +49,8 @@ export const calculatePotentialPoints = (
 
     // 기본값
     return {
-        win: 10,
+        win: 50,
         lose: 0,
-        label: "+10P"
+        label: "+50P"
     };
 };

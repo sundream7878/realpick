@@ -233,7 +233,7 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
 
     let pointsEarned = 0;
     if (missionData && (missionData.kind === "poll" || missionData.kind === "majority")) {
-      pointsEarned = 10;
+      pointsEarned = 50;
     }
 
     const voteId = `${submission.userId}_${submission.missionId}`;

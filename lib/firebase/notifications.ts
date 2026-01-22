@@ -58,7 +58,7 @@ export async function getNotifications(userId: string, limitCount: number = 20):
         type: data.type,
         title: data.title,
         content: data.content,
-        missionId: data.missionId,
+        missionId: data.missionId || data.mission_id, // mission_id 필드 대응 추가
         creatorId: data.creatorId,
         isRead: data.isRead || false,
         createdAt: data.createdAt instanceof Timestamp ? data.createdAt.toDate().toISOString() : data.createdAt,

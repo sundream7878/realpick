@@ -15,16 +15,42 @@ export function NotificationItem({ notification, onClick }: NotificationItemProp
     const router = useRouter()
     const { type, title, content, missionId, createdAt, isRead, creator } = notification
 
-    const handleItemClick = () => {
-        console.log('[NotificationItem] 클릭 - notification:', notification)
-        onClick()
-        if (missionId) {
-            const path = type === 'MISSION_CLOSED' 
-                ? `/p-mission/${missionId}/results` 
-                : `/p-mission/${missionId}/vote`
-            router.push(path)
+    const handleItemClick = (e: React.MouseEvent) => {
+        // 이벤트 전파 및 기본 동작 방지
+        e.preventDefault();
+        e.stopPropagation();
+        
+        console.log('[NotificationItem] 클릭 이벤트 발생 - missionId:', missionId);
+        console.log('[NotificationItem] 전체 notification 데이터:', notification);
+        
+        // 1. 안 읽은 알림일 경우에만 읽음 처리 실행
+        if (!isRead) {
+            console.log('[NotificationItem] 읽음 처리 호출');
+            onClick();
         }
-    }
+        
+        // 2. 페이지 이동 (읽음 여부와 상관없이 항상 실행)
+        // missionId가 직접 없을 경우를 대비해 한 번 더 체크
+        const finalMissionId = missionId || (notification as any).mission_id;
+
+        if (finalMissionId) {
+            const path = (type === 'MISSION_CLOSED' || type === 'MISSION_SETTLED' || type === 'mission_settled' || type === 'mission_closed')
+                ? `/p-mission/${finalMissionId}/results` 
+                : `/p-mission/${finalMissionId}/vote`;
+            
+            console.log('[NotificationItem] 페이지 이동 시도:', path);
+            
+            // Next.js router와 window.location 둘 다 시도
+            try {
+                router.push(path);
+            } catch (err) {
+                console.error('[NotificationItem] router.push 실패, window.location 사용:', err);
+                window.location.href = path;
+            }
+        } else {
+            console.error('[NotificationItem] missionId가 없어 이동할 수 없습니다. 데이터 구조를 확인해주세요.');
+        }
+    };
 
     const tierImage = creator?.tier 
         ? (TIERS.find(t => t.name === creator.tier)?.characterImage || "/tier-rookie.png")
