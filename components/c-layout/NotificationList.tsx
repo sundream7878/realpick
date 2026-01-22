@@ -23,15 +23,6 @@ export function NotificationList({ onClose }: NotificationListProps) {
                     <Button 
                         variant="ghost" 
                         size="sm" 
-                        className="h-8 px-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50 gap-1"
-                        onClick={() => markAllAsRead()}
-                    >
-                        <Check className="w-3 h-3" />
-                        모두 읽음
-                    </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="sm" 
                         className="h-8 w-8 p-0 text-gray-500"
                         onClick={() => {
                             onClose();

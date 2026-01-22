@@ -139,7 +139,11 @@ export function SidebarNavigation({
           <Link href={castingUrl}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "casting" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
+              className={`w-full justify-start gap-3 transition-all ${
+                activeNavItem === "casting" 
+                  ? `${theme.subBadge} ${theme.text}` 
+                  : `${theme.text} ${theme.subBadgeHover}`
+              }`}
             >
               <Megaphone className="w-5 h-5" />
               <span>Real Casting</span>
@@ -152,7 +156,7 @@ export function SidebarNavigation({
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${theme.text} hover:${theme.subBadge}`}
+              className={`w-full justify-start gap-3 transition-all ${theme.text} ${theme.subBadgeHover}`}
               onClick={handleMissionClick}
             >
               <Plus className="w-5 h-5" />
@@ -163,7 +167,11 @@ export function SidebarNavigation({
           <Link href={myPageUrl} onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 ${activeNavItem === "mypage" ? `${theme.subBadge} ${theme.text} hover:${theme.subBadge}` : `${theme.text} hover:bg-white/10 hover:${theme.text}`}`}
+              className={`w-full justify-start gap-3 transition-all ${
+                activeNavItem === "mypage" 
+                  ? `${theme.subBadge} ${theme.text}` 
+                  : `${theme.text} ${theme.subBadgeHover}`
+              }`}
             >
               <User className="w-5 h-5" />
               마이페이지

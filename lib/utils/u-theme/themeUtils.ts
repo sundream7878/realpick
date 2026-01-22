@@ -10,6 +10,7 @@ export interface ThemeColors {
     badgeBorder: string
     badgeText: string
     subBadge: string
+    subBadgeHover: string
     subBadgeBorder: string
     subBadgeText: string
     iconBg: string
@@ -35,7 +36,8 @@ export const THEME_PALETTES: Record<string, ThemeColors> = {
         badge: "bg-pink-500",
         badgeBorder: "border-pink-600",
         badgeText: "text-white",
-        subBadge: "bg-pink-50",
+        subBadge: "bg-pink-100/60",
+        subBadgeHover: "hover:bg-pink-100/90",
         subBadgeBorder: "border-pink-200",
         subBadgeText: "text-pink-700",
         iconBg: "bg-pink-100",
@@ -59,7 +61,8 @@ export const THEME_PALETTES: Record<string, ThemeColors> = {
         badge: "bg-indigo-500",
         badgeBorder: "border-indigo-600",
         badgeText: "text-white",
-        subBadge: "bg-indigo-50",
+        subBadge: "bg-indigo-100/60",
+        subBadgeHover: "hover:bg-indigo-100/90",
         subBadgeBorder: "border-indigo-200",
         subBadgeText: "text-indigo-700",
         iconBg: "bg-indigo-100",
@@ -83,7 +86,8 @@ export const THEME_PALETTES: Record<string, ThemeColors> = {
         badge: "bg-yellow-500",
         badgeBorder: "border-yellow-600",
         badgeText: "text-white",
-        subBadge: "bg-yellow-50",
+        subBadge: "bg-yellow-100/60",
+        subBadgeHover: "hover:bg-yellow-100/90",
         subBadgeBorder: "border-yellow-200",
         subBadgeText: "text-yellow-800",
         iconBg: "bg-yellow-100",
@@ -107,7 +111,8 @@ export const THEME_PALETTES: Record<string, ThemeColors> = {
         badge: "bg-gradient-to-r from-[var(--brand-pink)] to-[var(--brand-gold)]",
         badgeBorder: "border-transparent",
         badgeText: "text-white font-bold",
-        subBadge: "bg-white/10 backdrop-blur-sm",
+        subBadge: "bg-white/20 backdrop-blur-sm",
+        subBadgeHover: "hover:bg-white/30",
         subBadgeBorder: "border-white/10",
         subBadgeText: "text-white",
         iconBg: "bg-white/10",
