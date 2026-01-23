@@ -10,7 +10,8 @@ import MissionCreationModal from "@/components/c-mission-creation-modal/mission-
 import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
 import { Card, CardContent } from "@/components/c-ui/card"
-import { RECRUITS, TRecruit, TRecruitType } from "@/lib/constants/recruits"
+import { RECRUITS as STATIC_RECRUITS, TRecruit, TRecruitType } from "@/lib/constants/recruits"
+import { getAllRecruits } from "@/lib/firebase/admin-recruits"
 import { SHOWS, CATEGORIES, getShowById, getShowByName, TShowCategory } from "@/lib/constants/shows"
 import { getDDay, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import { Calendar, User, Users, ExternalLink, Mic2, Ticket } from "lucide-react"
@@ -26,6 +27,8 @@ export default function CastingPage() {
     const [selectedType, setSelectedType] = useState<"all" | TRecruitType>("all")
     const [selectedCategory, setSelectedCategory] = useState<"ALL" | TShowCategory>("ALL")
     const [user, setUser] = useState<TUser | null>(null)
+    const [recruits, setRecruits] = useState<TRecruit[]>([])
+    const [isLoadingRecruits, setIsLoadingRecruits] = useState(true)
 
     // 사이드바/모달 상태 관리
     const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
@@ -60,8 +63,28 @@ export default function CastingPage() {
         return cleanup
     }, [])
 
+    useEffect(() => {
+        const fetchRecruits = async () => {
+            setIsLoadingRecruits(true)
+            const result = await getAllRecruits()
+            if (result.success) {
+                // DB 데이터가 없으면 기존 정적 데이터 사용 (하위 호환성)
+                const dbRecruits = result.recruits || []
+                if (dbRecruits.length > 0) {
+                    setRecruits(dbRecruits)
+                } else {
+                    setRecruits(STATIC_RECRUITS)
+                }
+            } else {
+                setRecruits(STATIC_RECRUITS)
+            }
+            setIsLoadingRecruits(false)
+        }
+        fetchRecruits()
+    }, [])
+
     // 필터링 및 정렬 로직
-    const filteredRecruits = RECRUITS.filter(recruit => {
+    const filteredRecruits = recruits.filter(recruit => {
         // 1. 유형 필터
         if (selectedType !== "all" && recruit.type !== selectedType) return false
 
@@ -137,7 +160,7 @@ export default function CastingPage() {
                     {/* 타이틀 섹션 */}
                     <div className="mb-6">
                         <h1 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
-                            📢 Real Casting
+                            📢 리얼캐스팅
                         </h1>
                         <p className="text-gray-500 text-sm mt-1">
                             다음 주인공은 바로 당신입니다.
@@ -198,87 +221,93 @@ export default function CastingPage() {
 
                     {/* 공고 리스트 */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {filteredRecruits.map((recruit) => {
-                            const show = getShowById(recruit.programId)
-                            const isClosed = isDeadlinePassed(recruit.endDate)
-                            const posterUrl = show?.officialUrl ? `/images/shows/${recruit.programId}.jpg` : undefined // 실제로는 상수에 정의된 이미지 사용 예정
-                            // 임시로 썸네일이 없으면 그라데이션 처리
+                        {isLoadingRecruits ? (
+                            <div className="col-span-full py-20 text-center text-gray-500">로딩 중...</div>
+                        ) : filteredRecruits.length === 0 ? (
+                            <div className="col-span-full py-20 text-center text-gray-500 font-bold">현재 진행 중인 공고가 없습니다.</div>
+                        ) : (
+                            filteredRecruits.map((recruit) => {
+                                const show = getShowById(recruit.programId)
+                                const isClosed = isDeadlinePassed(recruit.endDate)
+                                const posterUrl = show?.officialUrl ? `/images/shows/${recruit.programId}.jpg` : undefined // 실제로는 상수에 정의된 이미지 사용 예정
+                                // 임시로 썸네일이 없으면 그라데이션 처리
 
-                            return (
-                                <Card
-                                    key={recruit.id}
-                                    className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-l-4 ${isClosed
-                                        ? "border-l-gray-300 opacity-70 grayscale"
-                                        : recruit.type === "cast"
-                                            ? "border-l-purple-500"
-                                            : "border-l-pink-500"
-                                        }`}
-                                >
-                                    <CardContent className="p-0">
-                                        <div className="flex h-32">
-                                            {/* 좌측: 썸네일 (포스터) */}
-                                            <div className="w-24 md:w-32 bg-gray-200 shrink-0 relative overflow-hidden group cursor-pointer"
-                                                onClick={() => window.open(recruit.officialUrl || show?.officialUrl, "_blank")}
-                                            >
-                                                {/* 실제 이미지가 없으므로 텍스트로 대체하거나 그라데이션 */}
-                                                <div className={`w-full h-full flex items-center justify-center text-center p-2 text-white font-bold text-xs bg-gradient-to-br ${recruit.type === "cast" ? "from-purple-400 to-indigo-600" : "from-pink-400 to-rose-600"
-                                                    }`}>
-                                                    {show?.displayName || recruit.title}
+                                return (
+                                    <Card
+                                        key={recruit.id}
+                                        className={`overflow-hidden hover:shadow-lg transition-all duration-300 border-l-4 ${isClosed
+                                            ? "border-l-gray-300 opacity-70 grayscale"
+                                            : recruit.type === "cast"
+                                                ? "border-l-purple-500"
+                                                : "border-l-pink-500"
+                                            }`}
+                                    >
+                                        <CardContent className="p-0">
+                                            <div className="flex h-32">
+                                                {/* 좌측: 썸네일 (포스터) */}
+                                                <div className="w-24 md:w-32 bg-gray-200 shrink-0 relative overflow-hidden group cursor-pointer"
+                                                    onClick={() => window.open(recruit.officialUrl || show?.officialUrl, "_blank")}
+                                                >
+                                                    {/* 실제 이미지가 없으므로 텍스트로 대체하거나 그라데이션 */}
+                                                    <div className={`w-full h-full flex items-center justify-center text-center p-2 text-white font-bold text-xs bg-gradient-to-br ${recruit.type === "cast" ? "from-purple-400 to-indigo-600" : "from-pink-400 to-rose-600"
+                                                        }`}>
+                                                        {show?.displayName || recruit.title}
+                                                    </div>
+
+                                                    {/* 호버 시 오버레이 */}
+                                                    <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        <ExternalLink className="w-6 h-6 text-white" />
+                                                    </div>
                                                 </div>
 
-                                                {/* 호버 시 오버레이 */}
-                                                <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <ExternalLink className="w-6 h-6 text-white" />
+                                                {/* 우측: 정보 */}
+                                                <div className="flex-1 p-3 flex flex-col justify-between">
+                                                    <div>
+                                                        <div className="flex justify-between items-start mb-1">
+                                                            <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-gray-50">
+                                                                {recruit.type === "cast" ? "출연자 모집" : "방청 신청"}
+                                                            </Badge>
+                                                            <DDayBadge date={recruit.endDate} />
+                                                        </div>
+
+                                                        <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1 mb-1">
+                                                            {recruit.title}
+                                                        </h3>
+                                                        <p className="text-xs text-gray-500 line-clamp-2 mb-2">
+                                                            {recruit.description}
+                                                        </p>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
+                                                        <div className="flex items-center gap-1">
+                                                            <User className="w-3 h-3" />
+                                                            <span className="truncate max-w-[100px]">{recruit.target}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="w-3 h-3" />
+                                                            <span>~{recruit.endDate}</span>
+                                                        </div>
+                                                    </div>
                                                 </div>
                                             </div>
 
-                                            {/* 우측: 정보 */}
-                                            <div className="flex-1 p-3 flex flex-col justify-between">
-                                                <div>
-                                                    <div className="flex justify-between items-start mb-1">
-                                                        <Badge variant="outline" className="text-[10px] h-5 px-1.5 bg-gray-50">
-                                                            {recruit.type === "cast" ? "출연자 모집" : "방청 신청"}
-                                                        </Badge>
-                                                        <DDayBadge date={recruit.endDate} />
-                                                    </div>
-
-                                                    <h3 className="font-bold text-gray-900 text-sm md:text-base line-clamp-1 mb-1">
-                                                        {recruit.title}
-                                                    </h3>
-                                                    <p className="text-xs text-gray-500 line-clamp-2 mb-2">
-                                                        {recruit.description}
-                                                    </p>
+                                            {/* 하단 버튼 (모바일 최적화) */}
+                                            {!isClosed && (
+                                                <div
+                                                    className={`py-2 text-center text-sm font-bold text-white cursor-pointer transition-colors ${recruit.type === "cast"
+                                                        ? "bg-purple-600 hover:bg-purple-700"
+                                                        : "bg-pink-500 hover:bg-pink-600"
+                                                        }`}
+                                                    onClick={() => window.open(recruit.officialUrl || show?.officialUrl, "_blank")}
+                                                >
+                                                    {recruit.type === "cast" ? "지원하러 가기" : "신청하러 가기"}
                                                 </div>
-
-                                                <div className="flex items-center justify-between text-xs text-gray-400 mt-auto">
-                                                    <div className="flex items-center gap-1">
-                                                        <User className="w-3 h-3" />
-                                                        <span className="truncate max-w-[100px]">{recruit.target}</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-1">
-                                                        <Calendar className="w-3 h-3" />
-                                                        <span>~{recruit.endDate}</span>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* 하단 버튼 (모바일 최적화) */}
-                                        {!isClosed && (
-                                            <div
-                                                className={`py-2 text-center text-sm font-bold text-white cursor-pointer transition-colors ${recruit.type === "cast"
-                                                    ? "bg-purple-600 hover:bg-purple-700"
-                                                    : "bg-pink-500 hover:bg-pink-600"
-                                                    }`}
-                                                onClick={() => window.open(recruit.officialUrl || show?.officialUrl, "_blank")}
-                                            >
-                                                {recruit.type === "cast" ? "지원하러 가기" : "신청하러 가기"}
-                                            </div>
-                                        )}
-                                    </CardContent>
-                                </Card>
-                            )
-                        })}
+                                            )}
+                                        </CardContent>
+                                    </Card>
+                                )
+                            })
+                        )}
                     </div>
 
                     {/* 푸터 메시지 */}

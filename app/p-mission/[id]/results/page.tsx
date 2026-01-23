@@ -1145,7 +1145,20 @@ function ResultsChart({ mission, userVote }: { mission: TMission; userVote: any 
   if (options.length > 0) {
     // 정의된 선택지가 있는 경우 (Binary, Multi 등)
     entries = options.map(option => {
-      const value = Number(distribution[option]) || 0
+      // 1. 정확한 매칭 시도
+      let value = Number(distribution[option]) || 0
+      
+      // 2. 정확한 매칭이 0인 경우, 대소문자/공백 무시하고 다시 시도
+      if (value === 0) {
+        const lowerOption = option.trim().toLowerCase();
+        for (const [key, val] of Object.entries(distribution)) {
+          if (key.trim().toLowerCase() === lowerOption) {
+            value = Number(val) || 0;
+            break;
+          }
+        }
+      }
+      
       const percentage = totalVotes > 0 ? Math.round((value / totalVotes) * 100) : 0
       console.log(`[ResultsChart] ${option}:`, { value, percentage, totalVotes })
       return [option, percentage, value] as [string, number, number]

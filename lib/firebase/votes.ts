@@ -258,17 +258,30 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
 
     // 옵션별 투표 수 업데이트 (배열인 경우 처리)
     if (submission.choice) {
-      if (Array.isArray(submission.choice)) {
-        submission.choice.forEach(opt => {
-          if (opt) {
-            const safeKey = sanitizeFieldKey(opt);
-            updateData[`optionVoteCounts.${safeKey}`] = increment(1);
+      const choices = Array.isArray(submission.choice) ? submission.choice : [submission.choice];
+      const missionOptions = missionData.options || [];
+      
+      choices.forEach(opt => {
+        if (!opt) return;
+        
+        let targetOption = opt;
+        
+        // 미션에 정의된 옵션이 있는 경우, 대소문자/공백 무시하고 매칭 시도
+        if (missionOptions.length > 0) {
+          const matchedOption = missionOptions.find((mOpt: string) => 
+            mOpt.trim().toLowerCase() === String(opt).trim().toLowerCase()
+          );
+          if (matchedOption) {
+            console.log(`[Firebase Votes] 옵션 매칭 성공: "${opt}" -> "${matchedOption}"`);
+            targetOption = matchedOption;
+          } else {
+            console.warn(`[Firebase Votes] 옵션 매칭 실패 (정의되지 않은 옵션): "${opt}"`);
           }
-        });
-      } else {
-        const safeKey = sanitizeFieldKey(submission.choice);
+        }
+        
+        const safeKey = sanitizeFieldKey(String(targetOption));
         updateData[`optionVoteCounts.${safeKey}`] = increment(1);
-      }
+      });
     }
 
     console.log('[Firebase Votes] missions1 업데이트 데이터:', updateData)

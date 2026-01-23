@@ -168,7 +168,7 @@ export function SidebarNavigation({
               }`}
             >
               <Megaphone className="w-5 h-5" />
-              <span>Real Casting</span>
+              <span>리얼캐스팅</span>
               <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse ml-auto">
                 New
               </span>

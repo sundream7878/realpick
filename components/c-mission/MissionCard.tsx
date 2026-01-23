@@ -180,7 +180,8 @@ export function MissionCard({
             }}
           >
             {(() => {
-              const distribution = mission.result?.distribution || {};
+              // distribution 데이터 위치 통합 처리 (top-level or result.distribution)
+              const distribution = mission.optionVoteCounts || mission.result?.distribution || {};
               const options = Array.isArray(mission.options) ? mission.options : [];
               
               // 1. 표시할 막대 개수 결정 (최대 4개)
@@ -196,10 +197,34 @@ export function MissionCard({
               for (let i = 0; i < barCount; i++) {
                 let count = 0;
                 if (mission.form === 'match') {
-                  count = [40, 70, 90][i] || 0;
+                  // 커플매칭 미션은 aggregatedStats에서 합계 추출 (에피소드 1 기준 또는 전체 합계)
+                  const stats = (mission as any).aggregatedStats || {};
+                  const ep1Stats = stats["1"] || {};
+                  const totalEpStats = Object.values(ep1Stats).reduce((a: number, b: any) => a + (Number(b) || 0), 0);
+                  
+                  if (totalEpStats > 0) {
+                    // 실제 데이터가 있으면 상위 3개 정도의 비율로 표시
+                    const sortedPairs = Object.values(ep1Stats).sort((a: any, b: any) => (Number(b) || 0) - (Number(a) || 0));
+                    count = Number(sortedPairs[i]) || 0;
+                  } else {
+                    // 데이터가 없으면 가짜 데이터 (점진적 증가)
+                    count = [40, 70, 90][i] || 0;
+                  }
                 } else {
                   const optionText = options[i];
-                  count = (optionText ? (distribution[optionText] || 0) : 0) as number;
+                  if (optionText) {
+                    // 대소문자/공백 무시 매칭 시도
+                    count = (distribution[optionText] || 0) as number;
+                    if (count === 0) {
+                      const lowerOpt = optionText.trim().toLowerCase();
+                      for (const [key, val] of Object.entries(distribution)) {
+                        if (key.trim().toLowerCase() === lowerOpt) {
+                          count = Number(val) || 0;
+                          break;
+                        }
+                      }
+                    }
+                  }
                 }
                 counts.push(count);
               }
@@ -208,6 +233,7 @@ export function MissionCard({
               
               let heights: number[] = [];
               if (maxCount === 0) {
+                // 데이터가 전혀 없는 경우 기본 높이 (참여자 수에 따라 약간의 변동성 부여 가능하지만 여기서는 고정)
                 heights = [40, 65, 90, 75].slice(0, barCount);
               } else {
                 heights = counts.map(count => Math.max(15, (count / maxCount) * 100));

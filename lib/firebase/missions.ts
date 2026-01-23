@@ -845,18 +845,27 @@ export async function updateOptionVoteCounts(missionId: string): Promise<{ succe
     const totalVotes = votes.length;
     votes.forEach((vote) => {
       let selectedOptions: string[] = [];
-      const rawOption = vote.choice;
+      const rawOption = vote.choice || vote.selectedOption;
 
       if (Array.isArray(rawOption)) {
         selectedOptions = rawOption;
-      } else if (typeof rawOption === 'string') {
-        selectedOptions = [rawOption];
+      } else if (rawOption !== undefined && rawOption !== null) {
+        selectedOptions = [String(rawOption)];
       }
 
       selectedOptions.forEach(option => {
         if (option && typeof option === 'string') {
-          if (isTextMission || allOptions.includes(option)) {
+          // 1. 대소문자/공백 무시하고 매칭되는 옵션 찾기
+          let matchedOption = isTextMission ? option : allOptions.find(o => o.trim().toLowerCase() === option.trim().toLowerCase());
+          
+          // 2. 매칭되는 옵션이 있으면 해당 옵션으로 카운트, 없으면 (주관식인 경우에만) 원래 텍스트로 카운트
+          if (matchedOption) {
+            voteCounts[matchedOption] = (voteCounts[matchedOption] || 0) + 1;
+          } else if (isTextMission) {
             voteCounts[option] = (voteCounts[option] || 0) + 1;
+          } else {
+            // 매칭되지 않는 옵션은 무시하거나 로그를 남길 수 있음
+            console.warn(`[updateOptionVoteCounts] 정의되지 않은 옵션 무시됨: ${option}`);
           }
         }
       });
