@@ -203,18 +203,10 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
       choice: submission.choice
     })
 
-    // 미션 정보 조회 (missions1 또는 ai_mission에서 검색)
+    // 미션 정보 조회 (missions1에서 검색, AI 미션도 포함)
     let missionRef = doc(db, "missions1", submission.missionId);
     let missionSnap = await getDoc(missionRef);
     let missionCollection = "missions1";
-    
-    // missions1에 없으면 ai_mission에서 검색
-    if (!missionSnap.exists()) {
-      console.log('[Firebase Votes] missions1에 없음, ai_mission에서 검색 중...')
-      missionRef = doc(db, "ai_mission", submission.missionId);
-      missionSnap = await getDoc(missionRef);
-      missionCollection = "ai_mission";
-    }
     
     if (!missionSnap.exists()) {
       console.error('[Firebase Votes] 미션을 찾을 수 없습니다:', submission.missionId)
@@ -222,7 +214,10 @@ export async function submitVote1(submission: TVoteSubmission): Promise<boolean>
     }
     
     const missionData = missionSnap.data();
-    console.log('[Firebase Votes] 미션 찾음:', { collection: missionCollection });
+    console.log('[Firebase Votes] 미션 찾음:', { 
+      collection: missionCollection,
+      isAIMission: missionData.isAIMission || false
+    });
     console.log('[Firebase Votes] 미션 데이터:', {
       kind: missionData.kind,
       title: missionData.title,

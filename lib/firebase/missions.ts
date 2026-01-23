@@ -174,22 +174,23 @@ export async function getMissions(type: 'missions1' | 'missions2' = 'missions1',
   }
 }
 
-// AI 미션 목록 조회
+// AI 미션 목록 조회 (missions1에서 isAIMission: true인 것만)
 export async function getAIMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
-    console.log(`[Firebase] ai_mission 조회 시작...`);
+    console.log(`[Firebase] AI 미션 조회 시작 (missions1에서 isAIMission: true)...`);
     
     // showId 변환 함수 import
     const { normalizeShowId } = await import("@/lib/constants/shows");
     
-    // orderBy 없이 먼저 조회 시도 (인덱스 문제 회피)
+    // missions1 컬렉션에서 isAIMission이 true인 것만 조회
     const q = query(
-      collection(db, "ai_mission"),
+      collection(db, "missions1"),
+      where("isAIMission", "==", true),
       firestoreLimit(limitCount)
     );
     
     const querySnapshot = await getDocs(q);
-    console.log(`[Firebase] ai_mission 문서 수:`, querySnapshot.size);
+    console.log(`[Firebase] AI 미션 문서 수:`, querySnapshot.size);
     
     const missions = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -201,7 +202,7 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
       const show = normalizedShowId ? getShowById(normalizedShowId) : null;
       const category = show ? show.category : data.category;
       
-      console.log(`[Firebase] ai_mission 문서 ${doc.id}:`, {
+      console.log(`[Firebase] AI 미션 문서 ${doc.id}:`, {
         title: data.title,
         showId원본: originalShowId,
         showId변환: normalizedShowId,
@@ -217,7 +218,7 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
         category: category, // show에서 가져온 정확한 category
         creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성", // 채널명을 생성자 닉네임으로
         creatorTier: "AI", // AI 생성 미션 표시
-        __table: "ai_mission", // AI 미션임을 표시
+        __table: "missions1", // missions1에 저장됨
         isAIMission: true // AI 미션 플래그
       };
     });
@@ -229,29 +230,27 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
       return timeB - timeA;
     });
     
-    console.log(`[Firebase] ai_mission fetched:`, missions.length);
+    console.log(`[Firebase] AI 미션 fetched:`, missions.length);
     
     return { success: true, missions };
   } catch (error: any) {
-    console.error(`Firebase ai_mission 목록 조회 실패:`, error);
+    console.error(`Firebase AI 미션 목록 조회 실패:`, error);
     console.error(`에러 상세:`, error.code, error.message);
     return { success: false, error: error.message };
   }
 }
 
-// 모든 미션 조회 (missions1 + missions2 + ai_mission 통합)
+// 모든 미션 조회 (missions1 + missions2 통합, AI 미션은 missions1 내에 포함)
 export async function getAllMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
-    const [result1, result2, resultAI] = await Promise.all([
+    const [result1, result2] = await Promise.all([
       getMissions('missions1', limitCount),
-      getMissions('missions2', limitCount),
-      getAIMissions(limitCount)
+      getMissions('missions2', limitCount)
     ]);
     
     const allMissions = [
       ...(result1.missions || []).map(m => ({ ...m, __table: "missions1" })),
-      ...(result2.missions || []).map(m => ({ ...m, __table: "missions2" })),
-      ...(resultAI.missions || [])
+      ...(result2.missions || []).map(m => ({ ...m, __table: "missions2" }))
     ];
     
     // createdAt 기준 내림차순 정렬
@@ -266,8 +265,8 @@ export async function getAllMissions(limitCount: number = 20): Promise<{ success
     
     console.log(`[Firebase] 전체 미션 fetched:`, {
       missions1: result1.missions?.length || 0,
+      missions1_ai: result1.missions?.filter((m: any) => m.isAIMission).length || 0,
       missions2: result2.missions?.length || 0,
-      ai_mission: resultAI.missions?.length || 0,
       total: limitedMissions.length
     });
     
@@ -299,42 +298,40 @@ export async function getMission(type: 'missions1' | 'missions2', missionId: str
 
 import { cache } from "react";
 
-// 특정 미션 조회 (통합 - missions1, missions2, ai_mission 병렬 검색) - 서버 사이드 캐싱 적용
+// 특정 미션 조회 (통합 - missions1, missions2 병렬 검색) - 서버 사이드 캐싱 적용
 export const getMissionById = cache(async (missionId: string): Promise<{ success: boolean; mission?: any; error?: string }> => {
   try {
-    const [snap1, snap2, snapAI] = await Promise.all([
+    const [snap1, snap2] = await Promise.all([
       getDoc(doc(db, "missions1", missionId)),
-      getDoc(doc(db, "missions2", missionId)),
-      getDoc(doc(db, "ai_mission", missionId))
+      getDoc(doc(db, "missions2", missionId))
     ]);
 
     if (snap1.exists()) {
-      return { success: true, mission: { id: snap1.id, ...snap1.data(), __table: "missions1" } };
+      const data = snap1.data();
+      // AI 미션인 경우 추가 처리
+      if (data.isAIMission) {
+        const { normalizeShowId, getShowById } = await import("@/lib/constants/shows");
+        const normalizedShowId = normalizeShowId(data.showId);
+        const show = normalizedShowId ? getShowById(normalizedShowId) : null;
+        
+        return { 
+          success: true, 
+          mission: { 
+            id: snap1.id, 
+            ...data,
+            showId: normalizedShowId,
+            category: show ? show.category : data.category,
+            creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성",
+            creatorTier: "AI",
+            __table: "missions1"
+          } 
+        };
+      }
+      return { success: true, mission: { id: snap1.id, ...data, __table: "missions1" } };
     }
     
     if (snap2.exists()) {
       return { success: true, mission: { id: snap2.id, ...snap2.data(), __table: "missions2" } };
-    }
-    
-    if (snapAI.exists()) {
-      const data = snapAI.data();
-      const { normalizeShowId, getShowById } = await import("@/lib/constants/shows");
-      const normalizedShowId = normalizeShowId(data.showId);
-      const show = normalizedShowId ? getShowById(normalizedShowId) : null;
-      
-      return { 
-        success: true, 
-        mission: { 
-          id: snapAI.id, 
-          ...data, 
-          showId: normalizedShowId,
-          category: show ? show.category : data.category,
-          creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성", // 채널명을 생성자 닉네임으로
-          creatorTier: "AI", // AI 생성 미션 표시
-          __table: "ai_mission", 
-          isAIMission: true 
-        } 
-      };
     }
     
     return { success: false, error: "미션을 찾을 수 없습니다." };
@@ -420,7 +417,7 @@ export async function settleMissionWithFinalAnswer(missionId: string, correctAns
   try {
     console.log(`[settleMissionWithFinalAnswer] 시작 - missionId: ${missionId}, correctAnswer: ${correctAnswer}`);
     
-    // missions1 또는 ai_mission에서 검색
+    // missions1에서 검색 (AI 미션도 포함)
     let missionRef = doc(db, "missions1", missionId);
     let missionSnap = await getDoc(missionRef);
     let missionCollection = "missions1";
@@ -428,21 +425,15 @@ export async function settleMissionWithFinalAnswer(missionId: string, correctAns
     console.log(`[settleMissionWithFinalAnswer] missions1 검색 결과: ${missionSnap.exists()}`);
     
     if (!missionSnap.exists()) {
-      // ai_mission에서 검색
-      console.log(`[settleMissionWithFinalAnswer] ai_mission에서 검색 시도...`);
-      missionRef = doc(db, "ai_mission", missionId);
-      missionSnap = await getDoc(missionRef);
-      missionCollection = "ai_mission";
-      console.log(`[settleMissionWithFinalAnswer] ai_mission 검색 결과: ${missionSnap.exists()}`);
-    }
-    
-    if (!missionSnap.exists()) {
       console.error(`[settleMissionWithFinalAnswer] 미션을 찾을 수 없음: ${missionId}`);
       return { success: false, error: "미션을 찾을 수 없습니다." };
     }
     
     const missionData = missionSnap.data();
-    console.log(`[settleMissionWithFinalAnswer] 미션 찾음: ${missionCollection}`, missionData);
+    console.log(`[settleMissionWithFinalAnswer] 미션 찾음: ${missionCollection}`, {
+      ...missionData,
+      isAIMission: missionData.isAIMission || false
+    });
     
     // 미션 상태 업데이트
     console.log(`[settleMissionWithFinalAnswer] 미션 상태 업데이트 중...`);

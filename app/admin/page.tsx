@@ -712,8 +712,8 @@ export default function AdminPage() {
                         <TabsTrigger value="missions">미션 관리</TabsTrigger>
                         <TabsTrigger value="programs">프로그램 관리</TabsTrigger>
                         <TabsTrigger value="recruits">리얼캐스팅 관리</TabsTrigger>
-                        <TabsTrigger value="marketer">마케터 관리</TabsTrigger>
                         <TabsTrigger value="users" onClick={() => loadUsers(0)}>유저 관리</TabsTrigger>
+                        <TabsTrigger value="marketer">마케터 관리</TabsTrigger>
                     </TabsList>
 
                     <TabsContent value="missions" className="space-y-6">
@@ -1008,10 +1008,6 @@ export default function AdminPage() {
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="marketer" className="space-y-6">
-                        <MarketerManagement />
-                    </TabsContent>
-
                     <TabsContent value="users" className="space-y-6">
                         <Card>
                             <CardHeader>
@@ -1155,6 +1151,10 @@ export default function AdminPage() {
                                 </div>
                             </CardContent>
                         </Card>
+                    </TabsContent>
+
+                    <TabsContent value="marketer" className="space-y-6">
+                        <MarketerManagement />
                     </TabsContent>
                 </Tabs>
             </main>

@@ -70,6 +70,7 @@ export interface TMission {
   creatorId?: string
   creatorNickname?: string // 딜러 닉네임
   creatorTier?: string // 작성자 티어 (추가됨)
+  creatorProfileImage?: string // 작성자 프로필 이미지
   kind: "predict" | "majority"
   form: "binary" | "multi" | "match" | "tournament"
   title: string

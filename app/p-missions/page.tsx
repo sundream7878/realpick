@@ -12,7 +12,7 @@ import Link from "next/link"
 import { useSearchParams, useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import { MockVoteRepo, mockMissions } from "@/lib/mock-vote-data"
-import { getMissions, getMissions2, getAIMissions } from "@/lib/firebase/missions"
+import { getMissions, getMissions2 } from "@/lib/firebase/missions"
 import { getUserVotesMap } from "@/lib/firebase/votes"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -54,11 +54,8 @@ export default function MissionsPage() {
     const loadMissions = async () => {
       setIsLoading(true)
       try {
-        // 1. Firebase에서 Binary/Multi/주관식 미션 + AI 미션 가져오기
-        const [result, aiResult] = await Promise.all([
-          getMissions("missions1", 50),
-          getAIMissions(50)
-        ])
+        // 1. Firebase에서 Binary/Multi/주관식 미션 가져오기 (AI 미션 포함)
+        const result = await getMissions("missions1", 50)
         let realMissions: TMission[] = []
 
         if (result.success && result.missions) {
@@ -139,66 +136,8 @@ export default function MissionsPage() {
           }))
         }
 
-        // 2-1. AI 미션 변환
-        let aiMissions: TMission[] = []
-        console.log('[미션 페이지] AI 미션 결과:', aiResult);
-        
-        if (aiResult.success && aiResult.missions) {
-          console.log('[미션 페이지] AI 미션 개수:', aiResult.missions.length);
-          
-          aiMissions = (aiResult.missions || [])
-            .filter(Boolean)
-            .map((mission: any) => {
-              console.log('[미션 페이지] AI 미션 변환:', {
-                id: mission.id,
-                title: mission.title,
-                showId: mission.showId,
-                category: mission.category
-              });
-              
-              return {
-                id: mission.id,
-                title: mission.title,
-                kind: mission.kind || "predict",
-                form: mission.form || "binary",
-                seasonType: mission.seasonType || "전체",
-                showId: mission.showId,
-                category: mission.category,
-                seasonNumber: mission.seasonNumber || undefined,
-                options: mission.options || [],
-                subjectivePlaceholder: mission.subjectivePlaceholder || undefined,
-                deadline: mission.deadline,
-                revealPolicy: mission.revealPolicy || "realtime",
-                status: mission.status,
-                creatorNickname: mission.channelName || mission.creatorNickname || mission.creator || "AI 생성",
-                creatorTier: "AI",
-                stats: {
-                  participants: mission.participants || 0,
-                  totalVotes: mission.totalVotes || 0
-                },
-                result: {
-                  distribution: desanitizeVoteCounts(mission.optionVoteCounts || {}),
-                  correct: mission.correctAnswer || undefined,
-                  majority: mission.majorityOption || undefined,
-                  totalVotes: mission.totalVotes || 0
-                },
-                creatorNickname: mission.creatorNickname,
-                creatorTier: mission.creatorTier,
-                createdAt: mission.createdAt?.toDate?.()?.toISOString() || mission.createdAt,
-                thumbnailUrl: mission.thumbnailUrl,
-                referenceUrl: mission.referenceUrl,
-                isLive: mission.isLive,
-                isAIMission: true  // AI 미션 플래그
-              } as TMission;
-            })
-          
-          console.log('[미션 페이지] AI 미션 변환 완료:', aiMissions.length);
-        } else {
-          console.log('[미션 페이지] AI 미션 로드 실패 또는 데이터 없음:', aiResult.error);
-        }
-
-        // 3. 세 데이터 합치기 (missions1 + missions2 + ai_mission)
-        const combinedMissions = [...realMissions, ...coupleMissions, ...aiMissions]
+        // 3. 두 데이터 합치기 (missions1 + missions2, AI 미션은 missions1에 이미 포함)
+        const combinedMissions = [...realMissions, ...coupleMissions]
         
         console.log('[미션 페이지] 미션 통합 결과:', {
           missions1: realMissions.length,

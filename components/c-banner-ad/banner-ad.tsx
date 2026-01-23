@@ -9,7 +9,7 @@ interface BannerAdProps {
 }
 
 export function BannerAd({ className = "" }: BannerAdProps) {
-  const [isVisible, setIsVisible] = useState(true)
+  const [isVisible, setIsVisible] = useState(true) // 배너 표시 (모바일에서만)
 
   if (!isVisible) return null
 

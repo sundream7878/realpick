@@ -38,8 +38,8 @@ export function useNewMissionNotifications() {
         const lastCheckStr = localStorage.getItem(LAST_CHECK_KEY)
         const lastCheckTime = lastCheckStr ? parseInt(lastCheckStr) : Date.now() - (24 * 60 * 60 * 1000)
 
-        // Firestore 실시간 리스너
-        const collections = ["missions1", "missions2", "ai_mission"]
+        // Firestore 실시간 리스너 (AI 미션은 missions1에 포함)
+        const collections = ["missions1", "missions2"]
         const unsubscribes = collections.map(colName => {
             const q = query(
                 collection(db, colName),

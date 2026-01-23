@@ -15,12 +15,11 @@ export function useAliveMissionCounts() {
     })
 
     useEffect(() => {
-        const collections = ["missions1", "missions2", "ai_mission"]
+        const collections = ["missions1", "missions2"]
         // 각 컬렉션별 살아있는 미션 데이터를 관리
         const collectionMissions: Record<string, Record<string, { category: string, showId: string }>> = {
             "missions1": {},
-            "missions2": {},
-            "ai_mission": {}
+            "missions2": {}
         }
 
         const updateAggregatedCounts = () => {
