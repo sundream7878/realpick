@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Button } from "@/components/c-ui/button"
-import { Plus, User, Megaphone, Shield } from "lucide-react"
+import { Plus, User, Shield } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import LoginModal from "@/components/c-login-modal/login-modal"
@@ -24,7 +24,7 @@ interface TSidebarNavigationProps {
   onMissionStatusToggle: () => void
   onSeasonSelect: (season: string) => void
   onMissionModalOpen: () => void
-  activeNavItem?: "home" | "missions" | "mypage" | "casting" | "admin" | "dealer"
+  activeNavItem?: "home" | "missions" | "mypage" | "admin" | "dealer"
   seasonOptions?: TSeasonOption[]
   category?: TShowCategory
   activeShowIds?: Set<string>
@@ -60,7 +60,6 @@ export function SidebarNavigation({
   // 현재 선택된 쿼리 파라미터 구성
   const currentQuery = selectedShowId ? `?show=${selectedShowId}` : ""
   const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
-  const castingUrl = selectedShowId ? `/p-casting?show=${selectedShowId}` : "/p-casting"
   const dealerLoungeUrl = selectedShowId ? `/dealer/lounge?show=${selectedShowId}` : "/dealer/lounge"
   const adminUrl = "/admin"
   const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
@@ -158,23 +157,6 @@ export function SidebarNavigation({
     <aside className={`w-64 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
       <div className="p-6">
         <nav className="space-y-2">
-          <Link href={castingUrl}>
-            <Button
-              variant="ghost"
-              className={`w-full justify-start gap-3 transition-all font-bold ${
-                activeNavItem === "casting" 
-                  ? `${theme.subBadge} ${theme.subBadgeText}` 
-                  : `${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`
-              }`}
-            >
-              <Megaphone className="w-5 h-5" />
-              <span>리얼캐스팅</span>
-              <span className="bg-red-500 text-white text-[10px] px-1.5 py-0.5 rounded-full animate-pulse ml-auto">
-                New
-              </span>
-            </Button>
-          </Link>
-
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"

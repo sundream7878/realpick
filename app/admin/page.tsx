@@ -14,7 +14,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow, updateShowInfo } from "@/lib/firebase/admin-settings"
-import { getAllRecruits, addRecruit, updateRecruit, deleteRecruit } from "@/lib/firebase/admin-recruits"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
 import { SHOWS, CATEGORIES, type TShowCategory, getShowById } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
@@ -23,7 +22,7 @@ import { doc, getDoc } from "firebase/firestore"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2, Edit, Zap } from "lucide-react"
+import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2, Edit } from "lucide-react"
 import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 import { MarketerManagement } from "@/components/c-admin/MarketerManagement"
 
@@ -74,20 +73,6 @@ export default function AdminPage() {
         officialUrl: ""
     })
 
-    // Recruit management state
-    const [recruits, setRecruits] = useState<any[]>([])
-    const [isRecruitDialogOpen, setIsRecruitDialogOpen] = useState(false)
-    const [editingRecruitId, setEditingRecruitId] = useState<string | null>(null)
-    const [newRecruit, setNewRecruit] = useState({
-        programId: "",
-        type: "cast" as any,
-        title: "",
-        description: "",
-        target: "",
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date().toISOString().split('T')[0],
-        officialUrl: ""
-    })
 
     useEffect(() => {
         const checkPermissionAndLoad = async () => {
@@ -120,13 +105,12 @@ export default function AdminPage() {
 
             // Load Admin Data
             try {
-                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult, customShowsResult, recruitsResult] = await Promise.all([
+                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult, customShowsResult] = await Promise.all([
                     getAllOpenMissions(),
                     getMainMissionId(),
                     getShowStatuses(),
                     getShowVisibility(),
-                    getCustomShows(),
-                    getAllRecruits()
+                    getCustomShows()
                 ])
 
                 if (missionsResult.success) {
@@ -148,10 +132,6 @@ export default function AdminPage() {
                 if (customShowsResult.success) {
                     setCustomShows(customShowsResult.shows || [])
                 }
-
-                if (recruitsResult.success) {
-                    setRecruits(recruitsResult.recruits || [])
-                }
             } catch (error) {
                 console.error("Failed to load admin data", error)
                 toast({
@@ -167,72 +147,6 @@ export default function AdminPage() {
         checkPermissionAndLoad()
     }, [router, toast])
 
-    const handleAddRecruit = async () => {
-        if (!newRecruit.programId || !newRecruit.title || !newRecruit.endDate) {
-            toast({ title: "입력 오류", description: "필수 항목을 모두 입력해주세요.", variant: "destructive" })
-            return
-        }
-
-        try {
-            let result
-            if (editingRecruitId) {
-                result = await updateRecruit(editingRecruitId, newRecruit)
-            } else {
-                result = await addRecruit(newRecruit)
-            }
-
-            if (result.success) {
-                toast({ title: editingRecruitId ? "공고 수정 성공" : "공고 추가 성공" })
-                const res = await getAllRecruits()
-                if (res.success) setRecruits(res.recruits || [])
-                setIsRecruitDialogOpen(false)
-                setEditingRecruitId(null)
-                setNewRecruit({
-                    programId: "",
-                    type: "cast",
-                    title: "",
-                    description: "",
-                    target: "",
-                    startDate: new Date().toISOString().split('T')[0],
-                    endDate: new Date().toISOString().split('T')[0],
-                    officialUrl: ""
-                })
-            } else {
-                throw new Error(result.error)
-            }
-        } catch (error: any) {
-            toast({ title: "작업 실패", description: error.message, variant: "destructive" })
-        }
-    }
-
-    const handleEditRecruit = (recruit: any) => {
-        setNewRecruit({
-            programId: recruit.programId,
-            type: recruit.type,
-            title: recruit.title,
-            description: recruit.description,
-            target: recruit.target,
-            startDate: recruit.startDate,
-            endDate: recruit.endDate,
-            officialUrl: recruit.officialUrl || ""
-        })
-        setEditingRecruitId(recruit.id)
-        setIsRecruitDialogOpen(true)
-    }
-
-    const handleDeleteRecruit = async (id: string) => {
-        if (!confirm("정말 삭제하시겠습니까?")) return
-        try {
-            const result = await deleteRecruit(id)
-            if (result.success) {
-                toast({ title: "삭제 성공" })
-                const res = await getAllRecruits()
-                if (res.success) setRecruits(res.recruits || [])
-            }
-        } catch (error: any) {
-            toast({ title: "삭제 실패", description: error.message, variant: "destructive" })
-        }
-    }
 
     const handleUnlock = () => {
         setIsUnlocked(true)
@@ -711,7 +625,6 @@ export default function AdminPage() {
                     <TabsList>
                         <TabsTrigger value="missions">미션 관리</TabsTrigger>
                         <TabsTrigger value="programs">프로그램 관리</TabsTrigger>
-                        <TabsTrigger value="recruits">리얼캐스팅 관리</TabsTrigger>
                         <TabsTrigger value="users" onClick={() => loadUsers(0)}>유저 관리</TabsTrigger>
                         <TabsTrigger value="marketer">마케터 관리</TabsTrigger>
                     </TabsList>
@@ -947,67 +860,6 @@ export default function AdminPage() {
                         </div>
                     </TabsContent>
 
-                    <TabsContent value="recruits" className="space-y-6">
-                        <div className="flex justify-between items-center mb-4">
-                            <h2 className="text-xl font-bold">리얼캐스팅 공고 관리</h2>
-                            <Button onClick={() => {
-                                setEditingRecruitId(null)
-                                setNewRecruit({
-                                    programId: "",
-                                    type: "cast",
-                                    title: "",
-                                    description: "",
-                                    target: "",
-                                    startDate: new Date().toISOString().split('T')[0],
-                                    endDate: new Date().toISOString().split('T')[0],
-                                    officialUrl: ""
-                                })
-                                setIsRecruitDialogOpen(true)
-                            }} className="bg-purple-600">
-                                <Plus className="w-4 h-4 mr-2" /> 공고 추가
-                            </Button>
-                        </div>
-
-                        <div className="grid grid-cols-1 gap-4">
-                            {recruits.length === 0 ? (
-                                <div className="text-center py-10 bg-white rounded-lg border border-dashed border-gray-300 text-gray-500">
-                                    등록된 공고가 없습니다. 리얼픽 마케터 앱에서 크롤링한 데이터가 이곳으로 동기화됩니다.
-                                </div>
-                            ) : (
-                                recruits.map((recruit) => (
-                                    <Card key={recruit.id} className="hover:shadow-md transition-shadow">
-                                        <CardContent className="p-4">
-                                            <div className="flex justify-between items-start">
-                                                <div className="space-y-1">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant={recruit.type === 'cast' ? 'default' : 'outline'} className={recruit.type === 'cast' ? 'bg-purple-100 text-purple-700' : 'bg-pink-100 text-pink-700'}>
-                                                            {recruit.type === 'cast' ? '출연자 모집' : '방청 신청'}
-                                                        </Badge>
-                                                        <span className="text-xs text-gray-500">{getShowById(recruit.programId)?.displayName || recruit.programId}</span>
-                                                    </div>
-                                                    <h3 className="font-bold text-lg">{recruit.title}</h3>
-                                                    <p className="text-sm text-gray-600">{recruit.description}</p>
-                                                    <div className="flex items-center gap-4 text-xs text-gray-400 mt-2">
-                                                        <span>대상: {recruit.target}</span>
-                                                        <span>기간: {recruit.startDate} ~ {recruit.endDate}</span>
-                                                    </div>
-                                                </div>
-                                                <div className="flex gap-2">
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditRecruit(recruit)}>
-                                                        <Edit className="w-4 h-4 text-blue-500" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="sm" onClick={() => handleDeleteRecruit(recruit.id)}>
-                                                        <Trash2 className="w-4 h-4 text-red-500" />
-                                                    </Button>
-                                                </div>
-                                            </div>
-                                        </CardContent>
-                                    </Card>
-                                ))
-                            )}
-                        </div>
-                    </TabsContent>
-
                     <TabsContent value="users" className="space-y-6">
                         <Card>
                             <CardHeader>
@@ -1224,108 +1076,6 @@ export default function AdminPage() {
                         
                         <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleAddShow}>
                             {editingShowId ? "수정하기" : "추가하기"}
-                        </Button>
-                    </div>
-                </DialogContent>
-            </Dialog>
-
-            {/* 리얼캐스팅 추가/수정 다이얼로그 */}
-            <Dialog open={isRecruitDialogOpen} onOpenChange={setIsRecruitDialogOpen}>
-                <DialogContent className="max-w-md">
-                    <DialogHeader>
-                        <DialogTitle>{editingRecruitId ? "캐스팅 공고 수정" : "새 캐스팅 공고 추가"}</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4 py-4">
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">연관 프로그램 *</label>
-                            <Select
-                                value={newRecruit.programId}
-                                onValueChange={(value) => setNewRecruit({ ...newRecruit, programId: value })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue placeholder="프로그램 선택" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {Object.values(groupedShows).flat().map((show: any) => (
-                                        <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">유형 *</label>
-                            <Select
-                                value={newRecruit.type}
-                                onValueChange={(value) => setNewRecruit({ ...newRecruit, type: value as any })}
-                            >
-                                <SelectTrigger>
-                                    <SelectValue />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    <SelectItem value="cast">출연자 모집</SelectItem>
-                                    <SelectItem value="audience">방청 신청</SelectItem>
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">공고 제목 *</label>
-                            <Input
-                                placeholder="예: 나는 SOLO 30기 출연진 모집"
-                                value={newRecruit.title}
-                                onChange={(e) => setNewRecruit({ ...newRecruit, title: e.target.value })}
-                            />
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">설명</label>
-                            <Input
-                                placeholder="예: 결혼을 원하는 솔로남녀 누구나"
-                                value={newRecruit.description}
-                                onChange={(e) => setNewRecruit({ ...newRecruit, description: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">모집 대상</label>
-                            <Input
-                                placeholder="예: 미혼 남녀"
-                                value={newRecruit.target}
-                                onChange={(e) => setNewRecruit({ ...newRecruit, target: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">시작일</label>
-                                <Input
-                                    type="date"
-                                    value={newRecruit.startDate}
-                                    onChange={(e) => setNewRecruit({ ...newRecruit, startDate: e.target.value })}
-                                />
-                            </div>
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">종료일 *</label>
-                                <Input
-                                    type="date"
-                                    value={newRecruit.endDate}
-                                    onChange={(e) => setNewRecruit({ ...newRecruit, endDate: e.target.value })}
-                                />
-                            </div>
-                        </div>
-                        
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium">공식 URL</label>
-                            <Input
-                                placeholder="https://..."
-                                value={newRecruit.officialUrl}
-                                onChange={(e) => setNewRecruit({ ...newRecruit, officialUrl: e.target.value })}
-                            />
-                        </div>
-                        
-                        <Button className="w-full bg-purple-600 hover:bg-purple-700" onClick={handleAddRecruit}>
-                            {editingRecruitId ? "수정하기" : "추가하기"}
                         </Button>
                     </div>
                 </DialogContent>

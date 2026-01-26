@@ -1,6 +1,6 @@
 "use client"
 
-import { User, Plus, Megaphone, Coins, Shield, Users } from "lucide-react"
+import { User, Plus, Coins, Shield, Users } from "lucide-react"
 import Link from "next/link"
 import { usePathname, useSearchParams, useRouter } from "next/navigation"
 import { useState, useEffect } from "react"
@@ -105,35 +105,28 @@ export function BottomNavigation({
   }
 
   const navItems = [
-    // 1. 리얼캐스팅
-    {
-      icon: Megaphone,
-      label: "리얼캐스팅",
-      href: "/p-casting",
-      active: pathname === "/p-casting",
-    },
-    // 2. 미션게시 (딜러 이상)
+    // 1. 미션게시 (딜러 이상)
     ...(canCreateMissions ? [{
       icon: Plus,
       label: "미션게시",
       onClick: handleMissionCreationClick,
       active: false,
     }] : []),
-    // 3. 마이페이지
+    // 2. 마이페이지
     {
       icon: User,
       label: "마이페이지",
       href: myPageUrl,
       active: pathname === "/p-mypage",
     },
-    // 4. 딜러라운지 (딜러, 메인딜러, 관리자)
+    // 3. 딜러라운지 (딜러, 메인딜러, 관리자)
     ...((userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') ? [{
       icon: Users,
       label: "딜러라운지",
       href: "/dealer/lounge",
       active: pathname === "/dealer/lounge",
     }] : []),
-    // 5. 포인트
+    // 4. 포인트
     {
       icon: Coins,
       label: "포인트",
