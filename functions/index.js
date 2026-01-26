@@ -150,7 +150,7 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
   }
 
   try {
-    const {email} = req.body;
+    const {email, redirectUrl} = req.body;
 
     // 이메일 유효성 검사
     if (!email || !email.includes("@")) {
@@ -162,8 +162,13 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
     }
 
     // Firebase Admin SDK로 매직링크 생성
+    // redirectUrl이 제공되면 사용, 없으면 기본값 사용
+    const callbackUrl = redirectUrl || "https://realpick.com/auth/callback";
+
+    console.log("[Magic Link] Using callback URL:", callbackUrl);
+
     const actionCodeSettings = {
-      url: "https://realpick.com/auth/callback",
+      url: callbackUrl,
       handleCodeInApp: true,
     };
 

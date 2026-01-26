@@ -18,14 +18,41 @@ const actionCodeSettings = {
 }
 
 /**
- * 링크 전송 (이메일 매직링크)
+ * 링크 전송 (이메일 매직링크) - 커스텀 템플릿 사용
  */
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    await sendSignInLinkToEmail(auth, email, actionCodeSettings)
+    console.log("🔥 [sendVerificationCode] 커스텀 템플릿으로 이메일 발송 시작:", email)
+    
+    // 현재 도메인으로 리다이렉트 URL 생성
+    const redirectUrl = typeof window !== "undefined" 
+      ? `${window.location.origin}/auth/callback`
+      : "https://realpick.com/auth/callback"
+    
+    console.log("📍 [sendVerificationCode] Redirect URL:", redirectUrl)
+    
+    // 우리가 만든 Cloud Function 호출 (커스텀 템플릿으로 이메일 발송)
+    const response = await fetch("https://sendmagiclink-b2atbwi42a-uc.a.run.app", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, redirectUrl }),
+    })
+
+    const data = await response.json()
+    console.log("✅ [sendVerificationCode] 이메일 발송 응답:", data)
+
+    if (!data.success) {
+      throw new Error(data.error || "이메일 발송에 실패했습니다.")
+    }
+
+    // 이메일을 로컬 스토리지에 저장 (나중에 검증할 때 필요)
     if (typeof window !== "undefined") {
       window.localStorage.setItem("emailForSignIn", email)
     }
+
+    console.log("🎉 [sendVerificationCode] 커스텀 템플릿 이메일 발송 완료!")
     return { success: true }
   } catch (error: any) {
     console.error("Firebase 매직링크 전송 실패:", error)
