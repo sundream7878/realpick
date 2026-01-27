@@ -7,7 +7,7 @@ import { Badge } from "@/components/c-ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/c-ui/avatar"
 import { Progress } from "@/components/c-ui/progress"
 import { useRouter } from "next/navigation"
-import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2, ExternalLink } from "lucide-react"
+import { Share2, Trophy, Users, Clock, TrendingUp, Check, ArrowLeft, Crown, FileText, XCircle, CheckCircle2, Heart, Trash2, ExternalLink, Star } from "lucide-react"
 import Link from "next/link"
 import { MockVoteRepo, generateMockUserRanking } from "@/lib/mock-vote-data"
 import { getMissionById } from "@/lib/firebase/missions"
@@ -104,6 +104,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isPromotingMain, setIsPromotingMain] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [isAdminUser, setIsAdminUser] = useState(false)
   const [ranking, setRanking] = useState<any[]>([])
@@ -163,6 +164,34 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     fetchUserInfo()
   }, [])
 
+  const handlePromoteToMain = async () => {
+    if (!mission) {
+      alert("미션 정보가 없습니다.")
+      return
+    }
+
+    if (!confirm(`"${mission.title}"을(를) 메인 미션으로 승격하시겠습니까?`)) {
+      return
+    }
+
+    setIsPromotingMain(true)
+    try {
+      const { setMainMissionId } = await import("@/lib/firebase/admin-settings")
+      const success = await setMainMissionId(mission.id)
+      
+      if (success) {
+        alert("메인 미션으로 승격되었습니다!")
+      } else {
+        throw new Error("메인 미션 설정에 실패했습니다.")
+      }
+    } catch (error: any) {
+      console.error("메인 미션 승격 실패:", error)
+      alert(`메인 미션 승격에 실패했습니다: ${error.message || "알 수 없는 오류"}`)
+    } finally {
+      setIsPromotingMain(false)
+    }
+  }
+
   const handleDeleteMission = async () => {
     const currentUserId = getUserId()
     if (!mission || !currentUserId) {
@@ -172,12 +201,12 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
 
     setIsDeleting(true)
     try {
-      // AI 미션, 커플 매칭, 일반 미션 구분
+      // 커플 매칭, 일반 미션, AI 미션 구분
       let missionType = "mission1"
-      if ((mission as any).isAIMission || (mission as any).__table === "ai_mission") {
-        missionType = "ai_mission"
-      } else if (mission.form === "match") {
+      if (mission.form === "match") {
         missionType = "mission2"
+      } else if ((mission as any).isAIMission) {
+        missionType = "ai_mission" // AI 미션은 명시적으로 ai_mission으로 전달
       }
       
       console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId: currentUserId, isAIMission: (mission as any).isAIMission })
@@ -204,9 +233,11 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         throw new Error(errorMessage)
       }
 
-      // 삭제 성공 시 메인 페이지로 이동
+      // 삭제 성공 시 해당 프로그램 페이지로 이동
       alert("미션이 성공적으로 삭제되었습니다.")
-      router.push("/")
+      const { normalizeShowId } = await import("@/lib/constants/shows")
+      const redirectShowId = normalizeShowId(mission.showId) || "nasolo"
+      router.push(`/?show=${redirectShowId}`)
     } catch (error: any) {
       console.error("미션 삭제 실패:", error)
       alert(`미션 삭제에 실패했습니다: ${error.message || "알 수 없는 오류"}`)
@@ -623,26 +654,38 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
                       {isAdminUser && (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={async () => {
-                            // 권한 재확인
-                            const currentUserId = getUserId()
-                            if (currentUserId) {
-                              const user = await getUser(currentUserId)
-                              if (user && isAdmin(user.role)) {
-                                setIsDeleteDialogOpen(true)
-                              } else {
-                                alert("관리자 권한이 필요합니다.")
+                        <>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={handlePromoteToMain}
+                            disabled={isPromotingMain}
+                            className="flex items-center gap-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+                          >
+                            <Star className="w-4 h-4" />
+                            <span className="hidden sm:inline">{isPromotingMain ? "승격 중..." : "메인 승격"}</span>
+                          </Button>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={async () => {
+                              // 권한 재확인
+                              const currentUserId = getUserId()
+                              if (currentUserId) {
+                                const user = await getUser(currentUserId)
+                                if (user && isAdmin(user.role)) {
+                                  setIsDeleteDialogOpen(true)
+                                } else {
+                                  alert("관리자 권한이 필요합니다.")
+                                }
                               }
-                            }
-                          }}
-                          className="flex items-center gap-2"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          <span className="hidden sm:inline">삭제</span>
-                        </Button>
+                            }}
+                            className="flex items-center gap-2"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                            <span className="hidden sm:inline">삭제</span>
+                          </Button>
+                        </>
                       )}
                       {
                         mission.form === "match" && mission.status === "settled" && mission.finalAnswer && (

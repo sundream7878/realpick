@@ -11,9 +11,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Input } from "@/components/c-ui/input"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/c-ui/table"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/c-ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
-import { getAllOpenMissions, setMainMissionId, getMainMissionId, getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow, updateShowInfo } from "@/lib/firebase/admin-settings"
+import { getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow, updateShowInfo } from "@/lib/firebase/admin-settings"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
 import { SHOWS, CATEGORIES, type TShowCategory, getShowById } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
@@ -22,15 +22,13 @@ import { doc, getDoc } from "firebase/firestore"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
 import { getRoleDisplayName, getRoleBadgeColor } from "@/lib/utils/permissions"
-import { Search, Lock, KeyRound, Eye, EyeOff, Plus, Trash2, Edit } from "lucide-react"
+import { Search, Lock, Eye, EyeOff, Plus, Trash2, Edit } from "lucide-react"
 import { AdminLockScreen } from "@/components/c-admin/AdminLockScreen"
 import { MarketerManagement } from "@/components/c-admin/MarketerManagement"
 
 export default function AdminPage() {
     const router = useRouter()
     const { toast } = useToast()
-    const [missions, setMissions] = useState<any[]>([])
-    const [currentMainMissionId, setCurrentMainMissionId] = useState<string | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isAdminRole, setIsAdminRole] = useState(false) // Check if user has ADMIN role in DB
     const [isUnlocked, setIsUnlocked] = useState(false) // Check if password unlocked
@@ -43,11 +41,6 @@ export default function AdminPage() {
     const [isSearching, setIsSearching] = useState(false)
     const usersPerPage = 20
 
-    // Password Change State
-    const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false)
-    const [newPassword, setNewPassword] = useState("")
-    const [confirmNewPassword, setConfirmNewPassword] = useState("")
-
     // Show Status State
     const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
     
@@ -58,8 +51,8 @@ export default function AdminPage() {
     const [customShows, setCustomShows] = useState<any[]>([])
     
     // Filtering State
-    const [missionCategoryFilter, setMissionCategoryFilter] = useState<string>("ALL")
     const [programCategoryFilter, setProgramCategoryFilter] = useState<string>("ALL")
+    const [programStatusFilter, setProgramStatusFilter] = useState<string>("ALL")
     const [userRoleFilter, setUserRoleFilter] = useState<string>("ALL")
     
     // Add/Edit Show Dialog State
@@ -105,21 +98,11 @@ export default function AdminPage() {
 
             // Load Admin Data
             try {
-                const [missionsResult, mainMissionResult, showStatusesResult, showVisibilityResult, customShowsResult] = await Promise.all([
-                    getAllOpenMissions(),
-                    getMainMissionId(),
+                const [showStatusesResult, showVisibilityResult, customShowsResult] = await Promise.all([
                     getShowStatuses(),
                     getShowVisibility(),
                     getCustomShows()
                 ])
-
-                if (missionsResult.success) {
-                    setMissions(missionsResult.missions || [])
-                }
-
-                if (mainMissionResult.success) {
-                    setCurrentMainMissionId(mainMissionResult.missionId)
-                }
 
                 if (showStatusesResult.success) {
                     setShowStatuses(showStatusesResult.statuses || {})
@@ -151,40 +134,6 @@ export default function AdminPage() {
     const handleUnlock = () => {
         setIsUnlocked(true)
         sessionStorage.setItem("admin_unlocked", "true")
-    }
-
-    const handleChangePassword = async () => {
-        if (!newPassword || newPassword !== confirmNewPassword) {
-            toast({ title: "오류", description: "비밀번호가 일치하지 않습니다.", variant: "destructive" })
-            return
-        }
-
-        try {
-            const { auth } = await import("@/lib/firebase/config")
-            const token = await auth.currentUser?.getIdToken()
-
-            const res = await fetch("/api/admin/auth/update", {
-                method: "POST",
-                headers: { 
-                    "Content-Type": "application/json",
-                    "Authorization": `Bearer ${token}`
-                },
-                body: JSON.stringify({ newPassword }),
-            })
-
-            if (res.ok) {
-                toast({ title: "성공", description: "비밀번호가 변경되었습니다." })
-                setIsChangePasswordOpen(false)
-                setNewPassword("")
-                setConfirmNewPassword("")
-            } else {
-                const data = await res.json()
-                throw new Error(data.error || "Failed to update password")
-            }
-        } catch (error: any) {
-            console.error("Admin password change error:", error)
-            toast({ title: "오류", description: error.message || "비밀번호 변경 중 오류가 발생했습니다.", variant: "destructive" })
-        }
     }
 
     // Load users
@@ -286,42 +235,6 @@ export default function AdminPage() {
                 description: error.message || "권한 수정 중 오류가 발생했습니다. 콘솔을 확인해주세요.",
                 variant: "destructive"
             })
-        }
-    }
-
-    const handleSetMainMission = async (missionId: string) => {
-        try {
-            const success = await setMainMissionId(missionId)
-            if (success) {
-                setCurrentMainMissionId(missionId)
-                toast({
-                    title: "메인 미션 설정 완료",
-                    description: "메인 배너 미션이 변경되었습니다."
-                })
-            } else {
-                throw new Error("Failed to set main mission")
-            }
-        } catch (error) {
-            toast({
-                title: "설정 실패",
-                description: "메인 미션 설정 중 오류가 발생했습니다.",
-                variant: "destructive"
-            })
-        }
-    }
-
-    const handleClearMainMission = async () => {
-        try {
-            const success = await setMainMissionId(null)
-            if (success) {
-                setCurrentMainMissionId(null)
-                toast({
-                    title: "메인 미션 해제 완료",
-                    description: "메인 배너가 기본 로직으로 돌아갑니다."
-                })
-            }
-        } catch (error) {
-            console.error(error)
         }
     }
 
@@ -584,180 +497,85 @@ export default function AdminPage() {
                 }}
             />
             <main className="max-w-7xl mx-auto px-4 py-8">
-                <div className="flex items-center justify-between mb-8">
+                <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">관리자 페이지</h1>
-
-                    <Dialog open={isChangePasswordOpen} onOpenChange={setIsChangePasswordOpen}>
-                        <DialogTrigger asChild>
-                            <Button variant="outline" className="gap-2">
-                                <KeyRound className="w-4 h-4" />
-                                비밀번호 변경
-                            </Button>
-                        </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>관리자 비밀번호 변경</DialogTitle>
-                            </DialogHeader>
-                            <div className="space-y-4 py-4">
-                                <div className="space-y-2">
-                                    <Input
-                                        type="password"
-                                        placeholder="새 비밀번호"
-                                        value={newPassword}
-                                        onChange={(e) => setNewPassword(e.target.value)}
-                                    />
-                                    <Input
-                                        type="password"
-                                        placeholder="비밀번호 확인"
-                                        value={confirmNewPassword}
-                                        onChange={(e) => setConfirmNewPassword(e.target.value)}
-                                    />
-                                </div>
-                                <Button className="w-full bg-purple-600" onClick={handleChangePassword}>
-                                    변경하기
-                                </Button>
-                            </div>
-                        </DialogContent>
-                    </Dialog>
                 </div>
 
-                <Tabs defaultValue="missions" className="space-y-6">
+                <Tabs defaultValue="programs" className="space-y-6">
                     <TabsList>
-                        <TabsTrigger value="missions">미션 관리</TabsTrigger>
                         <TabsTrigger value="programs">프로그램 관리</TabsTrigger>
                         <TabsTrigger value="users" onClick={() => loadUsers(0)}>유저 관리</TabsTrigger>
-                        <TabsTrigger value="marketer">마케터 관리</TabsTrigger>
+                        <TabsTrigger value="marketer">리얼픽 마케터</TabsTrigger>
                     </TabsList>
-
-                    <TabsContent value="missions" className="space-y-6">
-                        <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                                <span className="text-sm text-gray-500">현재 메인 미션 ID:</span>
-                                <Badge variant="outline" className="font-mono text-[10px] sm:text-xs">
-                                    {currentMainMissionId || "없음 (자동 선정)"}
-                                </Badge>
-                                {currentMainMissionId && (
-                                    <Button variant="ghost" size="sm" onClick={handleClearMainMission} className="text-rose-500 h-6">
-                                        해제
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg w-fit">
-                            <Button 
-                                variant={missionCategoryFilter === "ALL" ? "default" : "ghost"} 
-                                size="sm" 
-                                onClick={() => setMissionCategoryFilter("ALL")}
-                                className="h-8 text-xs px-3"
-                            >
-                                전체
-                            </Button>
-                            {(Object.keys(CATEGORIES) as TShowCategory[])
-                                .filter(cat => cat !== "UNIFIED")
-                                .map((cat) => (
-                                <Button 
-                                    key={cat}
-                                    variant={missionCategoryFilter === cat ? "default" : "ghost"} 
-                                    size="sm" 
-                                    onClick={() => setMissionCategoryFilter(cat)}
-                                    className="h-8 text-xs gap-1 px-3"
-                                >
-                                    <span>{CATEGORIES[cat].label}</span>
-                                </Button>
-                            ))}
-                        </div>
-
-                        <div className="space-y-4">
-                            {(Object.keys(groupedShows) as TShowCategory[])
-                                .filter(cat => cat !== "UNIFIED")
-                                .filter(cat => missionCategoryFilter === "ALL" || missionCategoryFilter === cat)
-                                .map((category) => (
-                                <section key={category} className="space-y-4">
-                                    <div className="flex items-center gap-2 mb-4">
-                                        <img
-                                            src={CATEGORIES[category].iconPath}
-                                            alt={CATEGORIES[category].label}
-                                            className="w-8 h-8 object-contain"
-                                        />
-                                        <h2 className="text-xl font-bold text-gray-800">{CATEGORIES[category].label}</h2>
-                                    </div>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {groupedShows[category].map((show) => {
-                                            const showMissions = missions.filter(m => {
-                                                if (show.id === 'nasolo') {
-                                                    return m.showId === show.id || !m.showId
-                                                }
-                                                return m.showId === show.id
-                                            })
-
-                                            return (
-                                                <Card key={show.id} className="border-gray-200 shadow-sm hover:shadow-md transition-shadow">
-                                                    <CardHeader className="py-3 px-4 bg-gray-50/50 border-b border-gray-100 flex flex-row items-center justify-between">
-                                                        <CardTitle className="text-base font-medium text-gray-900">
-                                                            {show.displayName}
-                                                        </CardTitle>
-                                                        <Badge variant="secondary" className="bg-white text-gray-500 border border-gray-200">
-                                                            {showMissions.length}개 진행중
-                                                        </Badge>
-                                                    </CardHeader>
-                                                    <CardContent className="p-4">
-                                                        <div className="flex items-center gap-2">
-                                                            <Select
-                                                                onValueChange={handleSetMainMission}
-                                                                value={currentMainMissionId && showMissions.find(m => m.id === currentMainMissionId) ? currentMainMissionId : ""}
-                                                            >
-                                                                <SelectTrigger className="w-full">
-                                                                    <SelectValue placeholder="메인 미션으로 선정할 투표 선택" />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {showMissions.length === 0 ? (
-                                                                        <div className="p-2 text-sm text-gray-500 text-center">진행 중인 투표 없음</div>
-                                                                    ) : (
-                                                                        showMissions.map((mission) => (
-                                                                            <SelectItem key={mission.id} value={mission.id}>
-                                                                                <span className="truncate block max-w-[300px]">{mission.title}</span>
-                                                                            </SelectItem>
-                                                                        ))
-                                                                    )}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    </CardContent>
-                                                </Card>
-                                            )
-                                        })}
-                                    </div>
-                                </section>
-                            ))}
-                        </div>
-                    </TabsContent>
 
                     <TabsContent value="programs" className="space-y-6">
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
-                            <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg">
-                                <Button 
-                                    variant={programCategoryFilter === "ALL" ? "default" : "ghost"} 
-                                    size="sm" 
-                                    onClick={() => setProgramCategoryFilter("ALL")}
-                                    className="h-8 text-xs px-3"
-                                >
-                                    전체
-                                </Button>
-                                {(Object.keys(CATEGORIES) as TShowCategory[])
-                                    .filter(cat => cat !== "UNIFIED")
-                                    .map((cat) => (
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <span className="text-sm font-medium text-gray-700">분류</span>
+                                <div className="flex items-center gap-2 bg-gray-100 p-1 rounded-lg flex-wrap">
                                     <Button 
-                                        key={cat}
-                                        variant={programCategoryFilter === cat ? "default" : "ghost"} 
+                                        variant={programCategoryFilter === "ALL" ? "default" : "ghost"} 
                                         size="sm" 
-                                        onClick={() => setProgramCategoryFilter(cat)}
-                                        className="h-8 text-xs gap-1 px-3"
+                                        onClick={() => setProgramCategoryFilter("ALL")}
+                                        className="h-8 text-xs px-3"
                                     >
-                                        <span>{CATEGORIES[cat].label}</span>
+                                        전체
                                     </Button>
-                                ))}
+                                    {(Object.keys(CATEGORIES) as TShowCategory[])
+                                        .filter(cat => cat !== "UNIFIED")
+                                        .map((cat) => (
+                                        <Button 
+                                            key={cat}
+                                            variant={programCategoryFilter === cat ? "default" : "ghost"} 
+                                            size="sm" 
+                                            onClick={() => setProgramCategoryFilter(cat)}
+                                            className="h-8 text-xs gap-1 px-3"
+                                        >
+                                            <span>{CATEGORIES[cat].label}</span>
+                                        </Button>
+                                    ))}
+                                    <div className="w-px h-6 bg-gray-300 mx-1"></div>
+                                    <Button 
+                                        variant={programStatusFilter === "ALL" ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramStatusFilter("ALL")}
+                                        className="h-8 text-xs px-3"
+                                    >
+                                        전체
+                                    </Button>
+                                    <Button 
+                                        variant={programStatusFilter === "ACTIVE" ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramStatusFilter("ACTIVE")}
+                                        className="h-8 text-xs px-3"
+                                    >
+                                        방영중
+                                    </Button>
+                                    <Button 
+                                        variant={programStatusFilter === "UPCOMING" ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramStatusFilter("UPCOMING")}
+                                        className="h-8 text-xs px-3"
+                                    >
+                                        방영예정
+                                    </Button>
+                                    <Button 
+                                        variant={programStatusFilter === "ENDED" ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramStatusFilter("ENDED")}
+                                        className="h-8 text-xs px-3"
+                                    >
+                                        방영종료
+                                    </Button>
+                                    <Button 
+                                        variant={programStatusFilter === "UNDECIDED" ? "default" : "ghost"} 
+                                        size="sm" 
+                                        onClick={() => setProgramStatusFilter("UNDECIDED")}
+                                        className="h-8 text-xs px-3"
+                                    >
+                                        방영미정
+                                    </Button>
+                                </div>
                             </div>
                             <Button onClick={() => {
                                 setEditingShowId(null)
@@ -773,7 +591,18 @@ export default function AdminPage() {
                             {(Object.keys(groupedShows) as TShowCategory[])
                                 .filter(cat => cat !== "UNIFIED")
                                 .filter(cat => programCategoryFilter === "ALL" || programCategoryFilter === cat)
-                                .map((category) => (
+                                .map((category) => {
+                                    // 현재 카테고리에서 방영 상태로 필터링
+                                    const filteredShows = groupedShows[category].filter((show) => {
+                                        if (programStatusFilter === "ALL") return true;
+                                        const status = showStatuses[show.id] || "ACTIVE";
+                                        return status === programStatusFilter;
+                                    });
+
+                                    // 필터링 결과 프로그램이 없으면 섹션 숨김
+                                    if (filteredShows.length === 0) return null;
+
+                                    return (
                                 <section key={category} className="space-y-4">
                                     <div className="flex items-center gap-2 mb-4">
                                         <img
@@ -785,7 +614,7 @@ export default function AdminPage() {
                                     </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        {groupedShows[category].map((show) => {
+                                        {filteredShows.map((show) => {
                                             const isVisible = showVisibility[show.id] !== false // 기본값 true
                                             return (
                                                 <Card key={show.id} className={`border-gray-200 shadow-sm ${!isVisible ? 'opacity-60' : ''}`}>
@@ -824,7 +653,8 @@ export default function AdminPage() {
                                                         </div>
                                                         <Badge variant={showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? 'default' : 'secondary'}>
                                                             {showStatuses[show.id] === 'ACTIVE' || !showStatuses[show.id] ? '방영중' :
-                                                                showStatuses[show.id] === 'UPCOMING' ? '방영예정' : '방영미정'}
+                                                                showStatuses[show.id] === 'UPCOMING' ? '방영예정' :
+                                                                showStatuses[show.id] === 'ENDED' ? '방영종료' : '방영미정'}
                                                         </Badge>
                                                     </CardHeader>
                                                     <CardContent className="p-4 space-y-3">
@@ -841,6 +671,7 @@ export default function AdminPage() {
                                                                 <SelectContent>
                                                                     <SelectItem value="ACTIVE">방영중 (Active)</SelectItem>
                                                                     <SelectItem value="UPCOMING">방영예정 (Upcoming)</SelectItem>
+                                                                    <SelectItem value="ENDED">방영종료 (Ended)</SelectItem>
                                                                     <SelectItem value="UNDECIDED">방영미정 (Undecided)</SelectItem>
                                                                 </SelectContent>
                                                             </Select>
@@ -856,7 +687,8 @@ export default function AdminPage() {
                                         })}
                                     </div>
                                 </section>
-                            ))}
+                                    )
+                            })}
                         </div>
                     </TabsContent>
 

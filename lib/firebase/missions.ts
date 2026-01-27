@@ -174,10 +174,10 @@ export async function getMissions(type: 'missions1' | 'missions2' = 'missions1',
   }
 }
 
-// AI 미션 목록 조회 (missions1에서 isAIMission: true인 것만)
+// 자동 생성 미션 목록 조회 (missions1에서 isAIMission: true인 것만)
 export async function getAIMissions(limitCount: number = 20): Promise<{ success: boolean; missions?: any[]; error?: string }> {
   try {
-    console.log(`[Firebase] AI 미션 조회 시작 (missions1에서 isAIMission: true)...`);
+    console.log(`[Firebase] 자동 생성 미션 조회 시작 (missions1에서 isAIMission: true)...`);
     
     // showId 변환 함수 import
     const { normalizeShowId } = await import("@/lib/constants/shows");
@@ -190,7 +190,7 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
     );
     
     const querySnapshot = await getDocs(q);
-    console.log(`[Firebase] AI 미션 문서 수:`, querySnapshot.size);
+    console.log(`[Firebase] 자동 생성 미션 문서 수:`, querySnapshot.size);
     
     const missions = querySnapshot.docs.map(doc => {
       const data = doc.data();
@@ -202,7 +202,7 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
       const show = normalizedShowId ? getShowById(normalizedShowId) : null;
       const category = show ? show.category : data.category;
       
-      console.log(`[Firebase] AI 미션 문서 ${doc.id}:`, {
+      console.log(`[Firebase] 자동 생성 미션 문서 ${doc.id}:`, {
         title: data.title,
         showId원본: originalShowId,
         showId변환: normalizedShowId,
@@ -216,8 +216,8 @@ export async function getAIMissions(limitCount: number = 20): Promise<{ success:
         ...data,
         showId: normalizedShowId, // 한글 → 영어 변환
         category: category, // show에서 가져온 정확한 category
-        creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성", // 채널명을 생성자 닉네임으로
-        creatorTier: "AI", // AI 생성 미션 표시
+        creatorNickname: data.channelName || data.creatorNickname || data.creator || "리얼픽", // 채널명을 생성자 닉네임으로
+        creatorTier: "딜러", // 딜러 티어로 표시
         __table: "missions1", // missions1에 저장됨
         isAIMission: true // AI 미션 플래그
       };
@@ -308,7 +308,7 @@ export const getMissionById = cache(async (missionId: string): Promise<{ success
 
     if (snap1.exists()) {
       const data = snap1.data();
-      // AI 미션인 경우 추가 처리
+      // 자동 생성 미션인 경우 추가 처리
       if (data.isAIMission) {
         const { normalizeShowId, getShowById } = await import("@/lib/constants/shows");
         const normalizedShowId = normalizeShowId(data.showId);
@@ -321,8 +321,8 @@ export const getMissionById = cache(async (missionId: string): Promise<{ success
             ...data,
             showId: normalizedShowId,
             category: show ? show.category : data.category,
-            creatorNickname: data.channelName || data.creatorNickname || data.creator || "AI 생성",
-            creatorTier: "AI",
+            creatorNickname: data.channelName || data.creatorNickname || data.creator || "리얼픽",
+            creatorTier: "딜러",
             __table: "missions1"
           } 
         };
@@ -417,7 +417,7 @@ export async function settleMissionWithFinalAnswer(missionId: string, correctAns
   try {
     console.log(`[settleMissionWithFinalAnswer] 시작 - missionId: ${missionId}, correctAnswer: ${correctAnswer}`);
     
-    // missions1에서 검색 (AI 미션도 포함)
+    // missions1에서 검색 (자동 생성 미션도 포함)
     let missionRef = doc(db, "missions1", missionId);
     let missionSnap = await getDoc(missionRef);
     let missionCollection = "missions1";

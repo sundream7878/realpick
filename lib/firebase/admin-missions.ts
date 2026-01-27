@@ -37,8 +37,8 @@ export async function createSystemMission(missionData: any) {
         missionId: docRef.id,
         missionTitle: missionData.title,
         category: missionData.category,
-        creatorId: missionData.creatorId || "AI_SYSTEM",
-        creatorNickname: missionData.creatorNickname || "AI 생성"
+        creatorId: missionData.creatorId || "SYSTEM",
+        creatorNickname: missionData.creatorNickname || "리얼픽"
       });
     }
 

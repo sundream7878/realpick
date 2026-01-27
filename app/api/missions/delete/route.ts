@@ -20,17 +20,30 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: "Mission ID is required" }, { status: 400 })
     }
 
-    // Get mission to check creator - support ai_mission
+    // Get mission to check creator - check both tables if needed
     let missionTable = "missions1"
+    let missionDoc = null
+    
     if (missionType === "mission2") {
       missionTable = "missions2"
-    } else if (missionType === "ai_mission") {
-      missionTable = "ai_mission"
+      missionDoc = await adminDb.collection(missionTable).doc(missionId).get()
+    } else if (missionType === "ai_mission" || missionType === "mission1") {
+      missionTable = "missions1" // AI missions are stored in missions1 with isAIMission flag
+      missionDoc = await adminDb.collection(missionTable).doc(missionId).get()
     }
     
-    const missionDoc = await adminDb.collection(missionTable).doc(missionId).get()
+    // If not found in the specified table, try the other one
+    if (!missionDoc?.exists) {
+      const alternateTable = missionTable === "missions1" ? "missions2" : "missions1"
+      const alternateDoc = await adminDb.collection(alternateTable).doc(missionId).get()
+      if (alternateDoc.exists) {
+        missionTable = alternateTable
+        missionDoc = alternateDoc
+      }
+    }
     
-    if (!missionDoc.exists) {
+    if (!missionDoc?.exists) {
+      console.log(`미션을 찾을 수 없음: ${missionId}, missionType: ${missionType}`)
       return NextResponse.json({ error: "Mission not found" }, { status: 404 })
     }
 
@@ -57,10 +70,11 @@ export async function DELETE(request: Request) {
     const batch = adminDb.batch()
 
     // 1. Delete votes
-    // AI 미션은 pickresult1에 저장됨
-    const votesCollection = missionType === "mission2" ? "pickresult2" : "pickresult1"
+    // missions1은 pickresult1에, missions2는 pickresult2에 저장됨
+    // ai_mission도 missions1에 저장되므로 pickresult1 사용
+    const votesCollection = missionTable === "missions2" ? "pickresult2" : "pickresult1"
     const votesQuery = await adminDb.collection(votesCollection).where("missionId", "==", missionId).get()
-    console.log(`투표 데이터 삭제: ${votesQuery.size}개`)
+    console.log(`투표 데이터 삭제: ${votesQuery.size}개 (collection: ${votesCollection})`)
     votesQuery.forEach(doc => batch.delete(doc.ref))
 
     // 2. Delete comments
@@ -78,7 +92,7 @@ export async function DELETE(request: Request) {
 
     await batch.commit()
 
-    console.log(`미션 삭제 성공: ${missionId} (테이블: ${missionTable})`)
+    console.log(`미션 삭제 성공: ${missionId} (테이블: ${missionTable}, 타입: ${missionType})`)
 
     return NextResponse.json({ success: true })
   } catch (error) {

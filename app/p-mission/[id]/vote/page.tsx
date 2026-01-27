@@ -23,7 +23,7 @@ import { isDeadlinePassed, getTimeRemaining } from "@/lib/utils/u-time/timeUtils
 import { getShowByName, getShowById, normalizeShowId } from "@/lib/constants/shows"
 import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
-import { ArrowLeft, Trash2, Clock, Users, Share2, List } from "lucide-react"
+import { ArrowLeft, Trash2, Clock, Users, Share2, List, Star } from "lucide-react"
 import { isAdmin } from "@/lib/utils/permissions"
 import { ShareModal } from "@/components/c-share-modal/share-modal"
 import {
@@ -51,6 +51,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
+  const [isPromotingMain, setIsPromotingMain] = useState(false)
   const [isMissionModalOpen, setIsMissionModalOpen] = useState(false)
   const [isShareModalOpen, setIsShareModalOpen] = useState(false)
   
@@ -220,6 +221,34 @@ export default function VotePage({ params }: { params: { id: string } }) {
     loadUserData()
   }, [userId])
 
+  const handlePromoteToMain = async () => {
+    if (!mission) {
+      alert("미션 정보가 없습니다.")
+      return
+    }
+
+    if (!confirm(`"${mission.title}"을(를) 메인 미션으로 승격하시겠습니까?`)) {
+      return
+    }
+
+    setIsPromotingMain(true)
+    try {
+      const { setMainMissionId } = await import("@/lib/firebase/admin-settings")
+      const success = await setMainMissionId(mission.id)
+      
+      if (success) {
+        alert("메인 미션으로 승격되었습니다!")
+      } else {
+        throw new Error("메인 미션 설정에 실패했습니다.")
+      }
+    } catch (error: any) {
+      console.error("메인 미션 승격 실패:", error)
+      alert(`메인 미션 승격에 실패했습니다: ${error.message || "알 수 없는 오류"}`)
+    } finally {
+      setIsPromotingMain(false)
+    }
+  }
+
   const handleDeleteMission = async () => {
     if (!mission || !userId) {
       alert("미션 정보 또는 사용자 정보가 없습니다.")
@@ -228,12 +257,12 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
     setIsDeleting(true)
     try {
-      // AI 미션, 커플 매칭, 일반 미션 구분
+      // 커플 매칭, 일반 미션, AI 미션 구분
       let missionType = "mission1"
-      if ((mission as any).isAIMission || (mission as any).__table === "ai_mission") {
-        missionType = "ai_mission"
-      } else if (mission.form === "match") {
+      if (mission.form === "match") {
         missionType = "mission2"
+      } else if ((mission as any).isAIMission) {
+        missionType = "ai_mission" // AI 미션은 명시적으로 ai_mission으로 전달
       }
       
       console.log("미션 삭제 시도:", { missionId: mission.id, missionType, userId, isAIMission: (mission as any).isAIMission })
@@ -260,7 +289,9 @@ export default function VotePage({ params }: { params: { id: string } }) {
       }
 
       alert("미션이 성공적으로 삭제되었습니다.")
-      router.push("/")
+      // 삭제된 미션의 프로그램으로 리다이렉트 (showId 정규화)
+      const redirectShowId = normalizeShowId(mission.showId) || "nasolo"
+      router.push(`/?show=${redirectShowId}`)
     } catch (error: any) {
       console.error("미션 삭제 실패:", error)
       alert(`미션 삭제에 실패했습니다: ${error.message || "알 수 없는 오류"}`)
@@ -392,15 +423,27 @@ export default function VotePage({ params }: { params: { id: string } }) {
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {isAdminUser && (
-                      <Button
-                        variant="destructive"
-                        size="sm"
-                        onClick={() => setIsDeleteDialogOpen(true)}
-                        className="flex items-center gap-2"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        <span className="hidden sm:inline">삭제</span>
-                      </Button>
+                      <>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePromoteToMain}
+                          disabled={isPromotingMain}
+                          className="flex items-center gap-2 border-yellow-500 text-yellow-600 hover:bg-yellow-50"
+                        >
+                          <Star className="w-4 h-4" />
+                          <span className="hidden sm:inline">{isPromotingMain ? "승격 중..." : "메인 승격"}</span>
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => setIsDeleteDialogOpen(true)}
+                          className="flex items-center gap-2"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          <span className="hidden sm:inline">삭제</span>
+                        </Button>
+                      </>
                     )}
                   </div>
                 </div>

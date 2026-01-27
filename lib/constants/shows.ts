@@ -93,9 +93,27 @@ export function getShowByName(showName: string): TShow | undefined {
     const normalize = (str: string) => str.replace(/\s+/g, "").toLowerCase()
     const target = normalize(showName)
 
+    // 별칭 매핑 (약어 처리)
+    const aliasMap: Record<string, string> = {
+        "환글": "환승연애",
+        "나솔": "나는솔로",
+        "돌싱": "돌싱글즈",
+    }
+    
+    // 별칭이면 원래 이름으로 변환
+    const resolvedName = aliasMap[showName] || showName
+    const resolvedTarget = normalize(resolvedName)
+
     for (const category of Object.values(SHOWS)) {
         // 1. 정확 일치 우선 검색 (이름, 표시 이름, ID)
-        let show = category.find(s => normalize(s.name) === target || normalize(s.displayName) === target || s.id === target)
+        let show = category.find(s => 
+            normalize(s.name) === resolvedTarget || 
+            normalize(s.displayName) === resolvedTarget || 
+            s.id === resolvedTarget ||
+            normalize(s.name) === target || 
+            normalize(s.displayName) === target || 
+            s.id === target
+        )
         if (show) return show
 
         // 2. 포함 관계 검색 (target이 name에 포함되거나, name이 target에 포함되거나)
@@ -103,7 +121,8 @@ export function getShowByName(showName: string): TShow | undefined {
         show = category.find(s => {
             const nName = normalize(s.name)
             const nDisplay = normalize(s.displayName)
-            return nName.includes(target) || nDisplay.includes(target) || target.includes(nName)
+            return nName.includes(resolvedTarget) || nDisplay.includes(resolvedTarget) || resolvedTarget.includes(nName) ||
+                   nName.includes(target) || nDisplay.includes(target) || target.includes(nName)
         })
         if (show) return show
     }

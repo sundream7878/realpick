@@ -32,7 +32,7 @@ export function AutoMissionGenerate() {
             
             if (data.success) {
                 setMissions(data.missions)
-                toast({ title: "분석 성공", description: "AI 미션 초안이 생성되었습니다." })
+                toast({ title: "분석 성공", description: "미션 초안이 생성되었습니다." })
             } else {
                 throw new Error(data.error)
             }

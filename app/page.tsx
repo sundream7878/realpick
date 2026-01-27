@@ -60,14 +60,14 @@ export default function HomePage() {
   useEffect(() => {
     const showParam = searchParams.get('show')
     
-    // 쿼리 파라미터가 없으면 기본으로 nasolo 설정 (로그인한 경우만)
-    if (!showParam && isLoggedIn) {
-      router.push('/?show=nasolo')
+    // 쿼리 파라미터가 없으면 즉시 기본으로 nasolo로 리다이렉트
+    if (!showParam) {
+      router.replace('/?show=nasolo')
       return
     }
     
     setSelectedShowId(showParam)
-  }, [searchParams, isLoggedIn, router])
+  }, [searchParams, router])
 
   // 로그인 상태 체크
   useEffect(() => {

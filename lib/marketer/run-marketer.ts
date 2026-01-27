@@ -16,7 +16,8 @@ export async function runMarketerBridge(command: string, args: Record<string, an
       const pyArgs = ["bridge.py", command];
       for (const [key, value] of Object.entries(args)) {
         pyArgs.push(`--${key}`);
-        pyArgs.push(String(value));
+        // 객체는 JSON으로 직렬화
+        pyArgs.push(typeof value === 'object' ? JSON.stringify(value) : String(value));
       }
 
       console.log(`[Marketer Bridge] 실행:`, pythonPath, pyArgs.join(" "));

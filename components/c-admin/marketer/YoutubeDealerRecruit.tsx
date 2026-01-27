@@ -95,7 +95,9 @@ export function YoutubeDealerRecruit() {
                 body: JSON.stringify({ 
                     videoId: video.video_id, 
                     title: video.title,
-                    desc: video.description 
+                    desc: video.description,
+                    channelName: video.channel_title,
+                    channelId: video.channel_id
                 })
             })
             const data = await res.json()
@@ -112,7 +114,11 @@ export function YoutubeDealerRecruit() {
                 }))
                 
                 setAiMissions(missionsWithEditingState)
-                toast({ title: "AI 분석 완료", description: "미션 초안이 생성되었습니다." })
+                
+                const toastMsg = data.savedToDb 
+                    ? `미션 초안이 생성되었습니다. (${data.savedCount}개 DB 저장 완료)`
+                    : "미션 초안이 생성되었습니다."
+                toast({ title: "AI 분석 완료", description: toastMsg })
             } else throw new Error(data.error)
         } catch (error: any) {
             toast({ title: "분석 실패", description: error.message, variant: "destructive" })
@@ -153,7 +159,7 @@ export function YoutubeDealerRecruit() {
         }))
     }
 
-    // 4. 미션 최종 저장 (DB 등록)
+    // 4. 미션 최종 저장 (DB 등록 - ai_missions에서 missions1로 승격)
     const handleSaveMission = async (mission: any, idx: number) => {
         try {
             const deadline = new Date(`${mission.deadlineDate}T${mission.deadlineTime}:00`).toISOString()
@@ -170,6 +176,7 @@ export function YoutubeDealerRecruit() {
                     showId: selectedVideo.keyword || "nasolo",
                     category: 'LOVE',
                     isAIMission: true,
+                    aiMissionId: mission.aiMissionId, // ai_missions 컬렉션의 ID
                     channelName: selectedVideo.channel_title,
                     referenceUrl: `https://www.youtube.com/watch?v=${selectedVideo.video_id}`,
                     thumbnailUrl: `https://img.youtube.com/vi/${selectedVideo.video_id}/hqdefault.jpg`
@@ -185,7 +192,7 @@ export function YoutubeDealerRecruit() {
         }
     }
 
-    // 5. 이메일 발송 핸들러
+    // 5. 이메일 발송 핸들러 (실제 발송)
     const handleSendEmail = async (channel: any) => {
         if (!channel.email) {
             toast({ title: "발송 실패", description: "이메일 주소를 입력해주세요.", variant: "destructive" })
@@ -194,12 +201,26 @@ export function YoutubeDealerRecruit() {
 
         setIsSendingEmail(channel.title)
         try {
-            // 실제 메일 발송 로직 (백엔드 구현 필요)
-            // 여기서는 시뮬레이션만 진행
-            await new Promise(resolve => setTimeout(resolve, 1500))
+            const res = await fetch("/api/admin/marketer/email/send", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    recipientEmail: channel.email,
+                    recipientName: channel.title,
+                    subject: emailSubject,
+                    body: emailTemplate
+                })
+            })
             
-            toast({ title: "발송 완료", description: `${channel.title}님께 제안 메일을 보냈습니다.` })
+            const data = await res.json()
+            
+            if (data.success) {
+                toast({ title: "발송 완료", description: `${channel.title}님께 제안 메일을 성공적으로 보냈습니다.` })
+            } else {
+                throw new Error(data.error || "이메일 발송에 실패했습니다.")
+            }
         } catch (error: any) {
+            console.error("이메일 발송 오류:", error)
             toast({ title: "발송 실패", description: error.message, variant: "destructive" })
         } finally {
             setIsSendingEmail(null)
@@ -208,6 +229,32 @@ export function YoutubeDealerRecruit() {
 
     const videoList: any[] = []
     const [channelList, setChannelList] = useState<any[]>([])
+    const [isLoadingChannels, setIsLoadingChannels] = useState(false)
+
+    // Firestore에서 dealers 컬렉션 불러오기
+    const loadDealersFromDB = async () => {
+        setIsLoadingChannels(true)
+        try {
+            const res = await fetch("/api/admin/dealers/list")
+            const data = await res.json()
+            if (data.success) {
+                const dealerChannels = data.dealers.map((d: any) => ({
+                    channelId: d.channelId,
+                    title: d.channelName,
+                    subscribers: d.subscriberCount || 0,
+                    email: d.email || "",
+                    keywords: d.keywords?.join(", ") || "",
+                    platform: d.platform || "youtube",
+                    fromDB: true
+                }))
+                setChannelList(dealerChannels)
+            }
+        } catch (error: any) {
+            toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
+        } finally {
+            setIsLoadingChannels(false)
+        }
+    }
 
     useEffect(() => {
         if (crawlResults?.channels) {
@@ -222,7 +269,8 @@ export function YoutubeDealerRecruit() {
                                 title: v.channel_title,
                                 subscribers: v.subscriber_count,
                                 email: v.email || "",
-                                keyword: kw
+                                keyword: kw,
+                                fromDB: false
                             }
                         }
                     })
@@ -232,8 +280,19 @@ export function YoutubeDealerRecruit() {
         }
     }, [crawlResults])
 
+    // 컴포넌트 마운트 시 DB에서 딜러 목록 자동 로드
+    useEffect(() => {
+        loadDealersFromDB()
+    }, [])
+
     const updateChannelEmail = (idx: number, email: string) => {
         setChannelList(prev => prev.map((c, i) => i === idx ? { ...c, email } : c))
+    }
+
+    const removeChannel = (idx: number) => {
+        if (confirm("이 채널을 목록에서 제거하시겠습니까?")) {
+            setChannelList(prev => prev.filter((_, i) => i !== idx))
+        }
     }
 
     // 6. 승인된 AI 미션 목록 불러오기
@@ -258,16 +317,37 @@ export function YoutubeDealerRecruit() {
         
         setIsDeletingMission(missionId)
         try {
-            const res = await fetch(`/api/missions/${missionId}`, {
-                method: "DELETE"
+            // Firebase 인증 토큰 가져오기
+            const { auth } = await import("@/lib/firebase/config")
+            const token = await auth.currentUser?.getIdToken()
+            if (!token) {
+                throw new Error("인증 토큰을 가져올 수 없습니다. 다시 로그인해주세요.")
+            }
+
+            // AI 미션도 missions1 컬렉션에 저장되므로 mission1으로 전송
+            const res = await fetch(`/api/missions/delete?missionId=${missionId}&missionType=mission1`, {
+                method: "DELETE",
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json'
+                }
             })
             const data = await res.json()
+            
+            if (!res.ok) {
+                const errorMessage = data.details || data.error || "미션 삭제에 실패했습니다."
+                throw new Error(errorMessage)
+            }
+            
             if (data.success) {
-                toast({ title: "삭제 완료", description: "미션이 삭제되었습니다." })
+                toast({ title: "삭제 완료", description: "미션이 성공적으로 삭제되었습니다." })
                 setApprovedMissions(prev => prev.filter(m => m.id !== missionId))
-            } else throw new Error(data.error)
+            } else {
+                throw new Error(data.error || "미션 삭제에 실패했습니다.")
+            }
         } catch (error: any) {
-            toast({ title: "삭제 실패", description: error.message, variant: "destructive" })
+            console.error("미션 삭제 실패:", error)
+            toast({ title: "삭제 실패", description: error.message || "알 수 없는 오류가 발생했습니다.", variant: "destructive" })
         } finally {
             setIsDeletingMission(null)
         }
@@ -476,12 +556,12 @@ export function YoutubeDealerRecruit() {
                             </Card>
                         </div>
 
-                        {/* AI 미션 생성 결과 - 하단 배치 */}
+                        {/* 미션 생성 결과 - 하단 배치 */}
                         <Card className="border-purple-100 shadow-sm shadow-purple-50">
                             <CardHeader className="bg-purple-50/30 border-b border-purple-100 px-4 py-3">
                                 <CardTitle className="text-base font-bold flex items-center gap-2 text-purple-900">
                                     <Zap className="w-4 h-4 text-yellow-500 fill-yellow-500" />
-                                    AI 미션 생성 결과 (편집 가능)
+                                    미션 생성 결과 (편집 가능)
                                 </CardTitle>
                                 {selectedVideo && (
                                     <CardDescription className="line-clamp-1 text-purple-700/70 text-[11px]">
@@ -617,7 +697,7 @@ export function YoutubeDealerRecruit() {
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle>미션 승인 관리</CardTitle>
-                            <CardDescription>게시된 AI 미션들을 모니터링하고 관리합니다.</CardDescription>
+                            <CardDescription>게시된 미션들을 모니터링하고 관리합니다.</CardDescription>
                         </div>
                         <Button 
                             onClick={loadApprovedMissions} 
@@ -641,7 +721,7 @@ export function YoutubeDealerRecruit() {
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
                                     <Search className="w-8 h-8 text-gray-300" />
                                 </div>
-                                <p className="text-gray-400">승인된 AI 미션이 없습니다.</p>
+                                <p className="text-gray-400">승인된 미션이 없습니다.</p>
                                 <Button onClick={loadApprovedMissions} variant="outline" size="sm">
                                     불러오기
                                 </Button>
@@ -733,29 +813,55 @@ export function YoutubeDealerRecruit() {
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
                     {/* 왼쪽: 채널 목록 */}
                     <Card className="lg:col-span-5 border-gray-200">
-                        <CardHeader className="bg-gray-50/50 border-b">
+                        <CardHeader className="bg-gray-50/50 border-b flex flex-row items-center justify-between">
                             <CardTitle className="text-base font-bold flex items-center gap-2">
                                 <Users className="w-4 h-4 text-blue-600" />
                                 파트너 제안 채널 목록
                             </CardTitle>
+                            <Button 
+                                variant="outline" 
+                                size="sm" 
+                                onClick={loadDealersFromDB}
+                                disabled={isLoadingChannels}
+                                className="gap-1"
+                            >
+                                {isLoadingChannels ? <Loader2 className="animate-spin w-3 h-3" /> : <RefreshCw className="w-3 h-3" />}
+                                새로고침
+                            </Button>
                         </CardHeader>
                         <CardContent className="p-0">
                             <div className="max-h-[700px] overflow-y-auto">
-                                {channelList.length > 0 ? (
+                                {isLoadingChannels ? (
+                                    <div className="py-20 text-center">
+                                        <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                                        <p className="text-gray-400 mt-4">채널 목록을 불러오는 중...</p>
+                                    </div>
+                                ) : channelList.length > 0 ? (
                                     <table className="w-full text-sm">
                                         <thead className="bg-white sticky top-0 border-b z-10">
                                             <tr>
                                                 <th className="p-3 text-left text-gray-500 font-semibold">채널 정보</th>
                                                 <th className="p-3 text-right text-gray-500 font-semibold">제안 발송</th>
+                                                <th className="p-3 text-center text-gray-500 font-semibold w-12">삭제</th>
                                             </tr>
                                         </thead>
                                         <tbody className="divide-y">
                                             {channelList.map((c, i) => (
                                                 <tr key={i} className="hover:bg-gray-50 transition-colors">
                                                     <td className="p-3 space-y-1">
-                                                        <div className="font-bold text-gray-900">{c.title}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="font-bold text-gray-900">{c.title}</div>
+                                                            {c.fromDB && (
+                                                                <Badge variant="outline" className="text-[9px] px-1 py-0 bg-blue-50 text-blue-600 border-blue-200">
+                                                                    DB
+                                                                </Badge>
+                                                            )}
+                                                        </div>
                                                         <div className="flex flex-col gap-1">
-                                                            <div className="text-[11px] text-gray-400">구독자: {parseInt(c.subscribers).toLocaleString()}명</div>
+                                                            <div className="text-[11px] text-gray-400">
+                                                                구독자: {parseInt(c.subscribers || 0).toLocaleString()}명
+                                                                {c.keywords && <span className="ml-2 text-blue-500">• {c.keywords}</span>}
+                                                            </div>
                                                             <div className="flex items-center gap-1">
                                                                 <Mail className="w-3 h-3 text-gray-300" />
                                                                 <Input 
@@ -772,10 +878,20 @@ export function YoutubeDealerRecruit() {
                                                             size="sm" 
                                                             className="h-8 bg-blue-600 hover:bg-blue-700 gap-1"
                                                             onClick={() => handleSendEmail(c)}
-                                                            disabled={isSendingEmail === c.title}
+                                                            disabled={isSendingEmail === c.title || !c.email}
                                                         >
                                                             {isSendingEmail === c.title ? <Loader2 className="w-3 h-3 animate-spin" /> : <Send className="w-3 h-3" />}
                                                             전송
+                                                        </Button>
+                                                    </td>
+                                                    <td className="p-3 text-center">
+                                                        <Button 
+                                                            variant="ghost" 
+                                                            size="sm"
+                                                            className="h-8 w-8 p-0 text-gray-400 hover:text-red-600 hover:bg-red-50"
+                                                            onClick={() => removeChannel(i)}
+                                                        >
+                                                            <X className="w-4 h-4" />
                                                         </Button>
                                                     </td>
                                                 </tr>
@@ -783,8 +899,16 @@ export function YoutubeDealerRecruit() {
                                         </tbody>
                                     </table>
                                 ) : (
-                                    <div className="py-20 text-center text-gray-400 text-sm">
-                                        '크롤링' 탭에서 먼저 데이터를 수집해주세요.
+                                    <div className="py-20 text-center text-gray-400 text-sm space-y-2">
+                                        <p>등록된 채널이 없습니다.</p>
+                                        <p className="text-xs">'크롤링' 탭에서 데이터를 수집하거나</p>
+                                        <Button 
+                                            variant="outline" 
+                                            size="sm" 
+                                            onClick={loadDealersFromDB}
+                                        >
+                                            DB에서 불러오기
+                                        </Button>
                                     </div>
                                 )}
                             </div>

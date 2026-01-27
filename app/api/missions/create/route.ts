@@ -16,6 +16,7 @@ export async function POST(request: NextRequest) {
       referenceUrl, 
       thumbnailUrl,
       isAIMission = false,
+      aiMissionId = null,
       channelName,
       creatorNickname = "AI 생성"
     } = body;
@@ -49,6 +50,21 @@ export async function POST(request: NextRequest) {
 
     // 모든 미션은 missions1에 저장 (AI 미션 여부는 isAIMission 필드로 구분)
     const docRef = await adminDb.collection("missions1").add(missionData);
+
+    // AI 미션 원본 상태 업데이트 (ai_missions 컬렉션)
+    if (isAIMission && aiMissionId) {
+      try {
+        await adminDb.collection("ai_missions").doc(aiMissionId).update({
+          status: 'APPROVED',
+          isApproved: true,
+          approvedAt: FieldValue.serverTimestamp(),
+          publishedMissionId: docRef.id
+        });
+        console.log(`[Mission Create API] ai_missions/${aiMissionId} 상태를 APPROVED로 업데이트`);
+      } catch (updateError) {
+        console.error("[Mission Create API] ai_missions 업데이트 실패:", updateError);
+      }
+    }
 
     // 알림 발송 (AI 미션인 경우)
     if (isAIMission) {
