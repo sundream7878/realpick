@@ -28,7 +28,9 @@ export async function runMarketerBridge(command: string, args: Record<string, an
         env: {
           ...process.env,
           PYTHONIOENCODING: "utf-8", // Python의 stdout/stderr를 UTF-8로 설정
+          PYTHONUTF8: "1", // Python 3.7+ UTF-8 모드 강제 활성화
         },
+        windowsVerbatimArguments: false, // Windows에서 인자를 자동으로 이스케이프
       });
 
       let stdout = "";

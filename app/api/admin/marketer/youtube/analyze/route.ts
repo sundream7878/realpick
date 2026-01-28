@@ -27,9 +27,11 @@ export async function POST(request: NextRequest) {
         const missionData = {
           title: mission.title,
           description: mission.description || '',
-          category: mission.category,
-          form: mission.form,
-          options: mission.options,
+          category: mission.category || 'LOVE', // LOVE, VICTORY, STAR
+          showId: mission.showId || 'nasolo', // 프로그램 ID
+          kind: mission.kind || 'MAJORITY', // PREDICT, MAJORITY
+          form: mission.form || 'multiple', // binary, multiple
+          options: mission.options || [],
           sourceVideo: {
             videoId: videoId,
             title: title,

@@ -1,14 +1,15 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/c-ui/card"
 import { Button } from "@/components/c-ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs"
-import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send } from "lucide-react"
+import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send, Video, Filter } from "lucide-react"
 import { Input } from "@/components/c-ui/input"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { Badge } from "@/components/c-ui/badge"
 import { Textarea } from "@/components/c-ui/textarea"
+import { SHOWS, CATEGORIES, getShowById, normalizeShowId } from "@/lib/constants/shows"
 
 export function YoutubeDealerRecruit() {
     const [keywords, setKeywords] = useState("")
@@ -53,6 +54,22 @@ export function YoutubeDealerRecruit() {
     const [approvedMissions, setApprovedMissions] = useState<any[]>([])
     const [isLoadingMissions, setIsLoadingMissions] = useState(false)
     const [isDeletingMission, setIsDeletingMission] = useState<string | null>(null)
+    const [missionCategoryFilter, setMissionCategoryFilter] = useState<string>("ALL")
+    const [missionShowFilter, setMissionShowFilter] = useState<string>("ALL")
+    const [isClearingMissions, setIsClearingMissions] = useState(false)
+    
+    // 테스트 수집 관련 상태
+    const [testKeyword, setTestKeyword] = useState("나는솔로")
+    const [isTestCollecting, setIsTestCollecting] = useState(false)
+    const [testResults, setTestResults] = useState<any>(null)
+    
+    // 수집된 채널 목록 관련 상태
+    const [collectedChannels, setCollectedChannels] = useState<any[]>([])
+    const [isLoadingChannels2, setIsLoadingChannels2] = useState(false)
+    
+    // 수집된 영상 목록 관련 상태
+    const [collectedVideos, setCollectedVideos] = useState<any[]>([])
+    const [isLoadingVideos, setIsLoadingVideos] = useState(false)
 
     // 1. 크롤링 핸들러
     const handleCrawl = async () => {
@@ -295,19 +312,194 @@ export function YoutubeDealerRecruit() {
         }
     }
 
-    // 6. 승인된 AI 미션 목록 불러오기
+    // 6. 승인 대기 중인 AI 미션 목록 불러오기 (ai_missions 컬렉션에서)
     const loadApprovedMissions = async () => {
         setIsLoadingMissions(true)
         try {
-            const res = await fetch("/api/missions/ai")
+            const res = await fetch("/api/admin/ai-missions/list")
             const data = await res.json()
             if (data.success) {
                 setApprovedMissions(data.missions || [])
-            } else throw new Error(data.error)
+            } else {
+                throw new Error(data.error || "미션 목록을 불러오는데 실패했습니다.")
+            }
         } catch (error: any) {
+            console.error("미션 불러오기 오류:", error)
             toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
         } finally {
             setIsLoadingMissions(false)
+        }
+    }
+    
+    // 7. 수집된 채널 목록 불러오기
+    const loadCollectedChannels = async () => {
+        setIsLoadingChannels2(true)
+        try {
+            const res = await fetch("/api/admin/dealers/videos")
+            const data = await res.json()
+            if (data.success) {
+                setCollectedChannels(data.channels || [])
+            } else throw new Error(data.error)
+        } catch (error: any) {
+            console.error("채널 불러오기 오류:", error)
+            toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
+        } finally {
+            setIsLoadingChannels2(false)
+        }
+    }
+    
+    // 8. 수집된 영상 목록 불러오기
+    const loadCollectedVideos = async () => {
+        setIsLoadingVideos(true)
+        try {
+            const res = await fetch("/api/admin/dealers/videos-list")
+            const data = await res.json()
+            if (data.success) {
+                setCollectedVideos(data.videos || [])
+            } else throw new Error(data.error)
+        } catch (error: any) {
+            console.error("영상 불러오기 오류:", error)
+            toast({ title: "영상 불러오기 실패", description: error.message, variant: "destructive" })
+        } finally {
+            setIsLoadingVideos(false)
+        }
+    }
+    
+    // 9. 미션의 실제 카테고리 결정 (showId 기반)
+    const getMissionCategory = (mission: any): string => {
+        // 이미 올바른 카테고리가 있으면 사용
+        if (mission.category && ['LOVE', 'VICTORY', 'STAR'].includes(mission.category)) {
+            return mission.category
+        }
+        
+        // showId로 카테고리 역추적
+        const normalizedShow = normalizeShowId(mission.showId)
+        if (normalizedShow) {
+            const show = getShowById(normalizedShow)
+            if (show) {
+                return show.category
+            }
+        }
+        
+        // 기본값
+        return 'LOVE'
+    }
+    
+    // 10. 필터링된 미션 목록
+    const filteredMissions = useMemo(() => {
+        let filtered = [...approvedMissions]
+        
+        // 카테고리 필터
+        if (missionCategoryFilter !== "ALL") {
+            filtered = filtered.filter(m => getMissionCategory(m) === missionCategoryFilter)
+        }
+        
+        // 프로그램 필터
+        if (missionShowFilter !== "ALL") {
+            filtered = filtered.filter(m => {
+                const normalizedShowId = normalizeShowId(m.showId)
+                return normalizedShowId === missionShowFilter
+            })
+        }
+        
+        return filtered
+    }, [approvedMissions, missionCategoryFilter, missionShowFilter])
+    
+    // 11. 카테고리별 프로그램 목록 (필터용)
+    const allShows = useMemo(() => {
+        const shows: any[] = []
+        Object.values(SHOWS).forEach(categoryShows => {
+            shows.push(...categoryShows)
+        })
+        return shows
+    }, [])
+    
+    // 12. 카테고리별 미션 개수 계산 (실제 showId 기반)
+    const getCategoryCount = (categoryKey: string) => {
+        return approvedMissions.filter(m => getMissionCategory(m) === categoryKey).length
+    }
+    
+    // 13. 테스트 수집 (2-3개만)
+    const handleTestCollect = async () => {
+        if (!testKeyword.trim()) {
+            toast({ title: "입력 오류", description: "키워드를 입력해주세요.", variant: "destructive" })
+            return
+        }
+        
+        setIsTestCollecting(true)
+        setTestResults(null)
+        
+        try {
+            console.log("[테스트 수집] 시작:", testKeyword)
+            
+            const res = await fetch("/api/admin/marketer/youtube/test-collect", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ keyword: testKeyword })
+            })
+            
+            console.log("[테스트 수집] 응답 상태:", res.status)
+            
+            if (!res.ok) {
+                throw new Error(`HTTP ${res.status}: ${res.statusText}`)
+            }
+            
+            const data = await res.json()
+            console.log("[테스트 수집] 응답 데이터:", data)
+            
+            if (data.success) {
+                setTestResults(data)
+                toast({ 
+                    title: "테스트 수집 완료", 
+                    description: `영상 ${data.stats?.videos || 0}개, 채널 ${data.stats?.channels || 0}개, 미션 ${data.stats?.missions || 0}개 생성` 
+                })
+                // 미션 목록 새로고침
+                loadApprovedMissions()
+            } else {
+                throw new Error(data.error || data.details || "테스트 수집 실패")
+            }
+        } catch (error: any) {
+            console.error("[테스트 수집] 오류:", error)
+            toast({ 
+                title: "테스트 수집 실패", 
+                description: error.message || "알 수 없는 오류가 발생했습니다.", 
+                variant: "destructive" 
+            })
+        } finally {
+            setIsTestCollecting(false)
+        }
+    }
+    
+    // 14. 모든 AI 미션 삭제
+    const handleClearAllMissions = async () => {
+        if (!confirm("⚠️ 정말 모든 승인 대기 중인 AI 미션을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다!")) {
+            return
+        }
+        
+        setIsClearingMissions(true)
+        try {
+            const res = await fetch("/api/admin/ai-missions/clear", {
+                method: "POST"
+            })
+            const data = await res.json()
+            
+            if (data.success) {
+                toast({ 
+                    title: "삭제 완료", 
+                    description: data.message 
+                })
+                setApprovedMissions([])
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "삭제 실패", 
+                description: error.message, 
+                variant: "destructive" 
+            })
+        } finally {
+            setIsClearingMissions(false)
         }
     }
 
@@ -367,16 +559,195 @@ export function YoutubeDealerRecruit() {
     }
 
     return (
-        <Tabs defaultValue="crawl" className="space-y-4" onValueChange={(value) => {
+        <Tabs defaultValue="approve" className="space-y-4" onValueChange={(value) => {
             if (value === "approve" && approvedMissions.length === 0) {
                 loadApprovedMissions()
+            } else if (value === "channels" && collectedChannels.length === 0) {
+                loadCollectedChannels()
+            } else if (value === "videos" && collectedVideos.length === 0) {
+                loadCollectedVideos()
             }
         }}>
-            <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="crawl">크롤링 및 분석</TabsTrigger>
+            <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="approve">미션 승인 관리</TabsTrigger>
+                <TabsTrigger value="videos">수집된 영상 목록</TabsTrigger>
+                <TabsTrigger value="channels">수집된 채널 목록</TabsTrigger>
                 <TabsTrigger value="email">이메일 관리</TabsTrigger>
             </TabsList>
+
+            <TabsContent value="videos" className="space-y-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>수집된 영상 목록</CardTitle>
+                            <CardDescription>자동 수집된 YouTube 영상들입니다. ({collectedVideos.length}개)</CardDescription>
+                        </div>
+                        <Button 
+                            onClick={loadCollectedVideos} 
+                            disabled={isLoadingVideos}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                        >
+                            {isLoadingVideos ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            새로고침
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingVideos ? (
+                            <div className="text-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                                <p className="text-gray-400 mt-4">영상 목록을 불러오는 중...</p>
+                            </div>
+                        ) : collectedVideos.length === 0 ? (
+                            <div className="text-center py-20 space-y-3">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                    <Video className="w-8 h-8 text-gray-300" />
+                                </div>
+                                <p className="text-gray-400">수집된 영상이 없습니다.</p>
+                                <p className="text-sm text-gray-500">"완전 자동 미션 생성"을 실행하면 영상이 수집됩니다.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3 max-h-[600px] overflow-y-auto">
+                                {collectedVideos.map((video, idx) => (
+                                    <Card key={idx} className="border-gray-200 hover:border-blue-200 transition-colors">
+                                        <CardContent className="p-4">
+                                            <div className="flex gap-4">
+                                                {/* 썸네일 */}
+                                                {video.thumbnail && (
+                                                    <div className="flex-shrink-0">
+                                                        <img 
+                                                            src={video.thumbnail} 
+                                                            alt={video.title}
+                                                            className="w-32 h-20 object-cover rounded"
+                                                        />
+                                                    </div>
+                                                )}
+                                                
+                                                {/* 영상 정보 */}
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="flex items-start justify-between gap-2">
+                                                        <a 
+                                                            href={video.video_url || `https://youtube.com/watch?v=${video.videoId}`}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="font-semibold text-sm hover:text-blue-600 line-clamp-2"
+                                                        >
+                                                            {video.title}
+                                                        </a>
+                                                        {video.has_subtitle && (
+                                                            <Badge variant="outline" className="text-[10px] bg-green-50 flex-shrink-0">
+                                                                자막 있음
+                                                            </Badge>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-2 text-xs text-gray-600">
+                                                        <span className="font-medium">{video.channelName}</span>
+                                                        {video.subscriberCount && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span>{(video.subscriberCount).toLocaleString()}명</span>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center gap-3 text-xs text-gray-500">
+                                                        <span>조회수: {(video.viewCount || 0).toLocaleString()}</span>
+                                                        <span>좋아요: {(video.likeCount || 0).toLocaleString()}</span>
+                                                        <span>댓글: {(video.commentCount || 0).toLocaleString()}</span>
+                                                    </div>
+                                                    
+                                                    <p className="text-xs text-gray-400 line-clamp-2">
+                                                        {video.description || '설명 없음'}
+                                                    </p>
+                                                    
+                                                    <div className="flex items-center gap-2 text-[10px] text-gray-400">
+                                                        <span>업로드: {video.publishedAt ? new Date(video.publishedAt).toLocaleDateString('ko-KR') : 'N/A'}</span>
+                                                        <span>•</span>
+                                                        <span>수집: {video.collectedAt ? new Date(video.collectedAt).toLocaleDateString('ko-KR') : 'N/A'}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
+
+            <TabsContent value="channels" className="space-y-6">
+                <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                        <div>
+                            <CardTitle>수집된 채널 목록</CardTitle>
+                            <CardDescription>자동 크롤링으로 수집된 YouTube 채널들입니다.</CardDescription>
+                        </div>
+                        <Button 
+                            onClick={loadCollectedChannels} 
+                            disabled={isLoadingChannels2}
+                            variant="outline"
+                            size="sm"
+                            className="gap-2"
+                        >
+                            {isLoadingChannels2 ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                            새로고침
+                        </Button>
+                    </CardHeader>
+                    <CardContent>
+                        {isLoadingChannels2 ? (
+                            <div className="text-center py-20">
+                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-gray-400" />
+                                <p className="text-gray-400 mt-4">채널 목록을 불러오는 중...</p>
+                            </div>
+                        ) : collectedChannels.length === 0 ? (
+                            <div className="text-center py-20 space-y-3">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                    <Users className="w-8 h-8 text-gray-300" />
+                                </div>
+                                <p className="text-gray-400">수집된 채널이 없습니다.</p>
+                                <p className="text-sm text-gray-500">"완전 자동 미션 생성"을 실행하면 채널이 수집됩니다.</p>
+                            </div>
+                        ) : (
+                            <div className="space-y-3">
+                                {collectedChannels.map((channel) => (
+                                    <Card key={channel.id} className="border-gray-200 hover:border-blue-200 transition-colors">
+                                        <CardContent className="p-4">
+                                            <div className="flex items-start justify-between gap-4">
+                                                <div className="flex-1 space-y-2">
+                                                    <div className="flex items-center gap-2">
+                                                        <h3 className="font-bold text-gray-900">{channel.channelName}</h3>
+                                                        <Badge variant="outline" className="text-[10px]">
+                                                            {channel.platform || 'youtube'}
+                                                        </Badge>
+                                                    </div>
+                                                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                                                        <span>구독자: {(channel.subscriberCount || 0).toLocaleString()}명</span>
+                                                        <span>•</span>
+                                                        <span>영상: {channel.videoCount || 0}개</span>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {channel.keywords?.map((kw: string, i: number) => (
+                                                            <Badge key={i} variant="outline" className="text-[10px] bg-blue-50">
+                                                                {kw}
+                                                            </Badge>
+                                                        ))}
+                                                    </div>
+                                                    <p className="text-xs text-gray-400">
+                                                        최근 수집: {channel.lastCrawledAt ? new Date(channel.lastCrawledAt).toLocaleString('ko-KR') : 'N/A'}
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </CardContent>
+                                    </Card>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </TabsContent>
 
             <TabsContent value="crawl" className="space-y-6">
                 {/* 수집 설정 카드 */}
@@ -693,22 +1064,186 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="approve">
-                <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>미션 승인 관리</CardTitle>
-                            <CardDescription>게시된 미션들을 모니터링하고 관리합니다.</CardDescription>
+                {/* 테스트 수집 박스 */}
+                <Card className="mb-4 border-2 border-blue-200 bg-blue-50/30">
+                    <CardHeader>
+                        <CardTitle className="text-base flex items-center gap-2">
+                            <Zap className="w-4 h-4 text-blue-600" />
+                            빠른 테스트 수집 (2-3개 영상)
+                        </CardTitle>
+                        <CardDescription>
+                            키워드를 입력하고 테스트 버튼을 클릭하면 2-3개 영상만 수집하여 영상 정보, 채널 정보, AI 미션이 모두 생성됩니다.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex gap-3">
+                            <Input
+                                value={testKeyword}
+                                onChange={(e) => setTestKeyword(e.target.value)}
+                                placeholder="예: 나는솔로, 쇼미더머니"
+                                className="flex-1"
+                                disabled={isTestCollecting}
+                            />
+                            <Button
+                                onClick={handleTestCollect}
+                                disabled={isTestCollecting}
+                                className="gap-2 bg-blue-600 hover:bg-blue-700"
+                            >
+                                {isTestCollecting ? (
+                                    <>
+                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                        수집 중...
+                                    </>
+                                ) : (
+                                    <>
+                                        <Search className="w-4 h-4" />
+                                        테스트 수집
+                                    </>
+                                )}
+                            </Button>
                         </div>
-                        <Button 
-                            onClick={loadApprovedMissions} 
-                            disabled={isLoadingMissions}
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                        >
-                            {isLoadingMissions ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                            새로고침
-                        </Button>
+                        
+                        {testResults && (
+                            <div className="mt-4 p-4 bg-white rounded-lg border border-green-200">
+                                <div className="flex items-center gap-2 mb-3">
+                                    <Check className="w-5 h-5 text-green-600" />
+                                    <span className="font-semibold text-green-700">테스트 수집 완료!</span>
+                                </div>
+                                <div className="grid grid-cols-3 gap-4 text-sm">
+                                    <div className="text-center p-3 bg-blue-50 rounded">
+                                        <div className="text-2xl font-bold text-blue-600">{testResults.stats.videos}</div>
+                                        <div className="text-gray-600 mt-1">영상 수집</div>
+                                    </div>
+                                    <div className="text-center p-3 bg-purple-50 rounded">
+                                        <div className="text-2xl font-bold text-purple-600">{testResults.stats.channels}</div>
+                                        <div className="text-gray-600 mt-1">채널 저장</div>
+                                    </div>
+                                    <div className="text-center p-3 bg-green-50 rounded">
+                                        <div className="text-2xl font-bold text-green-600">{testResults.stats.missions}</div>
+                                        <div className="text-gray-600 mt-1">AI 미션 생성</div>
+                                    </div>
+                                </div>
+                                {testResults.collectedVideos && testResults.collectedVideos.length > 0 && (
+                                    <div className="mt-3 text-xs text-gray-500">
+                                        <div className="font-medium mb-1">수집된 영상:</div>
+                                        {testResults.collectedVideos.map((v: any, i: number) => (
+                                            <div key={i} className="truncate">• {v.title}</div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card>
+                    <CardHeader className="space-y-4">
+                        <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>미션 승인 관리 (AI 자동 생성)</CardTitle>
+                                <CardDescription>AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                <Button 
+                                    onClick={loadApprovedMissions} 
+                                    disabled={isLoadingMissions}
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2"
+                                >
+                                    {isLoadingMissions ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                    새로고침
+                                </Button>
+                                {approvedMissions.length > 0 && (
+                                    <Button 
+                                        onClick={handleClearAllMissions} 
+                                        disabled={isClearingMissions}
+                                        variant="destructive"
+                                        size="sm"
+                                        className="gap-2"
+                                    >
+                                        {isClearingMissions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                        전체 삭제
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+                        
+                        {/* 필터 영역 */}
+                        <div className="flex items-center gap-3 pt-2 border-t">
+                            <Filter className="w-4 h-4 text-gray-400" />
+                            
+                            {/* 카테고리 필터 */}
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm text-gray-600 font-medium">카테고리:</span>
+                                <div className="flex gap-1">
+                                    <Button
+                                        variant={missionCategoryFilter === "ALL" ? "default" : "outline"}
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => {
+                                            setMissionCategoryFilter("ALL")
+                                            setMissionShowFilter("ALL")
+                                        }}
+                                    >
+                                        전체 ({approvedMissions.length})
+                                    </Button>
+                                    {Object.entries(CATEGORIES).filter(([key]) => key !== "UNIFIED").map(([key, cat]) => {
+                                        const count = getCategoryCount(key)
+                                        return (
+                                            <Button
+                                                key={key}
+                                                variant={missionCategoryFilter === key ? "default" : "outline"}
+                                                size="sm"
+                                                className="h-7 text-xs flex items-center gap-1.5"
+                                                onClick={() => {
+                                                    setMissionCategoryFilter(key)
+                                                    setMissionShowFilter("ALL")
+                                                }}
+                                            >
+                                                <img src={cat.iconPath} alt={cat.description} className="w-3.5 h-3.5" />
+                                                {cat.description} ({count})
+                                            </Button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                            
+                            {/* 프로그램 필터 */}
+                            {missionCategoryFilter !== "ALL" && (
+                                <div className="flex items-center gap-2 border-l pl-3">
+                                    <span className="text-sm text-gray-600 font-medium">프로그램:</span>
+                                    <div className="flex gap-1 flex-wrap">
+                                        <Button
+                                            variant={missionShowFilter === "ALL" ? "default" : "outline"}
+                                            size="sm"
+                                            className="h-7 text-xs"
+                                            onClick={() => setMissionShowFilter("ALL")}
+                                        >
+                                            전체
+                                        </Button>
+                                        {SHOWS[missionCategoryFilter as keyof typeof SHOWS]?.map(show => {
+                                            const count = approvedMissions.filter(m => 
+                                                getMissionCategory(m) === missionCategoryFilter && 
+                                                normalizeShowId(m.showId) === show.id
+                                            ).length
+                                            if (count === 0) return null
+                                            return (
+                                                <Button
+                                                    key={show.id}
+                                                    variant={missionShowFilter === show.id ? "default" : "outline"}
+                                                    size="sm"
+                                                    className="h-7 text-xs"
+                                                    onClick={() => setMissionShowFilter(show.id)}
+                                                >
+                                                    {show.displayName} ({count})
+                                                </Button>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </CardHeader>
                     <CardContent>
                         {isLoadingMissions ? (
@@ -721,82 +1256,170 @@ export function YoutubeDealerRecruit() {
                                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
                                     <Search className="w-8 h-8 text-gray-300" />
                                 </div>
-                                <p className="text-gray-400">승인된 미션이 없습니다.</p>
+                                <p className="text-gray-400">승인 대기 중인 미션이 없습니다.</p>
                                 <Button onClick={loadApprovedMissions} variant="outline" size="sm">
                                     불러오기
                                 </Button>
                             </div>
+                        ) : filteredMissions.length === 0 ? (
+                            <div className="text-center py-20 space-y-3">
+                                <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto">
+                                    <Search className="w-8 h-8 text-gray-300" />
+                                </div>
+                                <p className="text-gray-400">선택한 필터에 해당하는 미션이 없습니다.</p>
+                                <p className="text-sm text-gray-500">다른 카테고리나 프로그램을 선택해보세요.</p>
+                            </div>
                         ) : (
                             <div className="space-y-3">
-                                {approvedMissions.map((mission) => (
-                                    <Card key={mission.id} className="border-gray-200 hover:border-purple-200 transition-colors">
+                                <div className="text-sm text-gray-500 pb-2">
+                                    총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시
+                                </div>
+                                {filteredMissions.map((mission) => (
+                                    <Card key={mission.id} className="border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/20">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between gap-4">
                                                 <div className="flex-1 space-y-2">
-                                                    <div className="flex items-center gap-2">
-                                                        <Badge variant={mission.kind === 'predict' ? 'destructive' : 'default'} className="text-[10px]">
-                                                            {mission.kind === 'predict' ? '예측' : '공감'}
+                                                    <div className="flex items-center gap-2 flex-wrap">
+                                                        <Badge variant="outline" className="text-[10px] bg-yellow-50 border-yellow-300 text-yellow-700">
+                                                            승인 대기
                                                         </Badge>
-                                                        <Badge variant="outline" className="text-[10px] bg-purple-50">
+                                                        {(() => {
+                                                            const cat = getMissionCategory(mission)
+                                                            const catInfo = CATEGORIES[cat as keyof typeof CATEGORIES]
+                                                            return catInfo ? (
+                                                                <Badge variant="outline" className="text-[10px] bg-blue-50 flex items-center gap-1">
+                                                                    <img 
+                                                                        src={catInfo.iconPath} 
+                                                                        alt={catInfo.description}
+                                                                        className="w-2.5 h-2.5"
+                                                                    />
+                                                                    {catInfo.description}
+                                                                </Badge>
+                                                            ) : null
+                                                        })()}
+                                                        {mission.showId && (() => {
+                                                            const show = getShowById(normalizeShowId(mission.showId) || '')
+                                                            return show ? (
+                                                                <Badge variant="outline" className="text-[10px] bg-purple-50">
+                                                                    {show.displayName}
+                                                                </Badge>
+                                                            ) : null
+                                                        })()}
+                                                        <Badge variant="outline" className="text-[10px] bg-white">
                                                             {mission.form === 'binary' ? '양자' : '다자'}
                                                         </Badge>
-                                                        {mission.channelName && (
+                                                        {mission.sourceVideo?.channelName && (
                                                             <span className="text-[10px] text-gray-500">
-                                                                채널: {mission.channelName}
+                                                                채널: {mission.sourceVideo.channelName}
                                                             </span>
                                                         )}
+                                                        <span className="text-[10px] text-gray-400">
+                                                            생성: {mission.createdAt ? new Date(mission.createdAt).toLocaleDateString('ko-KR') : 'N/A'}
+                                                        </span>
                                                     </div>
                                                     <h3 className="font-bold text-gray-900">{mission.title}</h3>
+                                                    {mission.description && (
+                                                        <p className="text-sm text-gray-600 line-clamp-2">{mission.description}</p>
+                                                    )}
                                                     <div className="flex flex-wrap gap-1">
                                                         {mission.options?.map((opt: string, i: number) => (
-                                                            <Badge key={i} variant="outline" className="text-[10px] bg-gray-50">
-                                                                {opt}
+                                                            <Badge key={i} variant="outline" className="text-[10px] bg-white">
+                                                                {i + 1}. {opt}
                                                             </Badge>
                                                         ))}
                                                     </div>
-                                                    <div className="flex items-center gap-4 text-[11px] text-gray-400">
-                                                        <span>참여자: {mission.participants || 0}명</span>
-                                                        <span>•</span>
-                                                        <span>마감: {mission.deadline ? new Date(mission.deadline).toLocaleDateString('ko-KR') : 'N/A'}</span>
-                                                        {mission.referenceUrl && (
-                                                            <>
-                                                                <span>•</span>
-                                                                <a 
-                                                                    href={mission.referenceUrl} 
-                                                                    target="_blank" 
-                                                                    rel="noopener noreferrer"
-                                                                    className="text-blue-500 hover:underline flex items-center gap-1"
-                                                                >
-                                                                    <Youtube className="w-3 h-3" />
-                                                                    원본 영상
-                                                                </a>
-                                                            </>
-                                                        )}
-                                                    </div>
+                                                    {mission.sourceVideo && (
+                                                        <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-2 p-2 bg-white rounded border">
+                                                            <Youtube className="w-3 h-3 text-red-500" />
+                                                            <span className="flex-1 line-clamp-1">{mission.sourceVideo.title}</span>
+                                                            <a 
+                                                                href={mission.sourceVideo.url} 
+                                                                target="_blank" 
+                                                                rel="noopener noreferrer"
+                                                                className="text-blue-500 hover:underline flex items-center gap-1"
+                                                            >
+                                                                <ExternalLink className="w-3 h-3" />
+                                                                보기
+                                                            </a>
+                                                        </div>
+                                                    )}
                                                 </div>
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-col gap-2">
                                                     <Button 
-                                                        variant="outline" 
+                                                        variant="default" 
                                                         size="sm" 
-                                                        className="h-8"
-                                                        onClick={() => window.open(`/p-mission/${mission.id}/vote`, '_blank')}
+                                                        className="h-8 bg-green-600 hover:bg-green-700 whitespace-nowrap"
+                                                        onClick={async () => {
+                                                            if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
+                                                                try {
+                                                                    const deadline = new Date()
+                                                                    deadline.setDate(deadline.getDate() + 7)
+                                                                    
+                                                                    // showId 정규화 및 category 결정
+                                                                    const normalizedShow = normalizeShowId(mission.showId) || "nasolo"
+                                                                    const missionCategory = getMissionCategory(mission)
+                                                                    
+                                                                    const res = await fetch("/api/missions/create", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({
+                                                                            title: mission.title,
+                                                                            options: mission.options,
+                                                                            kind: mission.kind === 'PREDICT' ? 'prediction' : 'majority',
+                                                                            form: mission.form || 'multi',
+                                                                            deadline: deadline.toISOString(),
+                                                                            showId: normalizedShow,
+                                                                            category: missionCategory,
+                                                                            isAIMission: true,
+                                                                            aiMissionId: mission.id,
+                                                                            channelName: mission.sourceVideo?.channelName || 'AI',
+                                                                            referenceUrl: mission.sourceVideo?.url || null,
+                                                                            thumbnailUrl: mission.sourceVideo?.thumbnailUrl || null
+                                                                        })
+                                                                    })
+                                                                    const data = await res.json()
+                                                                    if (data.success) {
+                                                                        toast({ title: "승인 완료", description: "미션이 정식 게시되었습니다." })
+                                                                        loadApprovedMissions()
+                                                                    } else {
+                                                                        throw new Error(data.error)
+                                                                    }
+                                                                } catch (error: any) {
+                                                                    toast({ title: "승인 실패", description: error.message, variant: "destructive" })
+                                                                }
+                                                            }
+                                                        }}
                                                     >
-                                                        <ExternalLink className="w-3 h-3 mr-1" />
-                                                        보기
+                                                        <Check className="w-3 h-3 mr-1" />
+                                                        승인
                                                     </Button>
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
                                                         className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50"
-                                                        onClick={() => handleDeleteMission(mission.id)}
-                                                        disabled={isDeletingMission === mission.id}
+                                                        onClick={async () => {
+                                                            if (confirm("이 미션을 거부하시겠습니까?")) {
+                                                                try {
+                                                                    const res = await fetch("/api/admin/ai-missions/reject", {
+                                                                        method: "POST",
+                                                                        headers: { "Content-Type": "application/json" },
+                                                                        body: JSON.stringify({ missionId: mission.id })
+                                                                    })
+                                                                    const data = await res.json()
+                                                                    if (data.success) {
+                                                                        toast({ title: "거부 완료", description: "미션이 거부되었습니다." })
+                                                                        loadApprovedMissions()
+                                                                    } else {
+                                                                        throw new Error(data.error)
+                                                                    }
+                                                                } catch (error: any) {
+                                                                    toast({ title: "거부 실패", description: error.message, variant: "destructive" })
+                                                                }
+                                                            }
+                                                        }}
                                                     >
-                                                        {isDeletingMission === mission.id ? (
-                                                            <Loader2 className="w-3 h-3 animate-spin" />
-                                                        ) : (
-                                                            <Trash2 className="w-3 h-3 mr-1" />
-                                                        )}
-                                                        삭제
+                                                        <Trash2 className="w-3 h-3 mr-1" />
+                                                        거부
                                                     </Button>
                                                 </div>
                                             </div>
