@@ -34,8 +34,20 @@ docs/*SMTP*.md
 **/secrets*.md
 
 #scripts
-scripts*
+scripts/migration.js
 serviceAccountKey.json
+
+# Python marketing scripts
+scripts/marketing/venv/
+scripts/marketing/env/
+scripts/marketing/__pycache__/
+scripts/marketing/**/__pycache__/
+scripts/marketing/*.pyc
+scripts/marketing/data/*.json
+scripts/marketing/data/*.csv
+scripts/marketing/data/temp/
+scripts/marketing/firebase-key.json
+scripts/marketing/*.log
 
 #firebase
 firebase-*.json

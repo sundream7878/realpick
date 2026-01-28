@@ -58,11 +58,6 @@ export function YoutubeDealerRecruit() {
     const [missionShowFilter, setMissionShowFilter] = useState<string>("ALL")
     const [isClearingMissions, setIsClearingMissions] = useState(false)
     
-    // 테스트 수집 관련 상태
-    const [testKeyword, setTestKeyword] = useState("나는솔로")
-    const [isTestCollecting, setIsTestCollecting] = useState(false)
-    const [testResults, setTestResults] = useState<any>(null)
-    
     // 수집된 채널 목록 관련 상태
     const [collectedChannels, setCollectedChannels] = useState<any[]>([])
     const [isLoadingChannels2, setIsLoadingChannels2] = useState(false)
@@ -70,6 +65,10 @@ export function YoutubeDealerRecruit() {
     // 수집된 영상 목록 관련 상태
     const [collectedVideos, setCollectedVideos] = useState<any[]>([])
     const [isLoadingVideos, setIsLoadingVideos] = useState(false)
+    
+    // 필터 상태
+    const [videoKeywordFilter, setVideoKeywordFilter] = useState<string>("ALL")
+    const [channelKeywordFilter, setChannelKeywordFilter] = useState<string>("ALL")
 
     // 1. 크롤링 핸들러
     const handleCrawl = async () => {
@@ -419,57 +418,6 @@ export function YoutubeDealerRecruit() {
         return approvedMissions.filter(m => getMissionCategory(m) === categoryKey).length
     }
     
-    // 13. 테스트 수집 (2-3개만)
-    const handleTestCollect = async () => {
-        if (!testKeyword.trim()) {
-            toast({ title: "입력 오류", description: "키워드를 입력해주세요.", variant: "destructive" })
-            return
-        }
-        
-        setIsTestCollecting(true)
-        setTestResults(null)
-        
-        try {
-            console.log("[테스트 수집] 시작:", testKeyword)
-            
-            const res = await fetch("/api/admin/marketer/youtube/test-collect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ keyword: testKeyword })
-            })
-            
-            console.log("[테스트 수집] 응답 상태:", res.status)
-            
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}: ${res.statusText}`)
-            }
-            
-            const data = await res.json()
-            console.log("[테스트 수집] 응답 데이터:", data)
-            
-            if (data.success) {
-                setTestResults(data)
-                toast({ 
-                    title: "테스트 수집 완료", 
-                    description: `영상 ${data.stats?.videos || 0}개, 채널 ${data.stats?.channels || 0}개, 미션 ${data.stats?.missions || 0}개 생성` 
-                })
-                // 미션 목록 새로고침
-                loadApprovedMissions()
-            } else {
-                throw new Error(data.error || data.details || "테스트 수집 실패")
-            }
-        } catch (error: any) {
-            console.error("[테스트 수집] 오류:", error)
-            toast({ 
-                title: "테스트 수집 실패", 
-                description: error.message || "알 수 없는 오류가 발생했습니다.", 
-                variant: "destructive" 
-            })
-        } finally {
-            setIsTestCollecting(false)
-        }
-    }
-    
     // 14. 모든 AI 미션 삭제
     const handleClearAllMissions = async () => {
         if (!confirm("⚠️ 정말 모든 승인 대기 중인 AI 미션을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다!")) {
@@ -558,6 +506,40 @@ export function YoutubeDealerRecruit() {
         })
     }
 
+    // 영상 필터링
+    const filteredVideos = useMemo(() => {
+        if (videoKeywordFilter === "ALL") return collectedVideos
+        return collectedVideos.filter(video => video.keyword === videoKeywordFilter)
+    }, [collectedVideos, videoKeywordFilter])
+    
+    // 채널 필터링
+    const filteredChannels = useMemo(() => {
+        if (channelKeywordFilter === "ALL") return collectedChannels
+        return collectedChannels.filter(channel => 
+            channel.keywords && channel.keywords.includes(channelKeywordFilter)
+        )
+    }, [collectedChannels, channelKeywordFilter])
+    
+    // 영상의 키워드 목록 추출
+    const videoKeywords = useMemo(() => {
+        const keywords = new Set<string>()
+        collectedVideos.forEach(video => {
+            if (video.keyword) keywords.add(video.keyword)
+        })
+        return Array.from(keywords).sort()
+    }, [collectedVideos])
+    
+    // 채널의 키워드 목록 추출
+    const channelKeywords = useMemo(() => {
+        const keywords = new Set<string>()
+        collectedChannels.forEach(channel => {
+            if (channel.keywords && Array.isArray(channel.keywords)) {
+                channel.keywords.forEach((kw: string) => keywords.add(kw))
+            }
+        })
+        return Array.from(keywords).sort()
+    }, [collectedChannels])
+
     return (
         <Tabs defaultValue="approve" className="space-y-4" onValueChange={(value) => {
             if (value === "approve" && approvedMissions.length === 0) {
@@ -577,21 +559,57 @@ export function YoutubeDealerRecruit() {
 
             <TabsContent value="videos" className="space-y-6">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>수집된 영상 목록</CardTitle>
-                            <CardDescription>자동 수집된 YouTube 영상들입니다. ({collectedVideos.length}개)</CardDescription>
+                    <CardHeader className="space-y-4">
+                        <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>수집된 영상 목록</CardTitle>
+                                <CardDescription>자동 수집된 YouTube 영상들입니다. ({collectedVideos.length}개)</CardDescription>
+                            </div>
+                            <Button 
+                                onClick={loadCollectedVideos} 
+                                disabled={isLoadingVideos}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                {isLoadingVideos ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                새로고침
+                            </Button>
                         </div>
-                        <Button 
-                            onClick={loadCollectedVideos} 
-                            disabled={isLoadingVideos}
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                        >
-                            {isLoadingVideos ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                            새로고침
-                        </Button>
+                        
+                        {/* 키워드 필터 */}
+                        {videoKeywords.length > 0 && (
+                            <div className="pt-2 border-t space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm text-gray-600 font-medium">프로그램</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    <Button
+                                        variant={videoKeywordFilter === "ALL" ? "default" : "outline"}
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => setVideoKeywordFilter("ALL")}
+                                    >
+                                        전체 ({collectedVideos.length})
+                                    </Button>
+                                    {videoKeywords.map((keyword) => {
+                                        const count = collectedVideos.filter(v => v.keyword === keyword).length
+                                        return (
+                                            <Button
+                                                key={keyword}
+                                                variant={videoKeywordFilter === keyword ? "default" : "outline"}
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() => setVideoKeywordFilter(keyword)}
+                                            >
+                                                {keyword} ({count})
+                                            </Button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent>
                         {isLoadingVideos ? (
@@ -607,9 +625,13 @@ export function YoutubeDealerRecruit() {
                                 <p className="text-gray-400">수집된 영상이 없습니다.</p>
                                 <p className="text-sm text-gray-500">"완전 자동 미션 생성"을 실행하면 영상이 수집됩니다.</p>
                             </div>
+                        ) : filteredVideos.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-gray-400">필터링된 영상이 없습니다.</p>
+                            </div>
                         ) : (
                             <div className="space-y-3 max-h-[600px] overflow-y-auto">
-                                {collectedVideos.map((video, idx) => (
+                                {filteredVideos.map((video, idx) => (
                                     <Card key={idx} className="border-gray-200 hover:border-blue-200 transition-colors">
                                         <CardContent className="p-4">
                                             <div className="flex gap-4">
@@ -650,6 +672,14 @@ export function YoutubeDealerRecruit() {
                                                                 <span>{(video.subscriberCount).toLocaleString()}명</span>
                                                             </>
                                                         )}
+                                                        {video.keyword && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <Badge variant="outline" className="text-[10px] bg-purple-50">
+                                                                    {video.keyword}
+                                                                </Badge>
+                                                            </>
+                                                        )}
                                                     </div>
                                                     
                                                     <div className="flex items-center gap-3 text-xs text-gray-500">
@@ -680,21 +710,59 @@ export function YoutubeDealerRecruit() {
 
             <TabsContent value="channels" className="space-y-6">
                 <Card>
-                    <CardHeader className="flex flex-row items-center justify-between">
-                        <div>
-                            <CardTitle>수집된 채널 목록</CardTitle>
-                            <CardDescription>자동 크롤링으로 수집된 YouTube 채널들입니다.</CardDescription>
+                    <CardHeader className="space-y-4">
+                        <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle>수집된 채널 목록</CardTitle>
+                                <CardDescription>자동 크롤링으로 수집된 YouTube 채널들입니다. ({collectedChannels.length}개)</CardDescription>
+                            </div>
+                            <Button 
+                                onClick={loadCollectedChannels} 
+                                disabled={isLoadingChannels2}
+                                variant="outline"
+                                size="sm"
+                                className="gap-2"
+                            >
+                                {isLoadingChannels2 ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
+                                새로고침
+                            </Button>
                         </div>
-                        <Button 
-                            onClick={loadCollectedChannels} 
-                            disabled={isLoadingChannels2}
-                            variant="outline"
-                            size="sm"
-                            className="gap-2"
-                        >
-                            {isLoadingChannels2 ? <Loader2 className="w-4 h-4 animate-spin" /> : <RefreshCw className="w-4 h-4" />}
-                            새로고침
-                        </Button>
+                        
+                        {/* 키워드 필터 */}
+                        {channelKeywords.length > 0 && (
+                            <div className="pt-2 border-t space-y-2">
+                                <div className="flex items-center gap-2">
+                                    <Filter className="w-4 h-4 text-gray-400" />
+                                    <span className="text-sm text-gray-600 font-medium">프로그램</span>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                    <Button
+                                        variant={channelKeywordFilter === "ALL" ? "default" : "outline"}
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => setChannelKeywordFilter("ALL")}
+                                    >
+                                        전체 ({collectedChannels.length})
+                                    </Button>
+                                    {channelKeywords.map((keyword) => {
+                                        const count = collectedChannels.filter(c => 
+                                            c.keywords && c.keywords.includes(keyword)
+                                        ).length
+                                        return (
+                                            <Button
+                                                key={keyword}
+                                                variant={channelKeywordFilter === keyword ? "default" : "outline"}
+                                                size="sm"
+                                                className="h-7 text-xs"
+                                                onClick={() => setChannelKeywordFilter(keyword)}
+                                            >
+                                                {keyword} ({count})
+                                            </Button>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
                     </CardHeader>
                     <CardContent>
                         {isLoadingChannels2 ? (
@@ -710,9 +778,13 @@ export function YoutubeDealerRecruit() {
                                 <p className="text-gray-400">수집된 채널이 없습니다.</p>
                                 <p className="text-sm text-gray-500">"완전 자동 미션 생성"을 실행하면 채널이 수집됩니다.</p>
                             </div>
+                        ) : filteredChannels.length === 0 ? (
+                            <div className="text-center py-12">
+                                <p className="text-gray-400">필터링된 채널이 없습니다.</p>
+                            </div>
                         ) : (
                             <div className="space-y-3">
-                                {collectedChannels.map((channel) => (
+                                {filteredChannels.map((channel) => (
                                     <Card key={channel.id} className="border-gray-200 hover:border-blue-200 transition-colors">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between gap-4">
@@ -1064,78 +1136,6 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="approve">
-                {/* 테스트 수집 박스 */}
-                <Card className="mb-4 border-2 border-blue-200 bg-blue-50/30">
-                    <CardHeader>
-                        <CardTitle className="text-base flex items-center gap-2">
-                            <Zap className="w-4 h-4 text-blue-600" />
-                            빠른 테스트 수집 (2-3개 영상)
-                        </CardTitle>
-                        <CardDescription>
-                            키워드를 입력하고 테스트 버튼을 클릭하면 2-3개 영상만 수집하여 영상 정보, 채널 정보, AI 미션이 모두 생성됩니다.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <div className="flex gap-3">
-                            <Input
-                                value={testKeyword}
-                                onChange={(e) => setTestKeyword(e.target.value)}
-                                placeholder="예: 나는솔로, 쇼미더머니"
-                                className="flex-1"
-                                disabled={isTestCollecting}
-                            />
-                            <Button
-                                onClick={handleTestCollect}
-                                disabled={isTestCollecting}
-                                className="gap-2 bg-blue-600 hover:bg-blue-700"
-                            >
-                                {isTestCollecting ? (
-                                    <>
-                                        <Loader2 className="w-4 h-4 animate-spin" />
-                                        수집 중...
-                                    </>
-                                ) : (
-                                    <>
-                                        <Search className="w-4 h-4" />
-                                        테스트 수집
-                                    </>
-                                )}
-                            </Button>
-                        </div>
-                        
-                        {testResults && (
-                            <div className="mt-4 p-4 bg-white rounded-lg border border-green-200">
-                                <div className="flex items-center gap-2 mb-3">
-                                    <Check className="w-5 h-5 text-green-600" />
-                                    <span className="font-semibold text-green-700">테스트 수집 완료!</span>
-                                </div>
-                                <div className="grid grid-cols-3 gap-4 text-sm">
-                                    <div className="text-center p-3 bg-blue-50 rounded">
-                                        <div className="text-2xl font-bold text-blue-600">{testResults.stats.videos}</div>
-                                        <div className="text-gray-600 mt-1">영상 수집</div>
-                                    </div>
-                                    <div className="text-center p-3 bg-purple-50 rounded">
-                                        <div className="text-2xl font-bold text-purple-600">{testResults.stats.channels}</div>
-                                        <div className="text-gray-600 mt-1">채널 저장</div>
-                                    </div>
-                                    <div className="text-center p-3 bg-green-50 rounded">
-                                        <div className="text-2xl font-bold text-green-600">{testResults.stats.missions}</div>
-                                        <div className="text-gray-600 mt-1">AI 미션 생성</div>
-                                    </div>
-                                </div>
-                                {testResults.collectedVideos && testResults.collectedVideos.length > 0 && (
-                                    <div className="mt-3 text-xs text-gray-500">
-                                        <div className="font-medium mb-1">수집된 영상:</div>
-                                        {testResults.collectedVideos.map((v: any, i: number) => (
-                                            <div key={i} className="truncate">• {v.title}</div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        )}
-                    </CardContent>
-                </Card>
-
                 <Card>
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">

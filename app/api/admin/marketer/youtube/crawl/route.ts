@@ -45,8 +45,10 @@ export async function POST(request: NextRequest) {
         }
       }
 
-      // Firestore에 채널 정보 저장
+      // Firestore에 채널 정보 및 영상 정보 저장
       const batch = adminDb.batch();
+      
+      // 1. 채널 정보 저장 (dealers 컬렉션)
       for (const [channelId, channelData] of channelMap.entries()) {
         const dealerRef = adminDb.collection('dealers').doc(channelId);
         const dealerDoc = await dealerRef.get();
@@ -66,6 +68,32 @@ export async function POST(request: NextRequest) {
           // 새 딜러 생성
           batch.set(dealerRef, channelData);
         }
+      }
+      
+      // 2. 영상 정보 저장 (videos 컬렉션)
+      for (const video of result.videos) {
+        const videoId = video.video_id;
+        const videoRef = adminDb.collection('videos').doc(videoId);
+        
+        const videoData = {
+          videoId: videoId,
+          title: video.title,
+          description: video.description || '',
+          channelId: video.channel_id,
+          channelName: video.channel_title,
+          subscriberCount: parseInt(video.subscriber_count || '0'),
+          viewCount: parseInt(video.view_count || '0'),
+          likeCount: parseInt(video.like_count || '0'),
+          commentCount: parseInt(video.comment_count || '0'),
+          publishedAt: video.published_at,
+          thumbnail: video.thumbnail,
+          video_url: video.video_url || `https://www.youtube.com/watch?v=${videoId}`,
+          has_subtitle: video.has_subtitle || false,
+          keyword: keywords,
+          collectedAt: new Date().toISOString()
+        };
+        
+        batch.set(videoRef, videoData);
       }
       
       await batch.commit();

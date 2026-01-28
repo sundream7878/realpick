@@ -1,50 +1,60 @@
 import { spawn } from "child_process";
 import path from "path";
+import fs from "fs";
+import { randomBytes } from "crypto";
 
 /**
- * realpick-marketing의 bridge.py를 실행하는 공통 유틸리티 (로컬 전용)
- * spawn을 사용하여 안전한 인자 전달
+ * scripts/marketing의 bridge.py를 실행하는 공통 유틸리티 (로컬 전용)
+ * 한글 인코딩 문제 해결을 위해 JSON 파일로 인자 전달
  */
 export async function runMarketerBridge(command: string, args: Record<string, any> = {}) {
   return new Promise((resolve) => {
     try {
       // 1. 경로 설정
-      const marketingPath = path.resolve(process.cwd(), "..", "realpick-marketing");
-      const pythonPath = "python";
+      const marketingPath = path.resolve(process.cwd(), "scripts", "marketing");
+      const pythonPath = process.platform === 'win32' ? 'py' : 'python';
 
-      // 2. 인자를 배열로 구성 (spawn은 배열로 인자를 받아 자동으로 이스케이프 처리)
-      const pyArgs = ["bridge.py", command];
-      for (const [key, value] of Object.entries(args)) {
-        pyArgs.push(`--${key}`);
-        // 객체는 JSON으로 직렬화
-        pyArgs.push(typeof value === 'object' ? JSON.stringify(value) : String(value));
-      }
+      // 2. 임시 JSON 파일로 인자 저장 (한글 인코딩 문제 해결)
+      const tempId = randomBytes(8).toString('hex');
+      const tempFile = path.join(marketingPath, `.args_${tempId}.json`);
+      const argsData = { command, ...args };
+      
+      fs.writeFileSync(tempFile, JSON.stringify(argsData, null, 2), 'utf8');
 
-      console.log(`[Marketer Bridge] 실행:`, pythonPath, pyArgs.join(" "));
+      console.log(`[Marketer Bridge] 실행:`, pythonPath, 'bridge.py', `--args-file=${tempFile}`);
 
-      // 3. 프로세스 실행 (spawn은 자동으로 인자를 안전하게 이스케이프)
-      const child = spawn(pythonPath, pyArgs, {
+      // 3. 프로세스 실행
+      const child = spawn(pythonPath, ['bridge.py', `--args-file=${tempFile}`], {
         cwd: marketingPath,
         env: {
           ...process.env,
-          PYTHONIOENCODING: "utf-8", // Python의 stdout/stderr를 UTF-8로 설정
-          PYTHONUTF8: "1", // Python 3.7+ UTF-8 모드 강제 활성화
+          PYTHONIOENCODING: "utf-8",
+          PYTHONUTF8: "1",
         },
-        windowsVerbatimArguments: false, // Windows에서 인자를 자동으로 이스케이프
+        windowsHide: true,
       });
 
       let stdout = "";
       let stderr = "";
 
       child.stdout?.on("data", (data) => {
-        stdout += data.toString();
+        stdout += data.toString('utf8');
       });
 
       child.stderr?.on("data", (data) => {
-        stderr += data.toString();
+        stderr += data.toString('utf8');
       });
 
       child.on("close", (code) => {
+        // 임시 파일 삭제
+        try {
+          if (fs.existsSync(tempFile)) {
+            fs.unlinkSync(tempFile);
+          }
+        } catch (e) {
+          console.warn("[Marketer Bridge] 임시 파일 삭제 실패:", e);
+        }
+
         if (stderr) {
           console.warn("[Marketer Bridge] stderr:", stderr);
         }

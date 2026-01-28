@@ -66,7 +66,7 @@ export function AutoMissionGenerate() {
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
                         keywords: keyword,
-                        maxResults: 50, // YouTube API 최대값 (키워드당 최대 50개)
+                        maxResults: 2, // 프로그램당 2개 영상만 수집
                         startDate: today,
                         endDate: today
                     })
@@ -152,7 +152,7 @@ export function AutoMissionGenerate() {
                 <CardContent className="space-y-6 pt-6">
                     {/* 자동 크롤링 키워드 목록 */}
                     <div className="space-y-3">
-                        <h4 className="text-sm font-semibold text-gray-700">수집 대상 프로그램 ({AUTO_KEYWORDS.length}개)</h4>
+                        <h4 className="text-sm font-semibold text-gray-700">수집 대상 프로그램 ({AUTO_KEYWORDS.length}개 × 2개 영상)</h4>
                         <div className="flex flex-wrap gap-2">
                             {AUTO_KEYWORDS.map((kw, i) => (
                                 <Badge 
@@ -249,9 +249,9 @@ export function AutoMissionGenerate() {
                         <div className="space-y-2 text-sm text-blue-900">
                             <p className="font-semibold">자동 생성 프로세스</p>
                             <ol className="list-decimal list-inside space-y-1 text-blue-700">
-                                <li>당일 업로드된 YouTube 영상 수집 (키워드당 최대 50개)</li>
+                                <li>당일 업로드된 YouTube 영상 수집 (키워드당 2개)</li>
                                 <li>각 영상의 자막 추출 및 AI 분석</li>
-                                <li>Gemini AI가 자동으로 미션 생성</li>
+                                <li>Gemini AI가 자동으로 미션 생성 (영상당 1개)</li>
                                 <li>생성된 미션을 <code className="bg-blue-100 px-1 rounded">ai_missions</code> 컬렉션에 저장 (승인 대기)</li>
                                 <li>"미션 승인 관리" 탭에서 확인 및 승인</li>
                             </ol>

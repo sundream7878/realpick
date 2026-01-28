@@ -1,0 +1,37 @@
+# 리얼픽 마케팅 자동화 시스템 필수 의존성
+
+# Streamlit 웹 앱
+streamlit
+streamlit-option-menu
+
+# 데이터 처리
+pandas
+numpy
+
+# YouTube API
+google-api-python-client
+google-auth-httplib2
+google-auth-oauthlib
+
+# Gemini AI
+google-generativeai
+
+# 웹 크롤링 및 통신
+requests
+beautifulsoup4
+youtube-transcript-api==0.6.2
+
+# 이메일 발송
+secure-smtplib
+
+# 데이터베이스
+firebase-admin
+
+# 유틸리티
+python-dotenv
+python-dateutil
+loguru
+
+# 시각화
+plotly
+altair

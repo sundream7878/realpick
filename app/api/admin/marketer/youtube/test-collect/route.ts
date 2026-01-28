@@ -133,39 +133,38 @@ export async function POST(request: NextRequest) {
                 desc: video.description || ''
               });
 
-              if (analyzeResult.success && analyzeResult.missions) {
-                // AI 미션 저장
-                for (const mission of analyzeResult.missions) {
-                  const missionRef = adminDb.collection('ai_missions').doc();
-                  const missionData = {
-                    title: mission.title,
-                    description: mission.description || '',
-                    category: mission.category || 'LOVE',
-                    showId: mission.showId || 'nasolo',
-                    kind: mission.kind || 'MAJORITY',
-                    form: mission.form || 'multiple',
-                    options: mission.options || [],
-                    sourceVideo: {
-                      videoId: videoId,
-                      title: video.title,
-                      description: video.description || '',
-                      channelName: channel.channelName,
-                      channelId: channel.channelId,
-                      url: video.video_url || `https://www.youtube.com/watch?v=${videoId}`,
-                      thumbnailUrl: video.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
-                    },
-                    status: 'PENDING',
-                    createdAt: new Date().toISOString(),
-                    createdBy: 'AI_GEMINI',
-                    isApproved: false
-                  };
-                  
-                  await missionRef.set(missionData);
-                  generatedMissions.push({
-                    ...missionData,
-                    id: missionRef.id
-                  });
-                }
+              if (analyzeResult.success && analyzeResult.missions && analyzeResult.missions.length > 0) {
+                // AI 미션 저장 (첫 번째 미션만)
+                const mission = analyzeResult.missions[0];
+                const missionRef = adminDb.collection('ai_missions').doc();
+                const missionData = {
+                  title: mission.title,
+                  description: mission.description || '',
+                  category: mission.category || 'LOVE',
+                  showId: mission.showId || 'nasolo',
+                  kind: mission.kind || 'MAJORITY',
+                  form: mission.form || 'multiple',
+                  options: mission.options || [],
+                  sourceVideo: {
+                    videoId: videoId,
+                    title: video.title,
+                    description: video.description || '',
+                    channelName: channel.channelName,
+                    channelId: channel.channelId,
+                    url: video.video_url || `https://www.youtube.com/watch?v=${videoId}`,
+                    thumbnailUrl: video.thumbnail || `https://img.youtube.com/vi/${videoId}/hqdefault.jpg`
+                  },
+                  status: 'PENDING',
+                  createdAt: new Date().toISOString(),
+                  createdBy: 'AI_GEMINI',
+                  isApproved: false
+                };
+                
+                await missionRef.set(missionData);
+                generatedMissions.push({
+                  ...missionData,
+                  id: missionRef.id
+                });
               }
             } catch (analyzeError) {
               console.error(`[AI 분석 실패] ${video.videoId}:`, analyzeError);
