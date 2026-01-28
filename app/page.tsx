@@ -24,7 +24,7 @@ import type { TMission, TVoteSubmission } from "@/types/t-vote/vote.types"
 import { getUser } from "@/lib/firebase/users"
 import type { TTierInfo } from "@/types/t-tier/tier.types"
 import { getMainMissionId } from "@/lib/firebase/admin-settings"
-import { getShowById, normalizeShowId } from "@/lib/constants/shows"
+import { getShowById, normalizeShowId, CATEGORIES } from "@/lib/constants/shows"
 
 export default function HomePage() {
   const router = useRouter()
@@ -59,6 +59,13 @@ export default function HomePage() {
   // URL 쿼리 파라미터 동기화 및 기본 카테고리 설정
   useEffect(() => {
     const showParam = searchParams.get('show')
+    const categoryParam = searchParams.get('category')
+    
+    // category 파라미터가 있으면 해당 카테고리 전체 보기 (프로그램 필터 없음)
+    if (categoryParam) {
+      setSelectedShowId(null) // 프로그램 필터 해제
+      return
+    }
     
     // 쿼리 파라미터가 없으면 즉시 기본으로 nasolo로 리다이렉트
     if (!showParam) {
@@ -311,10 +318,18 @@ export default function HomePage() {
     return () => window.removeEventListener('auth-change', handleAuthChange)
   }, [])
 
+  // URL에서 category 파라미터 가져오기
+  const categoryParam = searchParams.get('category')
+  
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
-    // 1. Show ID 필터링
-    if (selectedShowId) {
+    // 1. Category 필터링 (category 파라미터가 있으면 우선 적용)
+    if (categoryParam) {
+      const missionCategory = mission.showId ? getShowById(mission.showId)?.category : mission.category
+      if (missionCategory !== categoryParam) return false
+    }
+    // 2. Show ID 필터링 (category 파라미터가 없을 때만)
+    else if (selectedShowId) {
       // 선택된 프로그램이 'nasolo'인 경우, showId가 'nasolo'이거나 없는(기존 데이터) 미션 표시
       if (selectedShowId === 'nasolo') {
         if (mission.showId && mission.showId !== 'nasolo') return false
@@ -324,7 +339,7 @@ export default function HomePage() {
       }
     }
 
-    // 2. 상태 필터링
+    // 3. 상태 필터링
     if (selectedFilter === "전체") return true
     if (selectedFilter === "진행중") return mission.status === "open" && !isDeadlinePassed(mission.deadline)
     if (selectedFilter === "마감") return mission.status !== "open" || isDeadlinePassed(mission.deadline)
@@ -336,7 +351,8 @@ export default function HomePage() {
     전체미션: missions.length,
     필터링후: filteredMissions.length,
     현재필터: selectedFilter,
-    선택프로그램: selectedShowId
+    선택프로그램: selectedShowId,
+    선택카테고리: categoryParam
   })
 
   // 정렬: 진행중(open) > 마감됨(settled/closed)
@@ -373,8 +389,13 @@ export default function HomePage() {
       // 1. 기본 필터: 진행중이고 마감 안 된 것
       if (m.status !== 'open' || isDeadlinePassed(m.deadline)) return false
 
-      // 2. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상
-      if (selectedShowId && m.showId !== selectedShowId) return false
+      // 2. Category 필터링 (category 파라미터가 있으면 우선 적용)
+      if (categoryParam) {
+        const missionCategory = m.showId ? getShowById(m.showId)?.category : m.category
+        if (missionCategory !== categoryParam) return false
+      }
+      // 3. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상 (category 파라미터가 없을 때만)
+      else if (selectedShowId && m.showId !== selectedShowId) return false
 
       return true
     })
@@ -416,8 +437,13 @@ export default function HomePage() {
         // 1. 기본 필터: 마감된 것
         if (m.status === 'open' && !isDeadlinePassed(m.deadline)) return false
 
-        // 2. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상
-        if (selectedShowId && m.showId !== selectedShowId) return false
+        // 2. Category 필터링 (category 파라미터가 있으면 우선 적용)
+        if (categoryParam) {
+          const missionCategory = m.showId ? getShowById(m.showId)?.category : m.category
+          if (missionCategory !== categoryParam) return false
+        }
+        // 3. 선택된 프로그램이 있으면 해당 프로그램 미션만 대상 (category 파라미터가 없을 때만)
+        else if (selectedShowId && m.showId !== selectedShowId) return false
 
         return true
       })
@@ -699,7 +725,11 @@ export default function HomePage() {
                   ))
                 ) : (
                   <div className="text-center py-10 text-gray-400">
-                    <p>해당 프로그램의 미션이 아직 없습니다.</p>
+                    <p>
+                      {categoryParam 
+                        ? `${CATEGORIES[categoryParam as keyof typeof CATEGORIES]?.description || '해당'} 카테고리의 미션이 아직 없습니다.` 
+                        : '해당 프로그램의 미션이 아직 없습니다.'}
+                    </p>
                   </div>
                 )}
               </div>
@@ -761,8 +791,8 @@ export default function HomePage() {
             />
           )}
 
-          {/* 하단 네비게이션 (카테고리 선택 시에만 표시) */}
-          {selectedShowId && !isLoading && (
+          {/* 하단 네비게이션 (카테고리 또는 프로그램 선택 시에만 표시) */}
+          {(selectedShowId || categoryParam) && !isLoading && (
             <>
               <BottomNavigation
                 onMissionClick={() => {
@@ -783,7 +813,7 @@ export default function HomePage() {
                   setRedirectAfterLogin(window.location.pathname + window.location.search)
                   setShowLoginModal(true)
                 }}
-                category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+                category={categoryParam || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
                 selectedShowId={selectedShowId}
               />
             </>

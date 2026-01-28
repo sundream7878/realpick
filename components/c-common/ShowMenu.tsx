@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { ChevronDown } from "lucide-react"
 import { CATEGORIES, SHOWS, type TShowCategory, getShowById } from "@/lib/constants/shows"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import BreathingLightBadge from "@/components/c-ui/BreathingLightBadge"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { useNewMissionNotifications } from "@/hooks/useNewMissionNotifications"
@@ -27,8 +27,12 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
     const [isOpen, setIsOpen] = useState(false)
     const menuRef = useRef<HTMLDivElement>(null)
     const router = useRouter()
+    const searchParams = useSearchParams()
     const categoryInfo = CATEGORIES[category]
     const shows = SHOWS[category] || []
+    
+    // URL에서 category 파라미터 확인
+    const urlCategory = searchParams.get('category')
     
     // Props와 Hook에서 온 ID들 통합
     const unreadMissionIds = Array.from(new Set([...(propUnreadIds || []), ...(hookUnreadIds || [])]))
@@ -69,11 +73,12 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
         return cleanup
     }, [])
 
-    // 현재 카테고리에 선택된 쇼가 있는지 확인 (기본 쇼 + 커스텀 쇼 통합)
+    // 현재 카테고리에 선택된 쇼가 있는지 또는 카테고리 페이지인지 확인 (기본 쇼 + 커스텀 쇼 통합)
     const validCustomShows = Array.isArray(customShows) ? customShows : []
     const allShowsInCategory = [...shows, ...validCustomShows.filter(s => s.category === category)]
     const selectedShow = allShowsInCategory.find(s => s.id === selectedShowId)
-    const isCategoryActive = !!selectedShow
+    // 프로그램이 선택되었거나 카테고리 전체 페이지인 경우 활성화
+    const isCategoryActive = !!selectedShow || urlCategory === category
     
     // 각 프로그램별 읽지 않은 미션 개수 계산 (실시간 감지 목록 + Props 통합)
     const getUnreadCountForShow = (showId: string) => {
@@ -192,6 +197,15 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             }
         }
     }
+    
+    // 카테고리 이모지 클릭 핸들러 (프로그램 필터 해제, 카테고리 전체 보기)
+    const handleCategoryIconClick = (e: React.MouseEvent) => {
+        e.stopPropagation() // 메뉴 토글 방지
+        setIsOpen(false)
+        
+        // 카테고리 페이지로 이동 (프로그램 필터 없이)
+        router.push(`/?category=${category}`)
+    }
 
     return (
         <div className="relative z-50" ref={menuRef}>
@@ -214,10 +228,12 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden md:block w-6 h-6 md:w-7 md:h-7 lg:w-9 lg:h-9 object-contain flex-shrink-0"
+                    className="hidden md:block w-6 h-6 md:w-7 md:h-7 lg:w-9 lg:h-9 object-contain flex-shrink-0 cursor-pointer hover:scale-110 transition-transform"
+                    onClick={handleCategoryIconClick}
+                    title={`${categoryInfo.description} 전체 미션 보기`}
                 />
                 <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
-                    {selectedShow ? selectedShow.displayName : categoryInfo.description}
+                    {selectedShow ? selectedShow.displayName : (urlCategory === category ? categoryInfo.description : categoryInfo.description)}
                 </span>
                 <ChevronDown
                     className={`w-2.5 h-2.5 sm:w-3 sm:h-3 md:w-3.5 md:h-3.5 lg:w-4 lg:h-4 flex-shrink-0 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`}
