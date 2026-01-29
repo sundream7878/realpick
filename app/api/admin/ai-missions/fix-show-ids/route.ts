@@ -1,24 +1,26 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase/admin";
-import { normalizeShowId, getShowById } from "@/lib/constants/shows";
+import { normalizeShowId, getShowById, getShowByName } from "@/lib/constants/shows";
 
-// 영상 제목이나 채널명에서 프로그램 키워드 추출
+export const dynamic = 'force-dynamic';
+
+// 영상 제목, 채널명, 설명에서 프로그램 키워드 추출
 function extractShowKeyword(title: string, channelName?: string, description?: string): string | undefined {
   const text = `${title} ${channelName || ''} ${description || ''}`.toLowerCase();
   
-  // 키워드 매칭 (우선순위 순서)
+  // 1. 우선순위 기반 키워드 매칭 (오차를 줄이기 위해 더 구체적인 키워드부터 배치)
   const keywords = [
+    { patterns: ['합숙맞선', '합숙 맞선'], result: '합숙맞선' },
     { patterns: ['쇼미더머니', 'show me the money', 'smtm'], result: '쇼미더머니' },
-    { patterns: ['골때녀', '골때리는 그녀', '골때리는그녀', 'goal girls', '골때리는 그녀들', 'fc탑걸', '발라드림', '액셔니스타'], result: '골때녀' },
+    { patterns: ['골때녀', '골때리는 그녀', '골때리는그녀', 'goal girls', '골때리는 그녀들', 'fc탑걸', '발라드림', '액셔니스타', '구척장신', '개벤져스', '월드클라쓰'], result: '골때녀' },
+    { patterns: ['나솔사계', '나는 솔로 그 후', '사랑은 계속된다'], result: '나솔사계' },
     { patterns: ['나는솔로', '나는 솔로', 'i am solo'], result: '나는솔로' },
-    { patterns: ['나솔사계'], result: '나솔사계' },
-    { patterns: ['환승연애'], result: '환승연애' },
+    { patterns: ['환승연애', '환연'], result: '환승연애' },
     { patterns: ['돌싱글즈', '돌싱'], result: '돌싱글즈' },
     { patterns: ['솔로지옥'], result: '솔로지옥' },
     { patterns: ['끝사랑'], result: '끝사랑' },
     { patterns: ['연애남매'], result: '연애남매' },
-    { patterns: ['합숙맞선'], result: '합숙맞선' },
-    { patterns: ['최강야구'], result: '최강야구' },
+    { patterns: ['최강야구', '최강 몬스터즈'], result: '최강야구' },
     { patterns: ['강철부대'], result: '강철부대' },
     { patterns: ['피의게임', '피의 게임'], result: '피의게임' },
     { patterns: ['대학전쟁'], result: '대학전쟁' },

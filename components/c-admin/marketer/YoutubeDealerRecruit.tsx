@@ -116,7 +116,8 @@ export function YoutubeDealerRecruit() {
                     title: video.title,
                     desc: video.description,
                     channelName: video.channel_title,
-                    channelId: video.channel_id
+                    channelId: video.channel_id,
+                    keyword: video.keyword // 영상 수집 시 사용된 키워드 전달
                 })
             })
             const data = await res.json()
@@ -318,7 +319,7 @@ export function YoutubeDealerRecruit() {
     const loadApprovedMissions = async () => {
         setIsLoadingMissions(true)
         try {
-            const res = await fetch("/api/admin/ai-missions/list")
+            const res = await fetch(`/api/admin/ai-missions/list?t=${Date.now()}`)
             const data = await res.json()
             if (data.success) {
                 setApprovedMissions(data.missions || [])
@@ -1356,13 +1357,18 @@ export function YoutubeDealerRecruit() {
                                                                 </Badge>
                                                             ) : null
                                                         })()}
-                                                        {mission.showId && (() => {
-                                                            const show = getShowById(normalizeShowId(mission.showId) || '')
+                                                        {(() => {
+                                                            const normalizedShowId = normalizeShowId(mission.showId)
+                                                            const show = getShowById(normalizedShowId || '')
                                                             return show ? (
                                                                 <Badge variant="outline" className="text-[10px] bg-purple-50">
                                                                     {show.displayName}
                                                                 </Badge>
-                                                            ) : null
+                                                            ) : (
+                                                                <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200">
+                                                                    미분류 ({mission.showId})
+                                                                </Badge>
+                                                            )
                                                         })()}
                                                         <Badge variant="outline" className="text-[10px] bg-white">
                                                             {mission.form === 'binary' ? '양자' : '다자'}
