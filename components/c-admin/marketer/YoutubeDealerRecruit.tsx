@@ -69,6 +69,9 @@ export function YoutubeDealerRecruit() {
     // 필터 상태
     const [videoKeywordFilter, setVideoKeywordFilter] = useState<string>("ALL")
     const [channelKeywordFilter, setChannelKeywordFilter] = useState<string>("ALL")
+    
+    // showId 일괄 수정 상태
+    const [isFixingShowIds, setIsFixingShowIds] = useState(false)
 
     // 1. 크롤링 핸들러
     const handleCrawl = async () => {
@@ -189,7 +192,7 @@ export function YoutubeDealerRecruit() {
                     kind: mission.category === 'PREDICT' ? 'prediction' : 'majority',
                     form: mission.form || 'multi',
                     deadline: deadline,
-                    showId: selectedVideo.keyword || "nasolo",
+                    showId: normalizeShowId(selectedVideo.keyword) || "nasolo",
                     category: 'LOVE',
                     isAIMission: true,
                     aiMissionId: mission.aiMissionId, // ai_missions 컬렉션의 ID
@@ -448,6 +451,50 @@ export function YoutubeDealerRecruit() {
             })
         } finally {
             setIsClearingMissions(false)
+        }
+    }
+    
+    // 15. showId 일괄 수정
+    const handleFixShowIds = async () => {
+        if (!confirm("기존 미션들의 showId를 영상 제목 기반으로 자동 수정하시겠습니까?\n\n예: '쇼미더머니' 영상 → show-me-the-money-12")) {
+            return
+        }
+        
+        setIsFixingShowIds(true)
+        try {
+            const res = await fetch("/api/admin/ai-missions/fix-show-ids", {
+                method: "POST"
+            })
+            const data = await res.json()
+            
+            if (data.success) {
+                toast({ 
+                    title: "수정 완료", 
+                    description: data.message,
+                })
+                
+                // 상세 정보 콘솔 출력
+                if (data.details && data.details.length > 0) {
+                    console.log("=== showId 수정 상세 ===")
+                    data.details.forEach((detail: any) => {
+                        console.log(`- ${detail.title}`)
+                        console.log(`  ${detail.oldShowId} → ${detail.newShowId}`)
+                    })
+                }
+                
+                // 목록 새로고침
+                loadApprovedMissions()
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast({ 
+                title: "수정 실패", 
+                description: error.message, 
+                variant: "destructive" 
+            })
+        } finally {
+            setIsFixingShowIds(false)
         }
     }
 
@@ -1155,16 +1202,28 @@ export function YoutubeDealerRecruit() {
                                     새로고침
                                 </Button>
                                 {approvedMissions.length > 0 && (
-                                    <Button 
-                                        onClick={handleClearAllMissions} 
-                                        disabled={isClearingMissions}
-                                        variant="destructive"
-                                        size="sm"
-                                        className="gap-2"
-                                    >
-                                        {isClearingMissions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-                                        전체 삭제
-                                    </Button>
+                                    <>
+                                        <Button 
+                                            onClick={handleFixShowIds} 
+                                            disabled={isFixingShowIds}
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+                                        >
+                                            {isFixingShowIds ? <Loader2 className="w-4 h-4 animate-spin" /> : <Zap className="w-4 h-4" />}
+                                            showId 일괄 수정
+                                        </Button>
+                                        <Button 
+                                            onClick={handleClearAllMissions} 
+                                            disabled={isClearingMissions}
+                                            variant="destructive"
+                                            size="sm"
+                                            className="gap-2"
+                                        >
+                                            {isClearingMissions ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                                            전체 삭제
+                                        </Button>
+                                    </>
                                 )}
                             </div>
                         </div>
