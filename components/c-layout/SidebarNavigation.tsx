@@ -60,27 +60,27 @@ export function SidebarNavigation({
   // 테마 텍스트 색상 보정 (카테고리별 메인 색상 강제 적용)
   const getCategoryMainColor = () => {
     switch (category) {
-      case "LOVE": return "text-pink-600 !important"
-      case "VICTORY": return "text-blue-600 !important"
-      case "STAR": return "text-yellow-600 !important"
+      case "LOVE": return "!text-pink-600"
+      case "VICTORY": return "!text-blue-600"
+      case "STAR": return "!text-yellow-600"
       default: return "text-gray-700"
     }
   }
 
   const getCategoryHoverColor = () => {
     switch (category) {
-      case "LOVE": return "hover:text-pink-700 !important hover:bg-pink-50 !important"
-      case "VICTORY": return "hover:text-blue-700 !important hover:bg-blue-50 !important"
-      case "STAR": return "hover:text-yellow-700 !important hover:bg-yellow-50 !important"
+      case "LOVE": return "hover:!text-pink-700 hover:!bg-pink-50"
+      case "VICTORY": return "hover:!text-blue-700 hover:!bg-blue-50"
+      case "STAR": return "hover:!text-yellow-700 hover:!bg-yellow-50"
       default: return "hover:text-gray-900 hover:bg-gray-100"
     }
   }
 
   const getCategoryActiveStyle = () => {
     switch (category) {
-      case "LOVE": return "bg-pink-100 !important text-pink-700 !important"
-      case "VICTORY": return "bg-blue-100 !important text-blue-700 !important"
-      case "STAR": return "bg-yellow-100 !important text-yellow-700 !important"
+      case "LOVE": return "!bg-pink-100 !text-pink-700"
+      case "VICTORY": return "!bg-blue-100 !text-blue-700"
+      case "STAR": return "!bg-yellow-100 !text-yellow-700"
       default: return "bg-gray-100 text-gray-900"
     }
   }
@@ -92,9 +92,9 @@ export function SidebarNavigation({
   // 아이콘 색상 추출
   const getIconColor = () => {
     switch (category) {
-      case "LOVE": return "text-pink-600 !important"
-      case "VICTORY": return "text-blue-600 !important"
-      case "STAR": return "text-yellow-600 !important"
+      case "LOVE": return "!text-pink-600"
+      case "VICTORY": return "!text-blue-600"
+      case "STAR": return "!text-yellow-600"
       default: return "text-gray-500"
     }
   }
@@ -207,7 +207,7 @@ export function SidebarNavigation({
               onClick={handleMissionClick}
             >
               <Plus className={`w-5 h-5 ${iconColor}`} />
-              <span className={sidebarTextColor}>미션 게시하기</span>
+              <span>미션 게시하기</span>
             </Button>
           )}
 
@@ -220,8 +220,8 @@ export function SidebarNavigation({
                   : `${sidebarTextColor} ${sidebarHoverStyle}`
               } !flex !items-center`}
             >
-              <User className={`w-5 h-5 ${activeNavItem === "mypage" ? "" : iconColor}`} />
-              <span className={activeNavItem === "mypage" ? "" : sidebarTextColor}>마이페이지</span>
+              <User className={`w-5 h-5`} />
+              <span>마이페이지</span>
             </Button>
           </Link>
 
