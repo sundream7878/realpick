@@ -96,7 +96,8 @@ export function AppHeader({
               alt="리얼픽" 
               className="w-auto cursor-pointer hover:opacity-80 transition-opacity h-8 sm:h-10 md:h-14 lg:h-16"
               onClick={() => {
-                router.push("/?show=nasolo")
+                const homeUrl = isAuthenticated() ? "/?category=LOVE" : "/"
+                router.push(homeUrl)
               }}
             />
           </div>

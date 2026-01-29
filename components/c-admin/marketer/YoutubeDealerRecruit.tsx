@@ -58,6 +58,22 @@ export function YoutubeDealerRecruit() {
     const [missionShowFilter, setMissionShowFilter] = useState<string>("ALL")
     const [isClearingMissions, setIsClearingMissions] = useState(false)
     
+    // 미션 수정 관련 상태
+    const [editingMissionId, setEditingMissionId] = useState<string | null>(null)
+    const [editForm, setEditForm] = useState<{
+        title: string;
+        description: string;
+        deadline: string;
+        options: string[];
+        kind: string;
+    }>({
+        title: '',
+        description: '',
+        deadline: '',
+        options: [],
+        kind: 'MAJORITY'
+    })
+    
     // 수집된 채널 목록 관련 상태
     const [collectedChannels, setCollectedChannels] = useState<any[]>([])
     const [isLoadingChannels2, setIsLoadingChannels2] = useState(false)
@@ -1370,6 +1386,9 @@ export function YoutubeDealerRecruit() {
                                                                 </Badge>
                                                             )
                                                         })()}
+                                                        <Badge variant="outline" className={`text-[10px] ${mission.kind === 'PREDICT' ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-green-50 border-green-300 text-green-700'}`}>
+                                                            {mission.kind === 'PREDICT' ? '예측픽' : '공감픽'}
+                                                        </Badge>
                                                         <Badge variant="outline" className="text-[10px] bg-white">
                                                             {mission.form === 'binary' ? '양자' : '다자'}
                                                         </Badge>
@@ -1382,17 +1401,148 @@ export function YoutubeDealerRecruit() {
                                                             생성: {mission.createdAt ? new Date(mission.createdAt).toLocaleDateString('ko-KR') : 'N/A'}
                                                         </span>
                                                     </div>
-                                                    <h3 className="font-bold text-gray-900">{mission.title}</h3>
-                                                    {mission.description && (
-                                                        <p className="text-sm text-gray-600 line-clamp-2">{mission.description}</p>
+
+                                                    {editingMissionId === mission.id ? (
+                                                        <div className="space-y-3 p-3 bg-white rounded-lg border border-purple-200 mt-2">
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase">미션 유형</label>
+                                                                <div className="flex gap-2">
+                                                                    <Button
+                                                                        variant={editForm.kind === 'MAJORITY' ? "default" : "outline"}
+                                                                        size="sm"
+                                                                        className="h-7 text-[11px] flex-1"
+                                                                        onClick={() => setEditForm({...editForm, kind: 'MAJORITY'})}
+                                                                    >
+                                                                        공감픽 (Majority)
+                                                                    </Button>
+                                                                    <Button
+                                                                        variant={editForm.kind === 'PREDICT' ? "default" : "outline"}
+                                                                        size="sm"
+                                                                        className="h-7 text-[11px] flex-1"
+                                                                        onClick={() => setEditForm({...editForm, kind: 'PREDICT'})}
+                                                                    >
+                                                                        예측픽 (Predict)
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase">미션 제목</label>
+                                                                <Input 
+                                                                    value={editForm.title}
+                                                                    onChange={(e) => setEditForm({...editForm, title: e.target.value})}
+                                                                    className="h-8 text-sm font-bold"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase">미션 설명</label>
+                                                                <Textarea 
+                                                                    value={editForm.description}
+                                                                    onChange={(e) => setEditForm({...editForm, description: e.target.value})}
+                                                                    className="text-xs min-h-[60px]"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase">마감 기한</label>
+                                                                <Input 
+                                                                    type="datetime-local"
+                                                                    value={editForm.deadline.substring(0, 16)}
+                                                                    onChange={(e) => setEditForm({...editForm, deadline: new Date(e.target.value).toISOString()})}
+                                                                    className="h-8 text-xs"
+                                                                />
+                                                            </div>
+                                                            <div className="space-y-1">
+                                                                <label className="text-[10px] font-bold text-gray-400 uppercase">선택지</label>
+                                                                <div className="space-y-1">
+                                                                    {editForm.options.map((opt, i) => (
+                                                                        <div key={i} className="flex gap-1">
+                                                                            <Input 
+                                                                                value={opt}
+                                                                                onChange={(e) => {
+                                                                                    const newOpts = [...editForm.options]
+                                                                                    newOpts[i] = e.target.value
+                                                                                    setEditForm({...editForm, options: newOpts})
+                                                                                }}
+                                                                                className="h-7 text-[11px]"
+                                                                            />
+                                                                            <Button 
+                                                                                variant="ghost" 
+                                                                                size="sm" 
+                                                                                className="h-7 w-7 p-0 text-red-400"
+                                                                                onClick={() => {
+                                                                                    const newOpts = editForm.options.filter((_, idx) => idx !== i)
+                                                                                    setEditForm({...editForm, options: newOpts})
+                                                                                }}
+                                                                            >
+                                                                                <X className="w-3 h-3" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    ))}
+                                                                    <Button 
+                                                                        variant="outline" 
+                                                                        size="sm" 
+                                                                        className="h-7 w-full text-[10px] border-dashed"
+                                                                        onClick={() => setEditForm({...editForm, options: [...editForm.options, ""]})}
+                                                                    >
+                                                                        <Plus className="w-3 h-3 mr-1" /> 선택지 추가
+                                                                    </Button>
+                                                                </div>
+                                                            </div>
+                                                            <div className="flex justify-end gap-2 pt-2">
+                                                                <Button 
+                                                                    variant="ghost" 
+                                                                    size="sm" 
+                                                                    className="h-8 text-xs"
+                                                                    onClick={() => setEditingMissionId(null)}
+                                                                >
+                                                                    취소
+                                                                </Button>
+                                                                <Button 
+                                                                    variant="default" 
+                                                                    size="sm" 
+                                                                    className="h-8 text-xs bg-purple-600 hover:bg-purple-700"
+                                                                    onClick={async () => {
+                                                                        try {
+                                                                            const res = await fetch("/api/admin/ai-missions/update", {
+                                                                                method: "POST",
+                                                                                headers: { "Content-Type": "application/json" },
+                                                                                body: JSON.stringify({
+                                                                                    missionId: mission.id,
+                                                                                    ...editForm
+                                                                                })
+                                                                            })
+                                                                            const data = await res.json()
+                                                                            if (data.success) {
+                                                                                toast({ title: "수정 완료", description: "미션 내용이 업데이트되었습니다." })
+                                                                                setEditingMissionId(null)
+                                                                                loadApprovedMissions()
+                                                                            } else throw new Error(data.error)
+                                                                        } catch (error: any) {
+                                                                            toast({ title: "수정 실패", description: error.message, variant: "destructive" })
+                                                                        }
+                                                                    }}
+                                                                >
+                                                                    저장
+                                                                </Button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            <h3 className="font-bold text-gray-900">{mission.title}</h3>
+                                                            {mission.description && (
+                                                                <p className="text-sm text-gray-600 line-clamp-2">{mission.description}</p>
+                                                            )}
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {mission.options?.map((opt: string, i: number) => (
+                                                                    <Badge key={i} variant="outline" className="text-[10px] bg-white">
+                                                                        {i + 1}. {opt}
+                                                                    </Badge>
+                                                                ))}
+                                                            </div>
+                                                            <div className="text-[10px] text-purple-600 font-medium">
+                                                                마감: {mission.deadline ? new Date(mission.deadline).toLocaleString('ko-KR') : '기본(7일 후)'}
+                                                            </div>
+                                                        </>
                                                     )}
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {mission.options?.map((opt: string, i: number) => (
-                                                            <Badge key={i} variant="outline" className="text-[10px] bg-white">
-                                                                {i + 1}. {opt}
-                                                            </Badge>
-                                                        ))}
-                                                    </div>
                                                     {mission.sourceVideo && (
                                                         <div className="flex items-center gap-2 text-[11px] text-gray-500 mt-2 p-2 bg-white rounded border">
                                                             <Youtube className="w-3 h-3 text-red-500" />
@@ -1411,14 +1561,31 @@ export function YoutubeDealerRecruit() {
                                                 </div>
                                                 <div className="flex flex-col gap-2">
                                                     <Button 
+                                                        variant="outline" 
+                                                        size="sm" 
+                                                        className="h-8 text-purple-600 border-purple-200 hover:bg-purple-50"
+                                                        onClick={() => {
+                                                            setEditingMissionId(mission.id)
+                                                            setEditForm({
+                                                                title: mission.title || '',
+                                                                description: mission.description || '',
+                                                                deadline: mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                                                                options: [...(mission.options || [])],
+                                                                kind: mission.kind || 'MAJORITY'
+                                                            })
+                                                        }}
+                                                    >
+                                                        <Edit2 className="w-3 h-3 mr-1" />
+                                                        수정
+                                                    </Button>
+                                                    <Button 
                                                         variant="default" 
                                                         size="sm" 
                                                         className="h-8 bg-green-600 hover:bg-green-700 whitespace-nowrap"
                                                         onClick={async () => {
                                                             if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
                                                                 try {
-                                                                    const deadline = new Date()
-                                                                    deadline.setDate(deadline.getDate() + 7)
+                                                                    const deadline = mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
                                                                     
                                                                     // showId 정규화 및 category 결정
                                                                     const normalizedShow = normalizeShowId(mission.showId) || "nasolo"
@@ -1429,10 +1596,11 @@ export function YoutubeDealerRecruit() {
                                                                         headers: { "Content-Type": "application/json" },
                                                                         body: JSON.stringify({
                                                                             title: mission.title,
+                                                                            description: mission.description,
                                                                             options: mission.options,
                                                                             kind: mission.kind === 'PREDICT' ? 'prediction' : 'majority',
                                                                             form: mission.form || 'multi',
-                                                                            deadline: deadline.toISOString(),
+                                                                            deadline: deadline,
                                                                             showId: normalizedShow,
                                                                             category: missionCategory,
                                                                             isAIMission: true,

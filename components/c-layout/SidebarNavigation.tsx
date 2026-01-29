@@ -57,6 +57,49 @@ export function SidebarNavigation({
   const category = propCategory || (selectedShow ? getShowByName(selectedShow)?.category : undefined)
   const theme = getThemeColors(category)
   
+  // 테마 텍스트 색상 보정 (카테고리별 메인 색상 강제 적용)
+  const getCategoryMainColor = () => {
+    switch (category) {
+      case "LOVE": return "text-pink-600 !important"
+      case "VICTORY": return "text-blue-600 !important"
+      case "STAR": return "text-yellow-600 !important"
+      default: return "text-gray-700"
+    }
+  }
+
+  const getCategoryHoverColor = () => {
+    switch (category) {
+      case "LOVE": return "hover:text-pink-700 !important hover:bg-pink-50 !important"
+      case "VICTORY": return "hover:text-blue-700 !important hover:bg-blue-50 !important"
+      case "STAR": return "hover:text-yellow-700 !important hover:bg-yellow-50 !important"
+      default: return "hover:text-gray-900 hover:bg-gray-100"
+    }
+  }
+
+  const getCategoryActiveStyle = () => {
+    switch (category) {
+      case "LOVE": return "bg-pink-100 !important text-pink-700 !important"
+      case "VICTORY": return "bg-blue-100 !important text-blue-700 !important"
+      case "STAR": return "bg-yellow-100 !important text-yellow-700 !important"
+      default: return "bg-gray-100 text-gray-900"
+    }
+  }
+
+  const sidebarTextColor = getCategoryMainColor()
+  const sidebarHoverStyle = getCategoryHoverColor()
+  const sidebarActiveStyle = getCategoryActiveStyle()
+
+  // 아이콘 색상 추출
+  const getIconColor = () => {
+    switch (category) {
+      case "LOVE": return "text-pink-600 !important"
+      case "VICTORY": return "text-blue-600 !important"
+      case "STAR": return "text-yellow-600 !important"
+      default: return "text-gray-500"
+    }
+  }
+  const iconColor = getIconColor()
+
   // 현재 선택된 쿼리 파라미터 구성
   const currentQuery = selectedShowId ? `?show=${selectedShowId}` : ""
   const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
@@ -160,11 +203,11 @@ export function SidebarNavigation({
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all font-bold ${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`}
+              className={`w-full justify-start gap-3 transition-all font-bold ${sidebarTextColor} ${sidebarHoverStyle} !flex !items-center`}
               onClick={handleMissionClick}
             >
-              <Plus className="w-5 h-5" />
-              미션 게시하기
+              <Plus className={`w-5 h-5 ${iconColor}`} />
+              <span className={sidebarTextColor}>미션 게시하기</span>
             </Button>
           )}
 
@@ -173,12 +216,12 @@ export function SidebarNavigation({
               variant="ghost"
               className={`w-full justify-start gap-3 transition-all font-bold ${
                 activeNavItem === "mypage" 
-                  ? `${theme.subBadge} ${theme.subBadgeText}` 
-                  : `${theme.text} ${theme.subBadgeHover} hover:${theme.subBadgeText}`
-              }`}
+                  ? sidebarActiveStyle 
+                  : `${sidebarTextColor} ${sidebarHoverStyle}`
+              } !flex !items-center`}
             >
-              <User className="w-5 h-5" />
-              마이페이지
+              <User className={`w-5 h-5 ${activeNavItem === "mypage" ? "" : iconColor}`} />
+              <span className={activeNavItem === "mypage" ? "" : sidebarTextColor}>마이페이지</span>
             </Button>
           </Link>
 
@@ -190,10 +233,10 @@ export function SidebarNavigation({
                   activeNavItem === "dealer" 
                     ? "bg-purple-100 text-purple-900" 
                     : "text-purple-700 hover:bg-purple-100 hover:text-purple-900"
-                }`}
+                } !flex !items-center`}
               >
-                <User className="w-5 h-5 text-purple-600" />
-                딜러 라운지
+                <User className={`w-5 h-5 ${activeNavItem === "dealer" ? "text-purple-900" : "text-purple-600"}`} />
+                <span className={activeNavItem === "dealer" ? "text-purple-900" : "text-purple-700"}>딜러 라운지</span>
               </Button>
             </Link>
           )}
@@ -206,10 +249,10 @@ export function SidebarNavigation({
                   activeNavItem === "admin" 
                     ? "bg-red-100 text-red-900" 
                     : "text-red-700 hover:bg-red-100 hover:text-red-900"
-                }`}
+                } !flex !items-center`}
               >
-                <Shield className="w-5 h-5 text-red-600" />
-                관리자 페이지
+                <Shield className={`w-5 h-5 ${activeNavItem === "admin" ? "text-red-900" : "text-red-600"}`} />
+                <span className={activeNavItem === "admin" ? "text-red-900" : "text-red-700"}>관리자 페이지</span>
               </Button>
             </Link>
           )}
