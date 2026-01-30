@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { YoutubeDealerRecruit } from "./marketer/YoutubeDealerRecruit"
 import { FakeUserBotManage } from "./marketer/FakeUserBotManage"
 import { AutoMissionGenerate } from "./marketer/AutoMissionGenerate"
+import { CommunityViralManage } from "./marketer/CommunityViralManage"
 import { LayoutDashboard, Users, Zap, Sparkles } from "lucide-react"
 
 export function MarketerManagement() {
@@ -45,9 +46,7 @@ export function MarketerManagement() {
           </TabsContent>
 
           <TabsContent value="viral">
-            <div className="p-8 border-2 border-dashed rounded-lg text-center text-gray-500">
-              커뮤니티 바이럴 기능은 준비 중입니다.
-            </div>
+            <CommunityViralManage />
           </TabsContent>
         </Tabs>
       </CardContent>

@@ -8,8 +8,36 @@ class GeminiAnalyzer:
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash')
 
-    def analyze_with_transcript(self, video_info, transcript):
-        """자막 내용을 바탕으로 리얼픽 규격 미션 생성"""
+    def generate_viral_comment(self, post_content: str, post_title: str) -> str:
+        """커뮤니티 게시글 내용을 분석하여 자연스러운 바이럴 댓글 생성"""
+        prompt = f"""
+        당신은 커뮤니티 활동이 활발한 일반 유저입니다. 
+        아래의 커뮤니티 게시글을 읽고, 그 분위기에 맞춰 '리얼픽(RealPick)' 앱을 은근슬쩍 홍보하는 댓글을 생성하세요.
+
+        [게시글 정보]
+        제목: {post_title}
+        내용: {post_content}
+
+        [댓글 생성 지침]
+        1. 광고처럼 보이면 절대 안 됩니다. (은밀함이 핵심)
+        2. 게시글의 내용에 공감하거나 의견을 먼저 제시한 뒤, 자연스럽게 리얼픽을 언급하세요.
+        3. 리얼픽을 언급할 때는 "여기 투표 결과 보니까...", "리얼픽에서 사람들 예측은 이렇더라", "나솔 투표는 리얼픽이 젤 정확한 듯" 같은 식으로 자연스럽게 말하세요.
+        4. 댓글 마지막에 자연스럽게 리얼픽 링크(https://real-pick.com)를 포함하세요.
+        5. 커뮤니티 말투(반말, 신조어 등)를 적절히 섞어서 사용하세요. (너무 딱딱하지 않게)
+        6. 결과물은 오직 '댓글 내용'만 출력하세요.
+
+        [댓글 예시]
+        - "와 진짜 공감ㅋㅋ 근데 리얼픽 투표 보니까 영수 영숙 커플 안된다는 의견이 80% 넘던데 역시 사람 생각 다 똑같나봄 https://real-pick.com"
+        - "이거 리얼픽에서 투표 올라왔길래 해봤는데 결과 보니까 대박이더라ㅋㅋ 함 가보셈 https://real-pick.com"
+        """
+        
+        try:
+            response = self.model.generate_content(prompt)
+            return response.text.strip()
+        except Exception as e:
+            print(f"❌ Gemini 바이럴 댓글 생성 오류: {e}", file=sys.stderr)
+            return "댓글 생성 실패"
+
         # 제목, 설명, 자막을 모두 합쳐서 분석
         full_text = f"{video_info.get('title', '')} {video_info.get('description', '')} {transcript[:2000]}".lower()
         
@@ -75,7 +103,7 @@ class GeminiAnalyzer:
         
         prompt = f"""
         당신은 예능 프로그램 전문 마케팅 분석가입니다. 
-        제공된 유튜브 영상의 제목, 설명, 그리고 자막 내용을 분석하여 시청자들이 참여할 수 있는 '리얼픽(RealPick)' 미션 3개를 생성하세요.
+        제공된 유튜브 영상의 제목, 설명, 그리고 자막 내용을 분석하여 시청자들이 참여할 수 있는 '리얼픽(RealPick)' 미션 1개를 생성하세요.
 
         [분석 지침]
         1. 현재 영상의 실제 프로그램이 무엇인지 자막과 내용을 통해 정확히 파악하세요.
@@ -86,12 +114,19 @@ class GeminiAnalyzer:
         1. 예측 픽 (kind: PREDICT) - "정답이 있는 게임"
            - 목적: 방송의 결과나 출연자의 선택을 맞히는 것.
            - 질문 예시: "~할까요?", "누가 선택될까요?"
-           - 유형: Binary(예/아니오), Multi(3~5명 후보)
+           - 유형: Binary(2개 선택지), Multi(3~5개 선택지)
 
         2. 공감 픽 (kind: MAJORITY) - "정답 없는 의견"
            - 목적: 시청자들의 선호도, 트렌드, 여론 수집.
            - 질문 예시: "가장 응원하는 커플은?", "누구의 대처가 더 성숙했나요?"
-           - 특징: 다수의 의견이 무엇인지 확인하는 재미.
+           - 유형: Binary(2개 선택지), Multi(3~5개 선택지)
+
+        [중요: 미션 유형 선택 기준]
+        영상 내용을 분석하여 가장 흥미로운 1개의 미션을 생성하세요:
+        - 영상에서 **결과 예측이 가능한 상황**이 있다면 → PREDICT 미션 (예: "영수가 영희에게 고백할까?")
+        - 영상에서 **시청자 의견을 물어볼 주제**가 있다면 → MAJORITY 미션 (예: "가장 매력적인 출연자는?")
+        - 선택지가 2개면 binary, 3개 이상이면 multiple로 설정하세요.
+        - **다양한 유형(PREDICT/MAJORITY, binary/multiple)을 골고루 생성**하여 매번 똑같은 형태가 반복되지 않도록 하세요.
 
         [영상 정보]
         - 제목: {video_info['title']}
@@ -115,6 +150,13 @@ class GeminiAnalyzer:
             }}
           ]
         }}
+        
+        [미션 유형 예시]
+        - PREDICT + binary: "영수가 고백할까?" → "네, 고백한다!" / "아니요, 망설인다"
+        - PREDICT + multiple: "최종 우승자는?" → "김철수" / "박영희" / "이민수" / "정수진"
+        - MAJORITY + binary: "누구의 대처가 더 성숙했나?" → "영수" / "철수"
+        - MAJORITY + multiple: "가장 어울리는 커플은?" → "영수-영희" / "철수-민지" / "동훈-수진"
+        
         (단순한 '예/아니오' 대신 영상의 분위기를 살린 재미있는 표현을 사용하세요. 
          예: '무조건 직진이다!' / '철벽 수비 예상..' / '아직은 간보는 중?')
         """

@@ -216,6 +216,37 @@ const MissionCommonFields = ({
 export default function MissionCreationModal({ isOpen, onClose, onMissionCreated, initialShowId, category }: MissionCreationModalProps) {
   const { toast } = useToast()
   const theme = getThemeColors(category)
+  
+  // 카테고리별 버튼 색상 클래스 (Tailwind는 동적 클래스를 지원하지 않으므로 조건부로 반환)
+  const getButtonClass = () => {
+    switch (category) {
+      case 'LOVE':
+        return 'bg-pink-600 hover:bg-pink-700'
+      case 'VICTORY':
+        return 'bg-indigo-600 hover:bg-indigo-700'
+      case 'STAR':
+        return 'bg-yellow-500 hover:bg-yellow-600'
+      default:
+        return 'bg-purple-600 hover:bg-purple-700'
+    }
+  }
+  
+  const getSubBadgeClass = () => {
+    switch (category) {
+      case 'LOVE':
+        return 'bg-pink-100/60 border-pink-200 text-pink-800'
+      case 'VICTORY':
+        return 'bg-indigo-100/60 border-indigo-200 text-indigo-800'
+      case 'STAR':
+        return 'bg-yellow-100/60 border-yellow-200 text-yellow-900'
+      default:
+        return 'bg-purple-50 border-purple-200 text-purple-700'
+    }
+  }
+  
+  const buttonClass = getButtonClass()
+  const subBadgeClass = getSubBadgeClass()
+  
   const [currentStep, setCurrentStep] = useState<MissionStep>("format-selection")
   const [missionType, setMissionType] = useState<MissionType>("prediction")
   const [submissionType, setSubmissionType] = useState<"selection" | "text">("selection")
@@ -767,7 +798,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </Card>
 
                   </div>
-                  <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <div className={`mt-4 p-3 border rounded-lg ${subBadgeClass}`}>
                     <p className="text-xs sm:text-sm text-yellow-800">
                       💡 보기가 11개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
                     </p>
@@ -862,7 +893,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
                   {/* 결과 공개는 무조건 실시간 공개로 고정 */}
-                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                  <div className={`px-3 py-2 border rounded-lg text-sm font-medium ${subBadgeClass}`}>
                     ✓ 실시간 공개 (자동 설정)
                   </div>
                   <div>
@@ -910,7 +941,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  className={`flex-1 ${buttonClass} text-white`}
                   onClick={handleAIVerification}
                   disabled={isVerifying}
                 >
@@ -1040,7 +1071,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
                   {/* 결과 공개는 무조건 실시간 공개로 고정 */}
-                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                  <div className={`px-3 py-2 border rounded-lg text-sm font-medium ${subBadgeClass}`}>
                     ✓ 실시간 공개 (자동 설정)
                   </div>
                   <div>
@@ -1088,7 +1119,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  className={`flex-1 ${buttonClass} text-white`}
                   onClick={handleAIVerification}
                   disabled={isVerifying}
                 >
@@ -1158,7 +1189,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     return (
                       <div key={matchIndex} className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm">
                         <div className="text-xs font-semibold text-gray-500 mb-2 flex items-center gap-2">
-                          <span className="bg-purple-100 text-purple-700 px-2 py-0.5 rounded">MATCH {matchIndex + 1}</span>
+                          <span className={`px-2 py-0.5 rounded ${subBadgeClass}`}>MATCH {matchIndex + 1}</span>
                         </div>
                         <div className="flex items-center gap-3">
                           <div className="flex-1">
@@ -1192,7 +1223,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
                   {/* 결과 공개는 무조건 실시간 공개로 고정 */}
-                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                  <div className={`px-3 py-2 border rounded-lg text-sm font-medium ${subBadgeClass}`}>
                     ✓ 실시간 공개 (자동 설정)
                   </div>
                   <div>
@@ -1240,7 +1271,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  className={`flex-1 ${buttonClass} text-white`}
                   onClick={handleAIVerification}
                   disabled={isVerifying}
                 >
@@ -1302,7 +1333,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </div>
                     <Button
                       size="sm"
-                      className="w-full mt-2 bg-purple-600 hover:bg-purple-700 text-white"
+                      className={`w-full mt-2 ${buttonClass} text-white`}
                       onClick={addMaleOption}
                     >
                       <Plus className="w-4 h-4" />
@@ -1333,7 +1364,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                     </div>
                     <Button
                       size="sm"
-                      className="w-full mt-2 bg-purple-600 hover:bg-purple-700 text-white"
+                      className={`w-full mt-2 ${buttonClass} text-white`}
                       onClick={addFemaleOption}
                     >
                       <Plus className="w-4 h-4" />
@@ -1372,7 +1403,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  className={`flex-1 ${buttonClass} text-white`}
                   onClick={handleAIVerification}
                   disabled={isVerifying}
                 >
@@ -1420,7 +1451,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
                   {/* 결과 공개는 무조건 실시간 공개로 고정 */}
-                  <div className="px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg text-sm text-purple-700 font-medium">
+                  <div className={`px-3 py-2 border rounded-lg text-sm font-medium ${subBadgeClass}`}>
                     ✓ 실시간 공개 (자동 설정)
                   </div>
                   <div>
@@ -1468,7 +1499,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
               <div className="flex gap-3">
                 <Button
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white"
+                  className={`flex-1 ${buttonClass} text-white`}
                   onClick={handleAIVerification}
                   disabled={isVerifying}
                 >

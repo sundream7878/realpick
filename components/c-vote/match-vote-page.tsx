@@ -1069,7 +1069,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
           <CardContent>
             <div className="text-center">
               <div className="text-3xl font-bold text-purple-700 mb-2">+{userScore.score}점</div>
-              <div className="text-sm text-gray-600">최초 정답: {userScore.episodeNo}차</div>
+              <div className="text-sm text-gray-600">최초 정답: {userScore.episodeNo}회</div>
             </div>
           </CardContent>
         </Card>
@@ -1428,7 +1428,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                           <span className="font-semibold text-rose-700">
                             {conn.left} - {conn.right}
                             {conn.episodeNo && selectedEpisodes.size > 1 && (
-                              <span className="text-xs ml-2 text-purple-600">({conn.episodeNo}차)</span>
+                              <span className="text-xs ml-2 text-purple-600">({conn.episodeNo}회)</span>
                             )}
                           </span>
                           {selectedEpisodes.size === 1 &&

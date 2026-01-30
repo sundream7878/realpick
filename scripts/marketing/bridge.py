@@ -35,6 +35,7 @@ from modules.youtube_crawler import YouTubeCrawler
 from modules.gemini_analyzer import GeminiAnalyzer
 from modules.firebase_manager import FirebaseManager
 from modules.email_sender import EmailSender
+from modules.community_crawler import CommunityCrawler
 try:
     from youtube_transcript_api import YouTubeTranscriptApi
     HAS_TRANSCRIPT = True
@@ -142,6 +143,53 @@ def analyze_video(args):
             "error": str(e)
         }
 
+def crawl_community(args):
+    """커뮤니티 이슈 크롤링 및 댓글 생성"""
+    try:
+        gemini_key = os.getenv('GEMINI_API_KEY')
+        if not gemini_key:
+            return {"success": False, "error": "Gemini API 키가 필요합니다."}
+            
+        crawler = CommunityCrawler()
+        analyzer = GeminiAnalyzer(gemini_key)
+        
+        # 리얼픽 주요 프로그램 키워드
+        program_keywords = [
+            {"showId": "nasolo", "keywords": ["나는솔로", "나솔", "남규홍"]},
+            {"showId": "choegang-yagu-2025", "keywords": ["최강야구", "몬스터즈", "김성근"]},
+            {"showId": "nasolsagye", "keywords": ["나솔사계", "사랑은 계속된다"]},
+            {"showId": "dolsingles6", "keywords": ["돌싱글즈", "돌싱"]},
+            {"showId": "hwanseung4", "keywords": ["환승연애", "환연"]},
+            {"showId": "solojihuk5", "keywords": ["솔로지옥"]},
+            {"showId": "culinary-class-wars2", "keywords": ["흑백요리사", "안성재", "백종원"]},
+            {"showId": "goal-girls-8", "keywords": ["골때녀", "골 때리는 그녀들"]}
+        ]
+        
+        all_results = []
+        # 시간 단축을 위해 랜덤하게 몇 개의 프로그램만 선택하거나 순차적으로 처리
+        for prog in program_keywords:
+            show_id = prog["showId"]
+            kws = prog["keywords"]
+            
+            # 각 프로그램별 키워드로 10대 커뮤니티 모니터링
+            posts = crawler.get_hot_posts(show_id, kws)
+            
+            for post in posts:
+                # AI 댓글 생성
+                comment = analyzer.generate_viral_comment(post.get('content', ''), post.get('title', ''))
+                post['suggestedComment'] = comment
+                all_results.append(post)
+                
+        # 조회수 순으로 정렬하여 상위 결과 반환
+        all_results.sort(key=lambda x: x.get('viewCount', 0), reverse=True)
+        
+        return {
+            "success": True,
+            "posts": all_results[:30] # 상위 30개만 반환
+        }
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def main():
     # 모든 print를 stderr로 리다이렉트 (JSON 출력만 stdout에)
     original_stdout = sys.stdout
@@ -179,6 +227,8 @@ def main():
             result = crawl_youtube(args)
         elif args.command == 'analyze-video':
             result = analyze_video(args)
+        elif args.command == 'crawl-community':
+            result = crawl_community(args)
         else:
             result = {
                 "success": False,

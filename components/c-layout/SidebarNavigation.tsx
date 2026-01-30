@@ -54,58 +54,104 @@ export function SidebarNavigation({
   const [pendingAction, setPendingAction] = useState<"mission" | "mypage" | null>(null)
   const [userRole, setUserRole] = useState<string | null>(null)
 
-  const category = propCategory || (selectedShow ? getShowByName(selectedShow)?.category : undefined)
+  // URL에서 직접 category 파라미터 읽기 (클라이언트 사이드에서만)
+  const [categoryFromUrl, setCategoryFromUrl] = useState<TShowCategory | null>(null)
+  
+  useEffect(() => {
+    const updateCategoryFromUrl = () => {
+      if (typeof window !== 'undefined') {
+        const params = new URLSearchParams(window.location.search)
+        const cat = params.get('category') as TShowCategory | null
+        setCategoryFromUrl(cat)
+        console.log('[SidebarNavigation] 🔄 URL Category Updated:', cat)
+      }
+    }
+    
+    updateCategoryFromUrl()
+    
+    // URL 변경 감지 (popstate, pushState 감지)
+    window.addEventListener('popstate', updateCategoryFromUrl)
+    
+    // pushState/replaceState 감지를 위한 커스텀 이벤트
+    const originalPushState = window.history.pushState
+    const originalReplaceState = window.history.replaceState
+    
+    window.history.pushState = function(...args) {
+      originalPushState.apply(window.history, args)
+      updateCategoryFromUrl()
+    }
+    
+    window.history.replaceState = function(...args) {
+      originalReplaceState.apply(window.history, args)
+      updateCategoryFromUrl()
+    }
+    
+    return () => {
+      window.removeEventListener('popstate', updateCategoryFromUrl)
+      window.history.pushState = originalPushState
+      window.history.replaceState = originalReplaceState
+    }
+  }, [])
+
+  const category = propCategory || categoryFromUrl || (selectedShow ? getShowByName(selectedShow)?.category : undefined)
   const theme = getThemeColors(category)
   
+  console.log('[SidebarNavigation] 🎨 Category:', category, 'from URL:', categoryFromUrl, 'from prop:', propCategory)
+  
   // 테마 텍스트 색상 보정 (카테고리별 메인 색상 강제 적용)
-  const getCategoryMainColor = () => {
+  const getCategoryStyles = () => {
     switch (category) {
-      case "LOVE": return "!text-pink-600"
-      case "VICTORY": return "!text-blue-600"
-      case "STAR": return "!text-yellow-600"
-      default: return "text-gray-700"
+      case "LOVE": 
+        return {
+          text: "text-pink-600",
+          hover: "hover:text-pink-700 hover:bg-pink-50",
+          active: "bg-pink-100 text-pink-700",
+          icon: "text-pink-600"
+        }
+      case "VICTORY": 
+        return {
+          text: "text-blue-600",
+          hover: "hover:text-blue-700 hover:bg-blue-50",
+          active: "bg-blue-100 text-blue-700",
+          icon: "text-blue-600"
+        }
+      case "STAR": 
+        return {
+          text: "text-yellow-600",
+          hover: "hover:text-yellow-700 hover:bg-yellow-50",
+          active: "bg-yellow-100 text-yellow-700",
+          icon: "text-yellow-600"
+        }
+      default: 
+        return {
+          text: "text-gray-700",
+          hover: "hover:text-gray-900 hover:bg-gray-100",
+          active: "bg-gray-100 text-gray-900",
+          icon: "text-gray-500"
+        }
     }
   }
 
-  const getCategoryHoverColor = () => {
-    switch (category) {
-      case "LOVE": return "hover:!text-pink-700 hover:!bg-pink-50"
-      case "VICTORY": return "hover:!text-blue-700 hover:!bg-blue-50"
-      case "STAR": return "hover:!text-yellow-700 hover:!bg-yellow-50"
-      default: return "hover:text-gray-900 hover:bg-gray-100"
-    }
-  }
-
-  const getCategoryActiveStyle = () => {
-    switch (category) {
-      case "LOVE": return "!bg-pink-100 !text-pink-700"
-      case "VICTORY": return "!bg-blue-100 !text-blue-700"
-      case "STAR": return "!bg-yellow-100 !text-yellow-700"
-      default: return "bg-gray-100 text-gray-900"
-    }
-  }
-
-  const sidebarTextColor = getCategoryMainColor()
-  const sidebarHoverStyle = getCategoryHoverColor()
-  const sidebarActiveStyle = getCategoryActiveStyle()
-
-  // 아이콘 색상 추출
-  const getIconColor = () => {
-    switch (category) {
-      case "LOVE": return "!text-pink-600"
-      case "VICTORY": return "!text-blue-600"
-      case "STAR": return "!text-yellow-600"
-      default: return "text-gray-500"
-    }
-  }
-  const iconColor = getIconColor()
+  const categoryStyles = getCategoryStyles()
+  const sidebarTextColor = categoryStyles.text
+  const sidebarHoverStyle = categoryStyles.hover
+  const sidebarActiveStyle = categoryStyles.active
+  const iconColor = categoryStyles.icon
 
   // 현재 선택된 쿼리 파라미터 구성
+  const buildUrlWithParams = (basePath: string) => {
+    const params = new URLSearchParams()
+    if (selectedShowId) params.set('show', selectedShowId)
+    if (category) params.set('category', category)
+    const queryString = params.toString()
+    return queryString ? `${basePath}?${queryString}` : basePath
+  }
+  
   const currentQuery = selectedShowId ? `?show=${selectedShowId}` : ""
   const homeUrl = selectedShowId ? `/?show=${selectedShowId}` : "/"
-  const dealerLoungeUrl = selectedShowId ? `/dealer/lounge?show=${selectedShowId}` : "/dealer/lounge"
+  const dealerLoungeUrl = buildUrlWithParams('/dealer/lounge')
   const adminUrl = "/admin"
-  const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
+  const myPageUrl = buildUrlWithParams('/p-mypage')
 
   useEffect(() => {
     const fetchUserRole = async () => {
@@ -203,10 +249,15 @@ export function SidebarNavigation({
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all font-bold ${sidebarTextColor} ${sidebarHoverStyle} !flex !items-center`}
+              className={`w-full justify-start gap-3 transition-all font-bold ${sidebarTextColor} ${sidebarHoverStyle} flex items-center`}
               onClick={handleMissionClick}
+              style={{
+                color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
+              }}
             >
-              <Plus className={`w-5 h-5 ${iconColor}`} />
+              <Plus className={`w-5 h-5 ${iconColor}`} style={{
+                color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
+              }} />
               <span>미션 게시하기</span>
             </Button>
           )}
@@ -218,9 +269,14 @@ export function SidebarNavigation({
                 activeNavItem === "mypage" 
                   ? sidebarActiveStyle 
                   : `${sidebarTextColor} ${sidebarHoverStyle}`
-              } !flex !items-center`}
+              } flex items-center`}
+              style={activeNavItem !== "mypage" ? {
+                color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
+              } : undefined}
             >
-              <User className={`w-5 h-5`} />
+              <User className={`w-5 h-5`} style={activeNavItem !== "mypage" ? {
+                color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
+              } : undefined} />
               <span>마이페이지</span>
             </Button>
           </Link>
