@@ -52,18 +52,19 @@ class CommunityCrawler:
                 search_url = self.get_community_search_url(site_id, kw)
                 if not search_url: continue
                 
-                # 임시 데이터 구조 (실제 크롤링 시 채워짐)
-                # 조회수와 댓글수가 높은 글을 우선적으로 시뮬레이션
+                # 임시 데이터 구조 (실제 크롤링 시 제목뿐만 아니라 본문 내용도 파싱)
+                # 게시 날짜(publishedAt) 필드 추가
                 all_posts.append({
                     'id': f"{site_id}_{datetime.now().timestamp()}",
                     'source': site_id,
                     'sourceName': site_name,
                     'title': f"[{kw}] 관련 커뮤니티 인기글",
-                    'content': f"{kw} 방송 내용 관련 유저 반응...",
+                    'content': f"본문 내용 분석: {kw} 방송의 이번 회차에서 발생한 논란과 유저들의 실시간 반응을 포함한 상세 본문 텍스트입니다. 제목보다 본문의 맥락이 바이럴 댓글 생성에 더 중요하게 작용합니다.",
                     'url': search_url,
                     'viewCount': 1000,
                     'commentCount': 50,
                     'showId': show_id,
+                    'publishedAt': datetime.now().isoformat(),
                     'createdAt': datetime.now().isoformat()
                 })
         
