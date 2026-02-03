@@ -53,6 +53,7 @@ export interface CreateMissionData {
   femaleOptions?: string[]
   placeholder?: string
   totalEpisodes?: number
+  startEpisode?: number
   deadline: string
   resultVisibility: string
   referenceUrl?: string
@@ -85,6 +86,7 @@ export interface TMission {
   revealPolicy: "realtime" | "onClose"
   status: "open" | "closed" | "settled"
   episodes?: number // Number of episodes (for match missions)
+  startEpisode?: number // Starting episode number (default: 1)
   episodeStatuses?: Record<number, "open" | "locked" | "settled"> // Status per episode
   finalAnswer?: Array<{ left: string; right: string }> // Final correct answer for match missions
   result?: TMissionResult

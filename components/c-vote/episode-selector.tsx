@@ -5,6 +5,7 @@ import { cn } from "@/lib/utils/u-utils/utils.util"
 
 interface EpisodeSelectorProps {
   totalEpisodes: number
+  startEpisode?: number
   selectedEpisodes: Set<number>
   savedEpisodes: Set<number>
   episodeStatuses?: Record<number, "open" | "settled" | "locked" | "preview">
@@ -14,6 +15,7 @@ interface EpisodeSelectorProps {
 
 export function EpisodeSelector({
   totalEpisodes,
+  startEpisode = 1,
   selectedEpisodes,
   savedEpisodes, // This now receives submittedEpisodes from parent
   episodeStatuses = {},
@@ -107,7 +109,7 @@ export function EpisodeSelector({
         </div>
 
         <div className="flex justify-center items-center gap-4 flex-wrap">
-          {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((episodeNo) => {
+          {Array.from({ length: totalEpisodes - startEpisode + 1 }, (_, i) => i + startEpisode).map((episodeNo) => {
             const isSelected = selectedEpisodes.has(episodeNo)
             const status = getEpisodeStatus(episodeNo)
             const styles = getHeartStyles(status)

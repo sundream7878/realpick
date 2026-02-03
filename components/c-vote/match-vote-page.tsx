@@ -121,7 +121,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   // EpisodeSelector에 전달할 status 객체 생성
   const effectiveEpisodeStatuses = (() => {
     const statuses: Record<number, "open" | "settled" | "locked" | "preview"> = {}
-    for (let i = 1; i <= totalEpisodes; i++) {
+    const startEp = mission.startEpisode || 1
+    for (let i = startEp; i <= totalEpisodes; i++) {
       statuses[i] = getEpisodeStatus(i) as any
     }
     return statuses
@@ -1152,6 +1153,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         <div className="mb-6">
           <EpisodeSelector
             totalEpisodes={totalEpisodes}
+            startEpisode={mission.startEpisode || 1}
             selectedEpisodes={selectedEpisodes}
             savedEpisodes={submittedEpisodes}
             episodeStatuses={effectiveEpisodeStatuses}

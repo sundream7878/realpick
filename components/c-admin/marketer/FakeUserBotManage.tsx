@@ -54,9 +54,19 @@ export function FakeUserBotManage() {
         setIsRunning(true)
         setVoteDetails([]) // 이전 로그 초기화
         
-        const startTime = Date.now()
-        const totalVoters = parseInt(loveVoters) + parseInt(victoryVoters) + parseInt(starVoters)
-        console.log(`[Bot Vote] 투표 시작 - 로맨스: ${loveVoters}명, 서바이벌: ${victoryVoters}명, 오디션: ${starVoters}명 (총 ${totalVoters}명)`)
+        const startTime = Date.now() // 시작 시간 기록
+        const loveCount = parseInt(loveVoters) || 0
+        const victoryCount = parseInt(victoryVoters) || 0
+        const starCount = parseInt(starVoters) || 0
+        const totalVoters = loveCount + victoryCount + starCount
+
+        if (totalVoters === 0) {
+            toast({ title: "인원 설정 필요", description: "최소 한 카테고리 이상 투표 인원을 설정해주세요.", variant: "destructive" })
+            setIsRunning(false)
+            return
+        }
+
+        console.log(`[Bot Vote] 투표 시작 - 로맨스: ${loveCount}명, 서바이벌: ${victoryCount}명, 오디션: ${starCount}명 (총 ${totalVoters}명)`)
         
         try {
             const res = await fetch("/api/admin/marketer/bots/run", {
@@ -64,9 +74,9 @@ export function FakeUserBotManage() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ 
                     categoryVotes: {
-                        LOVE: parseInt(loveVoters),
-                        VICTORY: parseInt(victoryVoters),
-                        STAR: parseInt(starVoters)
+                        LOVE: loveCount,
+                        VICTORY: victoryCount,
+                        STAR: starCount
                     },
                     delay: 0.0 
                 })

@@ -304,6 +304,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [femaleOptions, setFemaleOptions] = useState<string[]>(["", ""])
   const [subjectivePlaceholder, setSubjectivePlaceholder] = useState("")
   const [totalEpisodes, setTotalEpisodes] = useState("8")
+  const [startEpisode, setStartEpisode] = useState("1")
   const [showId, setShowId] = useState<string | undefined>(initialShowId || undefined)
 
   // Live Mission State
@@ -532,6 +533,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
     setResultVisibility("")
     setSubjectivePlaceholder("")
     setTotalEpisodes("8")
+    setStartEpisode("1")
     setReferenceUrl("")
     setDescription("")
     setImageUrl("")
@@ -564,6 +566,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         femaleOptions: missionFormat === "couple" ? femaleOptions.filter((opt) => opt.trim()) : undefined,
         placeholder: (missionFormat === "multiple" && submissionType === "text") ? subjectivePlaceholder : undefined,
         totalEpisodes: missionFormat === "couple" ? parseInt(totalEpisodes) || 8 : undefined,
+        startEpisode: missionFormat === "couple" ? parseInt(startEpisode) || 1 : undefined,
         broadcastDay: missionFormat === "couple" ? broadcastDay : undefined,
         broadcastTime: missionFormat === "couple" ? broadcastTime : undefined,
         deadline: missionFormat === "couple"
@@ -1474,20 +1477,37 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                       />
                     </div>
                   </div>
-                  <div>
-                    <Label className="text-sm font-medium">총 회차 수</Label>
-                    <Input
-                      value={totalEpisodes}
-                      onChange={(e) => setTotalEpisodes(e.target.value)}
-                      placeholder="예: 8"
-                      type="number"
-                      min="1"
-                      max="20"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-gray-500 mt-1">
-                      커플매칭은 회차별로 예측이 가능합니다.
-                    </p>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">시작 회차</Label>
+                      <Input
+                        value={startEpisode}
+                        onChange={(e) => setStartEpisode(e.target.value)}
+                        placeholder="예: 1"
+                        type="number"
+                        min="1"
+                        max="20"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        중간부터 시작 시 입력
+                      </p>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">총 회차 수</Label>
+                      <Input
+                        value={totalEpisodes}
+                        onChange={(e) => setTotalEpisodes(e.target.value)}
+                        placeholder="예: 8"
+                        type="number"
+                        min="1"
+                        max="20"
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        전체 회차 수
+                      </p>
+                    </div>
                   </div>
                   <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
                     <p className="text-xs text-blue-800">

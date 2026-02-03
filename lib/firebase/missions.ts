@@ -94,8 +94,18 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         left: missionData.maleOptions || [],
         right: missionData.femaleOptions || []
       };
-      missionPayload.totalEpisodes = missionData.totalEpisodes || 8;
+      const totalEpisodes = missionData.totalEpisodes || 8;
+      const startEpisode = missionData.startEpisode || 1;
+      
+      missionPayload.totalEpisodes = totalEpisodes;
+      missionPayload.startEpisode = startEpisode;
+      
+      // startEpisode부터 totalEpisodes까지 episodeStatuses 초기화
       missionPayload.episodeStatuses = {};
+      for (let i = startEpisode; i <= totalEpisodes; i++) {
+        missionPayload.episodeStatuses[i] = i === startEpisode ? "open" : "locked";
+      }
+      
       missionPayload.aggregatedStats = {}; // Initialize aggregatedStats
     } else {
       missionPayload.options = missionData.options || [];

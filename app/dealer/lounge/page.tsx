@@ -172,7 +172,7 @@ export default function DealerLoungePage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
+        <div className="min-h-screen bg-gray-50 pb-30 md:pb-0">
             <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
                 <AppHeader
                     selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}

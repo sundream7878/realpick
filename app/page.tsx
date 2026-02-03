@@ -7,7 +7,8 @@ import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-naviga
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
-import { BannerAd } from "@/components/c-banner-ad/banner-ad"
+import { MobileBottomBanner } from "@/components/c-banner-ad/mobile-bottom-banner"
+import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import Onboarding from "@/components/c-onboarding/onboarding"
 import LoginModal from "@/components/c-login-modal/login-modal"
 import { useState, useEffect } from "react"
@@ -585,8 +586,11 @@ export default function HomePage() {
 
   // 로그인한 사용자에게 기존 미션 목록 표시
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 pb-30 md:pb-0 relative overflow-x-hidden">
+      <DesktopWingBanner side="left" />
+      <DesktopWingBanner side="right" />
+      
+      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
         {/* 상단 헤더 */}
         <AppHeader
           selectedShow="나는솔로" // Legacy prop, can be ignored or removed later
@@ -863,13 +867,12 @@ export default function HomePage() {
           )}
         </main >
 
-        {/* 하단 네비게이션 및 배너 광고 */}
+        {/* 하단 네비게이션 */}
         <div className="fixed bottom-0 left-0 right-0 z-50">
           <BottomNavigation
             onMissionClick={() => setIsMissionModalOpen(true)}
             onStatusClick={() => setIsMissionStatusOpen(true)}
           />
-          <BannerAd />
         </div>
 
         {/* 사이드바 (햄버거 메뉴) */}
@@ -907,6 +910,11 @@ export default function HomePage() {
             />
           )
         }
+
+        <MobileBottomBanner 
+          mainCopy="리얼픽과 함께하는 특별한 혜택!"
+          ctaText="받기"
+        />
       </div>
     </div>
   )
