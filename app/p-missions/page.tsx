@@ -38,6 +38,7 @@ export default function MissionsPage() {
   const [refreshKey, setRefreshKey] = useState(0) // 미션 목록 새로고침용
   const searchParams = useSearchParams()
   const season = searchParams.get("season") || "all"
+  const categoryParam = searchParams.get('category')
   const userId = getUserId() || "user123"
 
   // season 파라미터를 selectedSeason으로 변환
@@ -447,7 +448,7 @@ export default function MissionsPage() {
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
           initialShowId={selectedShowId}
-          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
         />
       </div>
     </div>

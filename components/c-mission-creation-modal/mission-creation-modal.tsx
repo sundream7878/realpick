@@ -59,6 +59,7 @@ interface MissionCommonFieldsProps {
   showId: string | undefined
   setShowId: (value: string) => void
   isLocked?: boolean
+  category?: TShowCategory
 }
 
 const MissionCommonFields = ({
@@ -80,123 +81,149 @@ const MissionCommonFields = ({
   showId,
   setShowId,
   isLocked = false,
-}: MissionCommonFieldsProps) => (
-  <>
-    {/* 관련 프로그램 선택 - isLocked이면 숨기고 텍스트로만 표시, 아니면 선택창 표시 */}
-    {!isLocked ? (
-      <div>
-        <Label className="text-sm font-medium">관련 프로그램 (필수)</Label>
-        <Select value={showId} onValueChange={setShowId}>
-          <SelectTrigger className="mt-1">
-            <SelectValue placeholder="프로그램을 선택해주세요" />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(SHOWS).map(([category, shows]) => (
-              <SelectGroup key={category}>
-                <SelectLabel>{CATEGORIES[category as TShowCategory].label}</SelectLabel>
-                {shows.map(show => (
-                  <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
-                ))}
-              </SelectGroup>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-    ) : (
-      // isLocked일 때는 어떤 프로그램인지 텍스트로만 표시 (사용자가 바꿀 수 없게)
-      <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-        <Label className="text-xs text-gray-500 font-medium">게시되는 프로그램</Label>
-        <div className="text-sm font-bold text-gray-900 mt-1">
-          {Object.values(SHOWS).flat().find(s => s.id === showId)?.displayName || showId || "선택되지 않음"}
-        </div>
-      </div>
-    )}
+  category,
+}: MissionCommonFieldsProps) => {
+  const getSeasonLabel = () => {
+    if (showId === "nasolo") return "기수"
+    if (showId === "nasolsagye") return "" // 나솔사계는 분류 없음
+    return "시즌"
+  }
 
-    {!hideSeason && (
-      <div>
-        <Label className="text-sm font-medium">기수 분류</Label>
-        <div className="space-y-3 mt-2">
-          <Select value={seasonType} onValueChange={setSeasonType}>
-            <SelectTrigger>
-              <SelectValue placeholder="기수 분류 선택" />
+  const seasonLabel = getSeasonLabel()
+  const currentHideSeason = hideSeason || showId === "nasolsagye"
+
+  return (
+    <>
+      {/* 관련 프로그램 선택 - isLocked이면 숨기고 텍스트로만 표시, 아니면 선택창 표시 */}
+      {!isLocked ? (
+        <div>
+          <Label className="text-sm font-medium">관련 프로그램 (필수)</Label>
+          <Select value={showId} onValueChange={setShowId}>
+            <SelectTrigger className="mt-1">
+              <SelectValue placeholder="프로그램을 선택해주세요" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="전체">전체</SelectItem>
-              <SelectItem value="기수별">기수별</SelectItem>
+              {Object.entries(SHOWS).map(([showCategory, shows]) => {
+                // 1. 현재 선택된 카테고리와 일치하는지 확인 (카테고리가 전달된 경우)
+                const isMatchingCategory = !category || category === showCategory;
+                if (!isMatchingCategory) return null;
+
+                // 2. 활성화된 프로그램만 필터링
+                const activeShows = shows.filter(show => show.isActive !== false);
+                if (activeShows.length === 0) return null;
+                
+                return (
+                  <SelectGroup key={showCategory}>
+                    <SelectLabel>{CATEGORIES[showCategory as TShowCategory].label}</SelectLabel>
+                    {activeShows.map(show => (
+                      <SelectItem key={show.id} value={show.id}>{show.displayName}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                )
+              })}
             </SelectContent>
           </Select>
-          {seasonType === "기수별" && (
-            <div>
-              <Label className="text-sm font-medium">기수 번호</Label>
-              <Input
-                value={seasonNumber}
-                onChange={(e) => setSeasonNumber(e.target.value)}
-                placeholder="예: 29"
-                type="number"
-                className="mt-1"
-              />
-            </div>
-          )}
         </div>
-      </div>
-    )}
+      ) : (
+        // isLocked일 때는 어떤 프로그램인지 텍스트로만 표시 (사용자가 바꿀 수 없게)
+        <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+          <Label className="text-xs text-gray-500 font-medium">게시되는 프로그램</Label>
+          <div className="text-sm font-bold text-gray-900 mt-1">
+            {Object.values(SHOWS).flat().find(s => s.id === showId)?.displayName || showId || "선택되지 않음"}
+          </div>
+        </div>
+      )}
 
-    <div>
-      <Label htmlFor="title" className="text-sm font-medium">
-        제목입력
-      </Label>
-      <Input
-        id="title"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        placeholder="제목을 입력하세요"
-        className="mt-1"
-      />
-    </div>
-
-
-
-    {/* 추가 정보 입력 섹션 */}
-    <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
-      <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+      {!currentHideSeason && (
+        <div>
+          <Label className="text-sm font-medium">{seasonLabel} 분류</Label>
+          <div className="space-y-3 mt-2">
+            <Select value={seasonType} onValueChange={setSeasonType}>
+              <SelectTrigger>
+                <SelectValue placeholder={`${seasonLabel} 분류 선택`} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="전체">전체</SelectItem>
+                <SelectItem value="기수별">{seasonLabel}별</SelectItem>
+              </SelectContent>
+            </Select>
+            {seasonType === "기수별" && (
+              <div>
+                <Label className="text-sm font-medium">{seasonLabel} 번호</Label>
+                <Input
+                  value={seasonNumber}
+                  onChange={(e) => setSeasonNumber(e.target.value)}
+                  placeholder={`예: ${showId === "nasolo" ? "29" : "1"}`}
+                  type="number"
+                  className="mt-1"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <div>
-        <Label className="text-xs font-medium text-gray-600">관련 영상 URL</Label>
+        <Label htmlFor="title" className="text-sm font-medium">
+          제목입력
+        </Label>
         <Input
-          value={referenceUrl}
-          onChange={(e) => setReferenceUrl(e.target.value)}
-          placeholder="미션 내용과 정확히 부합하는 영상 URL을 넣어주세요"
-          className="mt-1 bg-white"
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="제목을 입력하세요"
+          className="mt-1"
         />
       </div>
 
-      <div>
-        <Label className="text-xs font-medium text-gray-600">상세 설명</Label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          placeholder="미션에 대한 상세한 설명을 적어주세요 (최대 1000자)"
-          className="w-full mt-1 p-2 text-sm border rounded-md min-h-[100px] bg-white focus:outline-none focus:ring-2 focus:ring-purple-500"
-          maxLength={1000}
-        />
-        <div className="text-right text-xs text-gray-400">
-          {description.length}/1000
-        </div>
-      </div>
 
-      <div>
-        <Label className="text-xs font-medium text-gray-600">이미지 업로드</Label>
-        <div className="flex gap-2 mt-1">
+
+      {/* 추가 정보 입력 섹션 */}
+      <div className="space-y-4 p-4 bg-gray-50 rounded-lg border border-gray-100">
+        <h4 className="text-sm font-bold text-gray-700">상세 정보 (선택)</h4>
+
+        <div>
+          <Label htmlFor="referenceUrl" className="text-xs text-gray-500 font-medium">
+            관련 영상/기사 URL
+          </Label>
           <Input
-            type="file"
-            accept="image/*"
-            onChange={handleImageUpload}
-            disabled={isUploading}
-            className="bg-white"
+            id="referenceUrl"
+            value={referenceUrl}
+            onChange={(e) => setReferenceUrl(e.target.value)}
+            placeholder="https://youtube.com/..."
+            className="mt-1 text-sm h-8"
           />
         </div>
+
+        <div>
+          <Label htmlFor="description" className="text-xs text-gray-500 font-medium">
+            미션 설명
+          </Label>
+          <Input
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="미션에 대한 추가 설명을 적어주세요"
+            className="mt-1 text-sm h-8"
+          />
+        </div>
+
+        <div>
+          <Label className="text-xs text-gray-500 font-medium">대표 이미지</Label>
+          <div className="mt-1 flex items-center gap-3">
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={handleImageUpload}
+              disabled={isUploading}
+              className="text-xs h-8"
+            />
+            {isUploading && <span className="text-[10px] text-gray-400 animate-pulse">업로드 중...</span>}
+          </div>
+        </div>
+
         {imageUrl && (
-          <div className="mt-2 relative w-full h-40 rounded-md overflow-hidden border border-gray-200">
+          <div className="relative w-full aspect-video rounded-lg overflow-hidden border border-gray-200">
             <img src={imageUrl} alt="Uploaded" className="w-full h-full object-cover" />
             <Button
               variant="ghost"
@@ -209,9 +236,9 @@ const MissionCommonFields = ({
           </div>
         )}
       </div>
-    </div>
-  </>
-)
+    </>
+  )
+}
 
 export default function MissionCreationModal({ isOpen, onClose, onMissionCreated, initialShowId, category }: MissionCreationModalProps) {
   const { toast } = useToast()
@@ -243,9 +270,23 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         return 'bg-purple-50 border-purple-200 text-purple-700'
     }
   }
+
+  const getIconTextClass = () => {
+    switch (category) {
+      case 'LOVE':
+        return 'text-pink-600'
+      case 'VICTORY':
+        return 'text-indigo-600'
+      case 'STAR':
+        return 'text-yellow-700'
+      default:
+        return 'text-purple-600'
+    }
+  }
   
   const buttonClass = getButtonClass()
   const subBadgeClass = getSubBadgeClass()
+  const iconTextClass = getIconTextClass()
   
   const [currentStep, setCurrentStep] = useState<MissionStep>("format-selection")
   const [missionType, setMissionType] = useState<MissionType>("prediction")
@@ -274,6 +315,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
   const [referenceUrl, setReferenceUrl] = useState("")
   const [description, setDescription] = useState("")
   const [imageUrl, setImageUrl] = useState("")
+  const [broadcastDay, setBroadcastDay] = useState<string>("수")
+  const [broadcastTime, setBroadcastTime] = useState<string>("22:30")
 
   const [showAIModal, setShowAIModal] = useState(false)
   const [aiResult, setAiResult] = useState<AIVerificationResult | null>(null)
@@ -521,6 +564,8 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         femaleOptions: missionFormat === "couple" ? femaleOptions.filter((opt) => opt.trim()) : undefined,
         placeholder: (missionFormat === "multiple" && submissionType === "text") ? subjectivePlaceholder : undefined,
         totalEpisodes: missionFormat === "couple" ? parseInt(totalEpisodes) || 8 : undefined,
+        broadcastDay: missionFormat === "couple" ? broadcastDay : undefined,
+        broadcastTime: missionFormat === "couple" ? broadcastTime : undefined,
         deadline: missionFormat === "couple"
           ? new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
           : isLive
@@ -605,8 +650,34 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
       STAR: "data-[state=checked]:bg-yellow-500 data-[state=checked]:border-yellow-500",
     }[category || "LOVE"]
 
+    const consensusTheme = {
+      LOVE: {
+        bg: "bg-pink-50",
+        border: "border-pink-100",
+        text: "text-pink-700",
+        subText: "text-pink-600"
+      },
+      VICTORY: {
+        bg: "bg-indigo-50",
+        border: "border-indigo-100",
+        text: "text-indigo-700",
+        subText: "text-indigo-600"
+      },
+      STAR: {
+        bg: "bg-yellow-50",
+        border: "border-yellow-100",
+        text: "text-yellow-700",
+        subText: "text-yellow-600"
+      }
+    }[category || "LOVE"] || {
+      bg: "bg-purple-50",
+      border: "border-purple-100",
+      text: "text-purple-700",
+      subText: "text-purple-600"
+    }
+
     return (
-      <div className={`flex items-center space-x-2 p-3 rounded-lg border ${theme.subBadge} ${theme.subBadgeBorder}`}>
+      <div className={`flex items-center space-x-2 p-3 rounded-lg border ${consensusTheme.bg} ${consensusTheme.border}`}>
         <Checkbox
           id="consensus-mode"
           checked={missionType === "majority"}
@@ -616,11 +687,11 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         <div className="grid gap-1.5 leading-none">
           <label
             htmlFor="consensus-mode"
-            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${theme.text}`}
+            className={`text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 ${consensusTheme.text}`}
           >
             공감픽으로 설정
           </label>
-          <p className={`text-xs ${theme.subBadgeText}`}>
+          <p className={`text-xs ${consensusTheme.subText}`}>
             체크 시 정답이 없는 '공감픽' 미션이 됩니다.
           </p>
         </div>
@@ -751,9 +822,9 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                             <Lock className="w-4 h-4 text-gray-400" />
                           </div>
                         )}
-                        <div className="text-xl sm:text-2xl font-bold mb-2">A or B</div>
+                        <div className={`text-xl sm:text-2xl font-bold mb-2 ${iconTextClass}`}>A or B</div>
                         <p className="text-sm font-medium text-gray-900">양자선택</p>
-                        <p className={`text-xs ${theme.iconText} mt-1`}>두 가지 중 하나 선택</p>
+                        <p className={`text-xs ${iconTextClass} mt-1`}>두 가지 중 하나 선택</p>
                       </CardContent>
                     </Card>
                     <Card
@@ -771,7 +842,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                         )}
                         <div className="text-xl sm:text-2xl mb-2">📝</div>
                         <p className="text-sm font-medium text-gray-900">다자선택</p>
-                        <p className={`text-xs ${theme.iconText} mt-1`}>여러 보기 중 선택</p>
+                        <p className={`text-xs ${iconTextClass} mt-1`}>여러 보기 중 선택</p>
                       </CardContent>
                     </Card>
 
@@ -790,7 +861,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                         )}
                         <div className="text-xl sm:text-2xl mb-2">👫❤️</div>
                         <p className="text-sm font-medium text-gray-900">커플매칭</p>
-                        <p className={`text-xs ${theme.iconText} mt-1`}>최종 커플 예측</p>
+                        <p className={`text-xs ${iconTextClass} mt-1`}>최종 커플 예측</p>
                         {!canCreateMission(userRole, "match") && (
                           <p className="text-xs text-gray-500 mt-1">메인딜러 전용</p>
                         )}
@@ -799,7 +870,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
                   </div>
                   <div className={`mt-4 p-3 border rounded-lg ${subBadgeClass}`}>
-                    <p className="text-xs sm:text-sm text-yellow-800">
+                    <p className={`text-xs sm:text-sm ${category === 'STAR' ? 'text-yellow-900' : category === 'LOVE' ? 'text-pink-800' : category === 'VICTORY' ? 'text-indigo-800' : 'text-purple-800'}`}>
                       💡 보기가 11개 이상인 경우, <strong>주관식 형식</strong>을 선택해주세요!
                     </p>
                   </div>
@@ -830,6 +901,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 showId={showId}
                 setShowId={setShowId}
                 isLocked={!!initialShowId}
+                category={category}
               />
 
               <div>
@@ -973,6 +1045,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 showId={showId}
                 setShowId={setShowId}
                 isLocked={!!initialShowId}
+                category={category}
               />
 
               {/* Submission Type Selection */}
@@ -1148,10 +1221,10 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 setImageUrl={setImageUrl}
                 isUploading={isUploading}
                 handleImageUpload={handleImageUpload}
-                hideSeason={true}
                 showId={showId}
                 setShowId={setShowId}
                 isLocked={!!initialShowId}
+                category={category}
               />
 
               <div>
@@ -1303,6 +1376,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 showId={showId}
                 setShowId={setShowId}
                 isLocked={!!initialShowId}
+                category={category}
               />
 
               <div>
@@ -1376,6 +1450,30 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
               <div>
                 <Label className="text-sm font-medium">옵션</Label>
                 <div className="space-y-3 mt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label className="text-sm font-medium">방송 요일</Label>
+                      <Select value={broadcastDay} onValueChange={setBroadcastDay}>
+                        <SelectTrigger className="mt-1">
+                          <SelectValue placeholder="요일 선택" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {["월", "화", "수", "목", "금", "토", "일"].map((day) => (
+                            <SelectItem key={day} value={day}>{day}요일</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label className="text-sm font-medium">방송 시간</Label>
+                      <Input
+                        type="time"
+                        value={broadcastTime}
+                        onChange={(e) => setBroadcastTime(e.target.value)}
+                        className="mt-1"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <Label className="text-sm font-medium">총 회차 수</Label>
                     <Input
@@ -1435,6 +1533,7 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
                 showId={showId}
                 setShowId={setShowId}
                 isLocked={!!initialShowId}
+                category={category}
               />
 
               <div>

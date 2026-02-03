@@ -108,15 +108,20 @@ def analyze_video(args):
         transcript_text = ""
         if HAS_TRANSCRIPT:
             try:
+                print(f"DEBUG: Fetching transcript for {video_id}", file=sys.stderr)
                 transcript_list = YouTubeTranscriptApi.get_transcript(video_id, languages=['ko', 'en'])
                 transcript_text = " ".join([t['text'] for t in transcript_list])
+                print(f"DEBUG: Transcript length: {len(transcript_text)}", file=sys.stderr)
             except Exception as e:
                 # 자막이 없어도 계속 진행
+                print(f"DEBUG: Transcript error: {str(e)}", file=sys.stderr)
                 transcript_text = f"자막 없음. 제목과 설명으로 분석합니다. (오류: {str(e)})"
         else:
+            print("DEBUG: HAS_TRANSCRIPT is False", file=sys.stderr)
             transcript_text = "자막 API가 설치되지 않았습니다. 제목과 설명으로 분석합니다."
         
         # Gemini로 분석
+        print(f"DEBUG: Analyzing with Gemini. Title: {title[:20]}", file=sys.stderr)
         analyzer = GeminiAnalyzer(gemini_key)
         video_info = {
             'title': title.strip('"'),
@@ -125,6 +130,7 @@ def analyze_video(args):
         }
         
         result = analyzer.analyze_with_transcript(video_info, transcript_text)
+        print(f"DEBUG: Gemini result: {str(result)[:100]}", file=sys.stderr)
         
         if result and 'missions' in result:
             return {
@@ -191,6 +197,10 @@ def crawl_community(args):
         return {"success": False, "error": str(e)}
 
 def main():
+    # 모든 경고 메시지를 무시하여 JSON 출력만 깨끗하게 유지
+    import warnings
+    warnings.filterwarnings("ignore")
+    
     # 모든 print를 stderr로 리다이렉트 (JSON 출력만 stdout에)
     original_stdout = sys.stdout
     sys.stdout = sys.stderr

@@ -35,6 +35,7 @@ const ITEMS_PER_PAGE = 10
 export default function MyPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const categoryParam = searchParams.get('category')
   const [userNickname, setUserNickname] = useState("")
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
@@ -1508,7 +1509,7 @@ export default function MyPage() {
           isOpen={isMissionModalOpen}
           onClose={() => setIsMissionModalOpen(false)}
           initialShowId={selectedShowId}
-          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
         />
       </div>
     </div>

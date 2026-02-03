@@ -125,6 +125,7 @@ export async function POST(request: NextRequest) {
           collectedVideos.push(videoData);
 
           // AI 미션 생성 (자막이 있는 경우에만)
+          console.log(`[테스트 수집] 영상 분석 시도: ${video.title} (자막여부: ${video.has_subtitle})`);
           if (video.has_subtitle) {
             try {
               const analyzeResult = await runMarketerBridge("analyze-video", {
@@ -132,6 +133,8 @@ export async function POST(request: NextRequest) {
                 title: video.title,
                 desc: video.description || ''
               });
+
+              console.log(`[테스트 수집] 분석 결과:`, JSON.stringify(analyzeResult).substring(0, 200));
 
               if (analyzeResult.success && analyzeResult.missions && analyzeResult.missions.length > 0) {
                 // AI 미션 저장 (첫 번째 미션만)

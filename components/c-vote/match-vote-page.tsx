@@ -410,7 +410,14 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
       // 수정: 1회차 외의 다른 회차도 드래그 가능해야 함.
       // canVote 체크 로직 수정: isMultiEpisode일 때는 현재 에피소드가 제출되었는지만 확인
 
-      if (selectedEpisodes.size !== 1) return
+      if (selectedEpisodes.size !== 1) {
+        toast({
+          title: "에피소드를 먼저 선택해주세요",
+          description: "상단의 하트 아이콘을 클릭하여 에피소드를 선택해야 드래그가 가능합니다.",
+          variant: "destructive",
+        })
+        return
+      }
       if (isSubmitted) return
 
       // episodeStatuses가 없으면 기본적으로 open으로 간주 -> 수정: getEpisodeStatus 사용
@@ -425,7 +432,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         ghostLine: null,
       })
     },
-    [selectedEpisodes, submittedEpisodes, getEpisodeStatus], // canVote 의존성 제거
+    [selectedEpisodes, submittedEpisodes, getEpisodeStatus, toast], // canVote 의존성 제거, toast 추가
   )
 
   const handleMouseMove = useCallback(
@@ -623,7 +630,14 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
       const currentEpisode = selectedEpisodes.size === 1 ? Array.from(selectedEpisodes)[0] : null
       const isSubmitted = currentEpisode ? submittedEpisodes.has(currentEpisode) : false
 
-      if (selectedEpisodes.size !== 1) return
+      if (selectedEpisodes.size !== 1) {
+        toast({
+          title: "에피소드를 먼저 선택해주세요",
+          description: "상단의 하트 아이콘을 클릭하여 에피소드를 선택해야 드래그가 가능합니다.",
+          variant: "destructive",
+        })
+        return
+      }
       if (isSubmitted) return
 
       const episodeStatus = getEpisodeStatus(currentEpisode || 1)
@@ -637,7 +651,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         ghostLine: null,
       })
     },
-    [selectedEpisodes, submittedEpisodes, getEpisodeStatus],
+    [selectedEpisodes, submittedEpisodes, getEpisodeStatus, toast],
   )
 
   useEffect(() => {
@@ -836,7 +850,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         }))
 
         toast({
-          title: `${currentEpisode}차 제출 완료!`,
+          title: `${currentEpisode}회 제출 완료!`,
           description: "성공적으로 저장되었습니다.",
         })
       } else {
@@ -1159,7 +1173,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-green-900">{submittedEpisode}차 제출 완료!</p>
+                  <p className="text-lg font-bold text-green-900">{submittedEpisode}회 제출 완료!</p>
                   <p className="text-sm text-green-700">이미 성공적으로 저장되었습니다. 다른 에피소드도 참여해보세요!</p>
                 </div>
               </div>
@@ -1170,11 +1184,11 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
             <CardHeader className="text-center py-4 px-4">
               <CardTitle className="text-xl font-bold text-gray-900">
                 {isMultiEpisode && selectedEpisodes.size === 1
-                  ? `${Array.from(selectedEpisodes)[0]}차 커플 매칭하기`
+                  ? `${Array.from(selectedEpisodes)[0]}회 커플 매칭하기`
                   : isMultiEpisode && selectedEpisodes.size > 1
                     ? `${Array.from(selectedEpisodes)
                       .sort((a, b) => a - b)
-                      .join(", ")}차 보기`
+                      .join(", ")}회 보기`
                     : isMultiEpisode && selectedEpisodes.size === 0
                       ? "에피소드를 선택해주세요"
                       : "커플 매칭하기"}
@@ -1416,7 +1430,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                       {selectedEpisodes.size > 1 &&
                         ` - ${Array.from(selectedEpisodes)
                           .sort((a, b) => a - b)
-                          .join(", ")}차`}
+                          .join(", ")}회`}
                       )
                     </h4>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

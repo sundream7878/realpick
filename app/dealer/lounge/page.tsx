@@ -30,6 +30,7 @@ interface DealerStat {
 export default function DealerLoungePage() {
     const router = useRouter()
     const searchParams = useSearchParams()
+    const categoryParam = searchParams.get('category')
     const [stats, setStats] = useState<DealerStat[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
@@ -308,7 +309,7 @@ export default function DealerLoungePage() {
                     isOpen={isMissionModalOpen}
                     onClose={() => setIsMissionModalOpen(false)}
                     initialShowId={selectedShowId}
-                    category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+                    category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
                 />
             </div>
         </div>

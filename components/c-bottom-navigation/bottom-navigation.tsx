@@ -45,6 +45,7 @@ export function BottomNavigation({
   
   // 현재 선택된 카테고리 쿼리 파라미터
   const selectedShowId = searchParams.get('show')
+  const categoryParam = searchParams.get('category')
   const myPageUrl = selectedShowId ? `/p-mypage?show=${selectedShowId}` : "/p-mypage"
 
   // props가 있으면 사용, 없으면 자체적으로 로드
@@ -207,7 +208,7 @@ export function BottomNavigation({
         isOpen={isMissionModalOpen} 
         onClose={() => setIsMissionModalOpen(false)} 
         initialShowId={selectedShowId || undefined}
-        category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+        category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
       />
       <PointHistoryModal 
         isOpen={showPointHistoryModal} 

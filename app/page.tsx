@@ -325,6 +325,12 @@ export default function HomePage() {
   // URL에서 category 파라미터 가져오기
   const categoryParam = searchParams.get('category')
   
+  console.log('[HomePage] 📍 Category Param:', {
+    categoryParam,
+    selectedShowId,
+    url: typeof window !== 'undefined' ? window.location.href : 'SSR'
+  })
+  
   // 필터링된 미션 목록
   const filteredMissions = missions.filter((mission) => {
     // 1. Category 필터링 (category 파라미터가 있으면 우선 적용)
@@ -874,7 +880,7 @@ export default function HomePage() {
           onMissionStatusToggle={() => setIsMissionStatusOpen(!isMissionStatusOpen)}
           onSeasonSelect={setSelectedFilter}
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
-          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
           selectedShowId={selectedShowId}
         />
 
@@ -884,7 +890,7 @@ export default function HomePage() {
           onClose={() => setIsMissionModalOpen(false)}
           onMissionCreated={handleMissionCreated}
           initialShowId={selectedShowId}
-          category={selectedShowId ? getShowById(selectedShowId)?.category : undefined}
+          category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
         />
 
         {/* 내 픽 보기 모달 */}

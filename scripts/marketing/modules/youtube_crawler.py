@@ -34,6 +34,11 @@ class YouTubeCrawler:
             response = requests.get(url, params=params)
             data = response.json()
             
+            if 'error' in data:
+                import sys
+                print(f"YouTube API 오류: {data['error'].get('message')}", file=sys.stderr)
+                return None
+                
             if 'items' in data and len(data['items']) > 0:
                 return data['items'][0]['snippet']['channelId']
             return None
@@ -233,8 +238,8 @@ class YouTubeCrawler:
         """키워드로 영상 직접 검색 (채널 검색이 아닌 영상 검색)"""
         url = f"{self.base_url}/search"
         
-        # 최근 30일 이내 영상만
-        published_after = (datetime.now() - timedelta(days=30)).isoformat() + 'Z'
+        # 테스트를 위해 날짜 제한을 1년으로 대폭 늘림 (최근 영상이 없을 경우 대비)
+        published_after = (datetime.now() - timedelta(days=365)).isoformat() + 'Z'
         
         params = {
             'part': 'snippet',
@@ -252,6 +257,14 @@ class YouTubeCrawler:
             response = requests.get(url, params=params)
             data = response.json()
             
+            # API 응답 전체 로그 출력 (문제 파악용)
+            import sys
+            print(f"DEBUG YouTube API Response for '{keyword}': {json.dumps(data)[:500]}...", file=sys.stderr)
+            
+            if 'error' in data:
+                print(f"YouTube API 오류 (search_videos_by_keyword): {data['error'].get('message')}", file=sys.stderr)
+                return []
+                
             videos = []
             if 'items' in data:
                 for item in data['items']:
