@@ -356,8 +356,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
     (item1: string, item2: string, column1: "left" | "right", column2: "left" | "right") => {
       if (selectedEpisodes.size !== 1) {
         toast({
-          title: "에피소드를 하나만 선택해주세요",
-          description: "커플 매칭은 한 에피소드만 가능합니다.",
+          title: "회차를 하나만 선택해주세요",
+          description: "커플 매칭은 한 회차만 가능합니다.",
           variant: "destructive",
         })
         return
@@ -412,8 +412,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       if (selectedEpisodes.size !== 1) {
         toast({
-          title: "에피소드를 먼저 선택해주세요",
-          description: "상단의 하트 아이콘을 클릭하여 에피소드를 선택해야 드래그가 가능합니다.",
+          title: "회차를 먼저 선택해주세요",
+          description: "상단의 하트 아이콘을 클릭하여 회차를 선택해야 드래그가 가능합니다.",
           variant: "destructive",
         })
         return
@@ -632,8 +632,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       if (selectedEpisodes.size !== 1) {
         toast({
-          title: "에피소드를 먼저 선택해주세요",
-          description: "상단의 하트 아이콘을 클릭하여 에피소드를 선택해야 드래그가 가능합니다.",
+          title: "회차를 먼저 선택해주세요",
+          description: "상단의 하트 아이콘을 클릭하여 회차를 선택해야 드래그가 가능합니다.",
           variant: "destructive",
         })
         return
@@ -742,8 +742,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
 
       if (selectedEpisodes.size !== 1) {
         toast({
-          title: "에피소드를 하나만 선택해주세요",
-          description: "제출하기는 한 에피소드만 가능합니다.",
+          title: "회차를 하나만 선택해주세요",
+          description: "제출하기는 한 회차만 가능합니다.",
           variant: "destructive",
         })
         setIsSubmitting(false)
@@ -1174,7 +1174,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                 </div>
                 <div>
                   <p className="text-lg font-bold text-green-900">{submittedEpisode}회 제출 완료!</p>
-                  <p className="text-sm text-green-700">이미 성공적으로 저장되었습니다. 다른 에피소드도 참여해보세요!</p>
+                  <p className="text-sm text-green-700">이미 성공적으로 저장되었습니다. 다른 회차도 참여해보세요!</p>
                 </div>
               </div>
             </div>
@@ -1190,21 +1190,21 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                       .sort((a, b) => a - b)
                       .join(", ")}회 보기`
                     : isMultiEpisode && selectedEpisodes.size === 0
-                      ? "에피소드를 선택해주세요"
+                      ? "회차를 선택해주세요"
                       : "커플 매칭하기"}
               </CardTitle>
               <p className="text-sm text-gray-600">
                 {selectedEpisodes.size === 1 && isCurrentEpisodeSettled()
-                  ? "마감된 에피소드입니다(수정 불가)"
+                  ? "마감된 회차입니다(수정 불가)"
                   : selectedEpisodes.size === 1 && submittedEpisodes.has(Array.from(selectedEpisodes)[0])
                     ? "제출이 완료되었습니다 (수정 불가)"
                     : selectedEpisodes.size === 1 && getEpisodeStatus(Array.from(selectedEpisodes)[0]) === "locked"
-                      ? "아직 열리지 않은 에피소드입니다"
+                      ? "아직 열리지 않은 회차입니다"
                       : selectedEpisodes.size === 1
                         ? "드래그하여 커플을 연결해보세요"
                         : selectedEpisodes.size > 1
-                          ? "여러 에피소드의 매칭을 확인하세요"
-                          : "에피소드 아이콘을 클릭하여 에피소드를 선택하세요"}
+                          ? "여러 회차의 매칭을 확인하세요"
+                          : "하트 아이콘을 클릭하여 회차를 선택하세요"}
               </p>
             </CardHeader>
             <CardContent className="p-4">
@@ -1499,7 +1499,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                     disabled={!canSubmit || isSubmitted || isSettled}
                   >
                     {isSettled
-                      ? "마감된 에피소드"
+                      ? "마감된 회차"
                       : isSubmitted
                         ? `제출 완료 (${connections.filter((c) => c.episodeNo === currentEpisode).length}개)`
                         : `제출하기 (${connections.filter((c) => c.episodeNo === currentEpisode).length}개)`}

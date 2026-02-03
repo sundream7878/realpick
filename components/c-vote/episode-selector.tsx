@@ -76,8 +76,8 @@ export function EpisodeSelector({
     <div className="bg-white border-t border-rose-200 py-6">
       <div className="max-w-6xl mx-auto px-4">
         <div className="text-center mb-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">에피소드 선택</h3>
-          <p className="text-sm text-gray-600 mb-4">하트를 클릭하여 에피소드를 선택하세요(여러 개 선택 가능)</p>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">회차 선택</h3>
+          <p className="text-sm text-gray-600 mb-4">하트를 클릭하여 회차를 선택하세요(여러 개 선택 가능)</p>
 
           <div className="flex flex-wrap justify-center gap-3 text-xs">
             <div className="flex items-center gap-1.5">
@@ -123,7 +123,7 @@ export function EpisodeSelector({
                   !isLocked && "hover:scale-110 active:scale-95 cursor-pointer",
                   isLocked && "cursor-not-allowed opacity-70",
                 )}
-                aria-label={`에피소드 ${episodeNo}`}
+                aria-label={`${episodeNo}회차`}
               >
                 <div className="relative">
                   <Heart
@@ -138,7 +138,7 @@ export function EpisodeSelector({
                     <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{styles.badge}</div>
                   )}
                 </div>
-                <span className="text-xs font-medium text-gray-700">{episodeNo}차</span>
+                <span className="text-xs font-medium text-gray-700">{episodeNo}회</span>
               </button>
             )
           })}

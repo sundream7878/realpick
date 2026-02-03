@@ -1002,7 +1002,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                           <p className="text-2xl font-bold text-accent">
                             {mission.episodes || 8}회
                           </p>
-                          <p className="text-sm text-muted-foreground">총 에피소드</p>
+                          <p className="text-sm text-muted-foreground">총 회차</p>
                         </div>
                         <div className="text-center p-4 bg-primary/5 rounded-lg">
                           <p className="text-lg font-bold text-primary">
