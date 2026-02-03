@@ -229,6 +229,9 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
         description: "성공적으로 제출되었습니다",
       })
 
+      // 포인트 업데이트를 위해 auth-change 이벤트 발생
+      window.dispatchEvent(new Event('auth-change'))
+
       // 6. 중간 결과 섹션으로 스크롤
       setTimeout(() => {
         const resultsElement = document.getElementById("live-results")

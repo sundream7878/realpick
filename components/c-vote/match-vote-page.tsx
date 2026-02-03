@@ -854,6 +854,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
           title: `${currentEpisode}회 제출 완료!`,
           description: "성공적으로 저장되었습니다.",
         })
+        
+        // 포인트 업데이트를 위해 auth-change 이벤트 발생
+        window.dispatchEvent(new Event('auth-change'))
       } else {
         const success = await MockVoteRepo.submitVote({
           missionId: mission.id,
@@ -869,6 +872,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
             title: "제출 완료!",
             description: "커플 매칭을 성공적으로 제출했습니다.",
           })
+          
+          // 포인트 업데이트를 위해 auth-change 이벤트 발생
+          window.dispatchEvent(new Event('auth-change'))
         }
       }
 

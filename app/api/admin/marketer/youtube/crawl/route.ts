@@ -11,6 +11,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: "키워드가 필요합니다." }, { status: 400 });
     }
 
+    if (!adminDb) {
+      return NextResponse.json({ success: false, error: "Firebase Admin이 초기화되지 않았습니다." }, { status: 500 });
+    }
+
+    // 1. 만료된 영상 자동 삭제 (한 달 이상 지난 영상)
+    const now = new Date();
+    const expiredVideosSnapshot = await adminDb.collection('videos')
+      .where('expiresAt', '<=', now.toISOString())
+      .get();
+    
+    if (!expiredVideosSnapshot.empty) {
+      const deleteBatch = adminDb.batch();
+      expiredVideosSnapshot.docs.forEach(doc => {
+        deleteBatch.delete(doc.ref);
+      });
+      await deleteBatch.commit();
+      console.log(`🗑️ 만료된 영상 ${expiredVideosSnapshot.size}개 삭제 완료`);
+    }
+
     const args: Record<string, any> = {
       keywords,
       "max-results": maxResults,
@@ -19,14 +38,52 @@ export async function POST(request: NextRequest) {
     if (startDate) args["start-date"] = startDate;
     if (endDate) args["end-date"] = endDate;
 
-    const result = await runMarketerBridge("crawl-youtube", args);
+    const result = await runMarketerBridge("crawl-youtube", args) as any;
     
     // 프론트엔드가 기대하는 형식으로 변환
     if (result.success && result.videos) {
+      // 2. 중복 영상 필터링 (이미 DB에 있는 영상 제외)
+      const videoIds = result.videos.map((v: any) => v.video_id);
+      const existingVideoIds = new Set<string>();
+      
+      // Firestore 'in' 쿼리는 최대 10개씩만 가능하므로 청크로 나눠서 조회
+      for (let i = 0; i < videoIds.length; i += 10) {
+        const chunk = videoIds.slice(i, i + 10);
+        const snapshot = await adminDb.collection('videos')
+          .where('videoId', 'in', chunk)
+          .get();
+        
+        snapshot.docs.forEach(doc => {
+          existingVideoIds.add(doc.data().videoId);
+        });
+      }
+      
+      const newVideos = result.videos.filter((v: any) => !existingVideoIds.has(v.video_id));
+      
+      console.log(`📊 크롤링 결과: 총 ${result.videos.length}개, 기존 ${existingVideoIds.size}개, 신규 ${newVideos.length}개`);
+      
+      if (newVideos.length === 0) {
+        return NextResponse.json({
+          success: true,
+          results: {
+            channels: {
+              [keywords]: {
+                status: 'success',
+                videos: []
+              }
+            }
+          },
+          message: "모든 영상이 이미 DB에 존재합니다.",
+          totalCrawled: result.videos.length,
+          alreadyExists: existingVideoIds.size,
+          newVideos: 0
+        });
+      }
+      
       // 채널 정보 추출 및 dealers 컬렉션에 저장
       const channelMap = new Map<string, any>();
       
-      for (const video of result.videos) {
+      for (const video of newVideos) {
         const channelId = video.channel_id;
         if (channelId && !channelMap.has(channelId)) {
           channelMap.set(channelId, {
@@ -70,8 +127,13 @@ export async function POST(request: NextRequest) {
         }
       }
       
-      // 2. 영상 정보 저장 (videos 컬렉션)
-      for (const video of result.videos) {
+      // 2. 영상 정보 저장 (videos 컬렉션) - 신규 영상만
+      const collectedAt = new Date();
+      const expiresAtDate = new Date(collectedAt);
+      expiresAtDate.setDate(expiresAtDate.getDate() + 30); // 30일 후 만료
+      const expiresAt = expiresAtDate.toISOString();
+      
+      for (const video of newVideos) {
         const videoId = video.video_id;
         const videoRef = adminDb.collection('videos').doc(videoId);
         
@@ -90,7 +152,8 @@ export async function POST(request: NextRequest) {
           video_url: video.video_url || `https://www.youtube.com/watch?v=${videoId}`,
           has_subtitle: video.has_subtitle || false,
           keyword: keywords,
-          collectedAt: new Date().toISOString()
+          collectedAt: collectedAt.toISOString(),
+          expiresAt: expiresAt // 30일 후 자동 삭제
         };
         
         batch.set(videoRef, videoData);
@@ -104,11 +167,15 @@ export async function POST(request: NextRequest) {
           channels: {
             [keywords]: {
               status: 'success',
-              videos: result.videos
+              videos: newVideos
             }
           }
         },
-        savedChannels: channelMap.size
+        savedChannels: channelMap.size,
+        totalCrawled: result.videos.length,
+        alreadyExists: existingVideoIds.size,
+        newVideos: newVideos.length,
+        expiresAt: expiresAt
       });
     }
     

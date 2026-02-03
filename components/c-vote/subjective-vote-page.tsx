@@ -129,6 +129,9 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
         title: "제출 완료!",
         description: "성공적으로 제출되었습니다",
       })
+
+      // 포인트 업데이트를 위해 auth-change 이벤트 발생
+      window.dispatchEvent(new Event('auth-change'))
     } catch (error) {
       console.error("투표 제출 에러:", error)
       toast({

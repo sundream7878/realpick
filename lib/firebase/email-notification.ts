@@ -28,8 +28,11 @@ export async function sendMissionNotification({
       return { success: true }
     }
 
-    // Next.js API Route 호출
-    const apiUrl = '/api/send-mission-notification'
+    // Next.js API Route 호출 (절대 URL 또는 상대 경로)
+    const baseUrl = typeof window !== 'undefined' 
+      ? window.location.origin 
+      : (process.env.NEXT_PUBLIC_SITE_URL || 'https://real-pick.com');
+    const apiUrl = `${baseUrl}/api/send-mission-notification`;
     console.log('[Email] 📡 Calling API Route:', apiUrl)
 
     const payload = {

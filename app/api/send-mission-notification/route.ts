@@ -242,12 +242,33 @@ export async function POST(request: NextRequest) {
     let userIdsToNotify: string[] = [];
 
     if (type === 'new') {
-      // 1. 새 미션 알림 대상 조회 (카테고리 구독자 모두)
+      // 1. 새 미션 알림 대상 조회
+      // 1-1. 카테고리를 구독한 사용자
       const prefsSnapshot = await adminDb.collection('notification_preferences')
         .where('categories', 'array-contains', category)
         .get();
 
-      userIdsToNotify = prefsSnapshot.docs.map(doc => doc.id);
+      const subscribedUsers = prefsSnapshot.docs.map(doc => doc.id);
+      console.log(`[Mission Notification] 카테고리 구독 사용자: ${subscribedUsers.length}명`);
+      
+      // 1-2. notification_preferences가 없는 사용자들 (기본적으로 모든 알림 받음)
+      const allUsersSnapshot = await adminDb.collection('users')
+        .where('email', '!=', null)
+        .get();
+      
+      const allUserIds = allUsersSnapshot.docs.map(doc => doc.id);
+      console.log(`[Mission Notification] 이메일이 있는 전체 사용자: ${allUserIds.length}명`);
+      
+      // notification_preferences가 있는 사용자 목록
+      const allPrefsSnapshot = await adminDb.collection('notification_preferences').get();
+      const usersWithPrefs = new Set(allPrefsSnapshot.docs.map(doc => doc.id));
+      
+      // notification_preferences가 없는 사용자는 모두 알림 받음
+      const usersWithoutPrefs = allUserIds.filter(uid => !usersWithPrefs.has(uid));
+      console.log(`[Mission Notification] 알림 설정이 없는 사용자 (기본 알림): ${usersWithoutPrefs.length}명`);
+      
+      userIdsToNotify = [...new Set([...subscribedUsers, ...usersWithoutPrefs])];
+      console.log(`[Mission Notification] 최종 알림 대상: ${userIdsToNotify.length}명`);
       
       // 작성자 본인도 알림을 받고 싶어 한다면 목록에 추가 (이미 있으면 중복 제거)
       if (payload.creatorId && !userIdsToNotify.includes(payload.creatorId)) {
@@ -343,9 +364,14 @@ export async function POST(request: NextRequest) {
 
       // 4-2. Email 발송 (설정된 경우만)
       const userPrefs = preferencesMap[user.id];
+      
+      // notification_preferences가 없으면 기본적으로 이메일 알림 활성화
+      // notification_preferences가 있으면 emailEnabled 설정 확인
       const isEmailEnabled = type === 'deadline' 
-        ? userPrefs?.deadlineEmailEnabled !== false // 기본값 true
-        : userPrefs?.emailEnabled !== false; // 기본값 true
+        ? (userPrefs ? userPrefs.deadlineEmailEnabled !== false : true) // 기본값 true
+        : (userPrefs ? userPrefs.emailEnabled !== false : true); // 기본값 true
+
+      console.log(`[Mission Notification] ${user.nickname} (${user.email}) - emailEnabled: ${isEmailEnabled}, hasPrefs: ${!!userPrefs}`);
 
       if (user.email && isEmailEnabled) {
         try {
@@ -382,11 +408,19 @@ export async function POST(request: NextRequest) {
             html: emailHtml,
           });
 
-          results.push({ success: !sendResult.error, email: user.email });
-        } catch (err) {
-          console.error(`Failed to send email to ${user.email}:`, err);
-          results.push({ success: false, email: user.email });
+          if (sendResult.error) {
+            console.error(`[Mission Notification] ❌ Failed to send email to ${user.email}:`, sendResult.error);
+            results.push({ success: false, email: user.email, error: sendResult.error });
+          } else {
+            console.log(`[Mission Notification] ✅ Email sent successfully to ${user.email}, ID: ${sendResult.data?.id}`);
+            results.push({ success: true, email: user.email, emailId: sendResult.data?.id });
+          }
+        } catch (err: any) {
+          console.error(`[Mission Notification] ❌ Exception while sending email to ${user.email}:`, err);
+          results.push({ success: false, email: user.email, error: err.message });
         }
+      } else {
+        console.log(`[Mission Notification] ⏭️ Skipping email for ${user.nickname} - email: ${!!user.email}, enabled: ${isEmailEnabled}`);
       }
       
       // Rate limit 회피 (안전하게 50ms)
@@ -397,10 +431,19 @@ export async function POST(request: NextRequest) {
     await notificationBatch.commit();
 
     const successCount = results.filter(r => r.success).length;
+    const failedEmails = results.filter(r => !r.success);
+    
+    console.log(`[Mission Notification] 📊 최종 결과: 성공 ${successCount}/${users.length}, 실패 ${failedEmails.length}`);
+    if (failedEmails.length > 0) {
+      console.log(`[Mission Notification] ❌ 실패한 이메일:`, failedEmails);
+    }
+    
     return NextResponse.json({
       success: true,
       sent: successCount,
-      total: users.length
+      total: users.length,
+      failed: failedEmails.length,
+      results: results
     });
 
   } catch (error: any) {
