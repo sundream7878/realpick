@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/c-ui/card"
 import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
-import { Search, MessageSquare, ExternalLink, RefreshCw, Loader2, CheckCircle2, Trash2, Calendar } from "lucide-react"
+import { Search, MessageSquare, ExternalLink, RefreshCw, Loader2, CheckCircle2, Trash2, Calendar, X } from "lucide-react"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 
 interface ViralPost {
@@ -23,9 +23,22 @@ interface ViralPost {
   createdAt: string
 }
 
+interface CrawlProgress {
+  id: string
+  status: "running" | "processing" | "completed" | "failed"
+  current: number
+  total: number
+  message: string
+  startedAt?: string
+  completedAt?: string
+}
+
 export function CommunityViralManage() {
   const [posts, setPosts] = useState<ViralPost[]>([])
   const [isLoading, setIsLoading] = useState(false)
+  const [progress, setProgress] = useState<CrawlProgress | null>(null)
+  const [progressId, setProgressId] = useState<string | null>(null)
+  const [limit, setLimit] = useState<number>(10) // 테스트용 기본값 10개
   const { toast } = useToast()
 
   // 데이터 로드
@@ -43,23 +56,89 @@ export function CommunityViralManage() {
     loadPosts()
   }, [])
 
+  // 진행 상황 폴링
+  useEffect(() => {
+    if (!progressId) return
+
+    const pollProgress = async () => {
+      try {
+        const res = await fetch(`/api/admin/marketer/community/crawl?progressId=${progressId}`)
+        const data = await res.json()
+        
+        if (data.success && data.progress) {
+          setProgress(data.progress)
+          
+          // 완료 또는 실패 시 폴링 중지
+          if (data.progress.status === "completed" || data.progress.status === "failed") {
+            setProgressId(null)
+            setIsLoading(false)
+            
+            if (data.progress.status === "completed") {
+              await loadPosts()
+              toast({
+                title: "이슈 수집 완료",
+                description: data.progress.message || "본문 내용을 분석하여 새로운 이슈를 수집하고 저장했습니다."
+              })
+            } else {
+              toast({
+                title: "수집 실패",
+                description: data.progress.message || "크롤링 중 오류가 발생했습니다.",
+                variant: "destructive"
+              })
+            }
+          }
+        }
+      } catch (error) {
+        console.error("진행 상황 조회 실패:", error)
+      }
+    }
+
+    // 즉시 한 번 실행
+    pollProgress()
+
+    // 1초마다 폴링
+    const interval = setInterval(pollProgress, 1000)
+
+    return () => clearInterval(interval)
+  }, [progressId, toast])
+
   const handleSearch = async () => {
     setIsLoading(true)
+    setProgress(null)
+    setProgressId(null)
+    
     try {
       const res = await fetch("/api/admin/marketer/community/crawl", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ keywords: "나는솔로,최강야구,나솔사계,돌싱글즈" })
+        body: JSON.stringify({ 
+          keywords: "나는솔로,최강야구,나솔사계,돌싱글즈",
+          limit: limit // 크롤링 개수 제한
+        })
       })
       const data = await res.json()
       
-      if (data.success) {
-        await loadPosts() // 저장된 데이터 다시 불러오기
+      if (data.progressId) {
+        // 진행 상황 추적 시작
+        setProgressId(data.progressId)
+        setProgress({
+          id: data.progressId,
+          status: "running",
+          current: 0,
+          total: 0,
+          message: "크롤링 시작...",
+          startedAt: new Date().toISOString()
+        })
+      } else if (data.success) {
+        // 즉시 완료된 경우
+        await loadPosts()
+        setIsLoading(false)
         toast({
           title: "이슈 수집 완료",
           description: "본문 내용을 분석하여 새로운 이슈를 수집하고 저장했습니다."
         })
       } else {
+        setIsLoading(false)
         toast({
           title: "수집 실패",
           description: data.error,
@@ -67,13 +146,12 @@ export function CommunityViralManage() {
         })
       }
     } catch (error: any) {
+      setIsLoading(false)
       toast({
         title: "오류 발생",
         description: error.message,
         variant: "destructive"
       })
-    } finally {
-      setIsLoading(false)
     }
   }
 
@@ -112,8 +190,21 @@ export function CommunityViralManage() {
                 게시글 본문 내용을 분석하여 어그로를 걸러내고 진성 유저 반응을 포착합니다.
               </CardDescription>
             </div>
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={loadPosts} className="border-orange-200 text-orange-700">
+            <div className="flex gap-2 items-center">
+              <div className="flex items-center gap-2">
+                <label className="text-sm text-gray-600">크롤링 개수:</label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={limit}
+                  onChange={(e) => setLimit(parseInt(e.target.value) || 10)}
+                  className="w-20 px-2 py-1 border border-orange-200 rounded text-sm"
+                  disabled={isLoading}
+                />
+                <span className="text-xs text-gray-500">개</span>
+              </div>
+              <Button variant="outline" onClick={loadPosts} className="border-orange-200 text-orange-700" disabled={isLoading}>
                 <RefreshCw className="w-4 h-4 mr-2" />
                 목록 갱신
               </Button>
@@ -125,8 +216,45 @@ export function CommunityViralManage() {
           </div>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="space-y-4">
-            {posts.length === 0 && !isLoading && (
+          {/* 진행 상황 표시 - sticky */}
+          {progress && (
+            <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  {progress.status === "running" || progress.status === "processing" ? (
+                    <Loader2 className="w-4 h-4 animate-spin text-orange-600" />
+                  ) : progress.status === "completed" ? (
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                  ) : (
+                    <X className="w-4 h-4 text-red-600" />
+                  )}
+                  <span className="font-semibold text-orange-700">
+                    {progress.status === "running" && "크롤링 중..."}
+                    {progress.status === "processing" && "저장 중..."}
+                    {progress.status === "completed" && "완료"}
+                    {progress.status === "failed" && "실패"}
+                  </span>
+                </div>
+                {progress.total > 0 && (
+                  <span className="text-sm text-gray-600">
+                    {progress.current} / {progress.total}
+                  </span>
+                )}
+              </div>
+              <p className="text-sm text-gray-700 mb-2">{progress.message}</p>
+              {progress.total > 0 && (
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div
+                    className="bg-orange-600 h-2 rounded-full transition-all duration-300"
+                    style={{ width: `${(progress.current / progress.total) * 100}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="space-y-4 max-h-[600px] overflow-y-auto pr-2" style={{ scrollbarWidth: 'thin', scrollbarColor: '#fdba74 #fff7ed' }}>
+            {posts.length === 0 && !isLoading && !progress && (
               <div className="text-center py-12 text-gray-400 border-2 border-dashed rounded-lg">
                 수집된 이슈가 없습니다. '이슈 수집' 버튼을 눌러주세요.
               </div>

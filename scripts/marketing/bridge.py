@@ -159,6 +159,10 @@ def crawl_community(args):
         crawler = CommunityCrawler()
         analyzer = GeminiAnalyzer(gemini_key)
         
+        # limit 파라미터 받기 (기본값 30)
+        # args는 Namespace 객체이므로 getattr 사용
+        limit = int(getattr(args, 'limit', 30))
+        
         # 리얼픽 주요 프로그램 키워드
         program_keywords = [
             {"showId": "nasolo", "keywords": ["나는솔로", "나솔", "남규홍"]},
@@ -172,15 +176,32 @@ def crawl_community(args):
         ]
         
         all_results = []
+        # limit에 도달하면 중단하기 위한 플래그
+        reached_limit = False
+        
         # 시간 단축을 위해 랜덤하게 몇 개의 프로그램만 선택하거나 순차적으로 처리
         for prog in program_keywords:
+            if reached_limit:
+                break
+                
             show_id = prog["showId"]
             kws = prog["keywords"]
             
             # 각 프로그램별 키워드로 10대 커뮤니티 모니터링
-            posts = crawler.get_hot_posts(show_id, kws)
+            # limit을 전달하여 크롤링 개수 제한
+            remaining_limit = limit - len(all_results)
+            if remaining_limit <= 0:
+                reached_limit = True
+                break
+                
+            posts = crawler.get_hot_posts(show_id, kws, limit=remaining_limit)
             
             for post in posts:
+                # limit에 도달하면 중단
+                if len(all_results) >= limit:
+                    reached_limit = True
+                    break
+                    
                 # AI 댓글 생성
                 comment = analyzer.generate_viral_comment(post.get('content', ''), post.get('title', ''))
                 post['suggestedComment'] = comment
@@ -191,7 +212,7 @@ def crawl_community(args):
         
         return {
             "success": True,
-            "posts": all_results[:30] # 상위 30개만 반환
+            "posts": all_results[:limit] # limit만큼만 반환
         }
     except Exception as e:
         return {"success": False, "error": str(e)}

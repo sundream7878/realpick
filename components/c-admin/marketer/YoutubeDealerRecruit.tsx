@@ -847,7 +847,7 @@ export function YoutubeDealerRecruit() {
                                 <p className="text-gray-400">필터링된 채널이 없습니다.</p>
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                                 {filteredChannels.map((channel) => (
                                     <Card key={channel.id} className="border-gray-200 hover:border-blue-200 transition-colors">
                                         <CardContent className="p-4">
@@ -1346,7 +1346,7 @@ export function YoutubeDealerRecruit() {
                                 <p className="text-sm text-gray-500">다른 카테고리나 프로그램을 선택해보세요.</p>
                             </div>
                         ) : (
-                            <div className="space-y-3">
+                            <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                                 <div className="text-sm text-gray-500 pb-2">
                                     총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시
                                 </div>
