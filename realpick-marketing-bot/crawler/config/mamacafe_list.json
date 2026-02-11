@@ -1,0 +1,1058 @@
+[
+  {
+    "id": "no1sejong",
+    "name": "세종맘카페 세종맘들의 행복한 이야기방",
+    "url": "https://cafe.naver.com/no1sejong",
+    "region": "세종"
+  },
+  {
+    "id": "chengnamomlife",
+    "name": "달콤한 청라맘스 : 청라국제도시맘카페",
+    "url": "https://cafe.naver.com/chengnamomlife",
+    "region": "인천 청라"
+  },
+  {
+    "id": "2008bunsamo",
+    "name": "분따 - 분당.판교.위례 따라잡기",
+    "url": "https://cafe.naver.com/2008bunsamo",
+    "region": "분당 판교 위례"
+  },
+  {
+    "id": "nowonmams",
+    "name": "클린노원맘스토리",
+    "url": "https://cafe.naver.com/nowonmams",
+    "region": "노원"
+  },
+  {
+    "id": "sjmoms",
+    "name": "성동구중구엄마들의모임",
+    "url": "https://cafe.naver.com/sjmoms",
+    "region": "성동 중구"
+  },
+  {
+    "id": "mammie",
+    "name": "울산맘\"s 모여라-울산맘,울산맘카페,울산카페,임신,출산,육아",
+    "url": "https://cafe.naver.com/mammie",
+    "region": "울산"
+  },
+  {
+    "id": "cjcjmom",
+    "name": "청주맘스캠프 (충북맘,청주맘카페,세종맘,청주육아,프리마켓)",
+    "url": "https://cafe.naver.com/cjcjmom",
+    "region": "청주"
+  },
+  {
+    "id": "msbabys",
+    "name": "대전세종맘스베이비(대세맘,대전맘,세종맘)",
+    "url": "https://cafe.naver.com/msbabys",
+    "region": "대전 세종"
+  },
+  {
+    "id": "beautynpharm",
+    "name": "[ 갈매맘 ] 구리갈매 대표맘카페(비영리) - 갈매맘",
+    "url": "https://cafe.naver.com/beautynpharm",
+    "region": "구리 갈매"
+  },
+  {
+    "id": "chobomamy",
+    "name": "러브양산맘카페",
+    "url": "https://cafe.naver.com/chobomamy",
+    "region": "양산"
+  },
+  {
+    "id": "godeokmaman",
+    "name": "[강동고덕마망] 강동 고덕맘 공식 카페",
+    "url": "https://cafe.naver.com/godeokmaman",
+    "region": "강동 고덕"
+  },
+  {
+    "id": "ksn82599",
+    "name": "대전 둔산맘 카페 (교육 학원 학교 학군 학습 후기 정보 공유) 동네카페",
+    "url": "https://cafe.naver.com/ksn82599",
+    "region": "대전 둔산"
+  },
+  {
+    "id": "pajumom",
+    "name": "파주맘 - 파주 대표카페 (운정,금촌,문산,교하)",
+    "url": "https://cafe.naver.com/pajumom",
+    "region": "파주"
+  },
+  {
+    "id": "doanmom1004",
+    "name": "대전 도안맘 (도안신도시맘들의 친목카페)",
+    "url": "https://cafe.naver.com/doanmom1004",
+    "region": "대전 도안"
+  },
+  {
+    "id": "cheongsmom",
+    "name": "청스맘ㅣ천안 청룡동 엄마들의 정보공유 커뮤니티ㅣ천안맘카페",
+    "url": "https://cafe.naver.com/cheongsmom",
+    "region": "천안"
+  },
+  {
+    "id": "pusanmom",
+    "name": "★☆부경맘(부산맘/경남맘)☆★",
+    "url": "https://cafe.naver.com/pusanmom",
+    "region": "부산 경남"
+  },
+  {
+    "id": "gdnewcity1144",
+    "name": "검단신도시맘 검단맘 카페 [검단맘블리] 동네카페",
+    "url": "https://cafe.naver.com/gdnewcity1144",
+    "region": "인천 검단"
+  },
+  {
+    "id": "chorongggont",
+    "name": "운정신도시 맘카페 나 초롱꽃마을 산다! (물향기,책향기,해오름)",
+    "url": "https://cafe.naver.com/chorongggont",
+    "region": "파주 운정"
+  },
+  {
+    "id": "star4sarang",
+    "name": "[별내맘]별내지역카페 *별내No.1 커뮤니티*별내맘.남양주카페",
+    "url": "https://cafe.naver.com/star4sarang",
+    "region": "별내"
+  },
+  {
+    "id": "jangantalk",
+    "name": "수다떠는 장안맘 / 서울 동대문구 장안동 대표 맘카페 ♥",
+    "url": "https://cafe.naver.com/jangantalk",
+    "region": "장안"
+  },
+  {
+    "id": "yul2moms",
+    "name": "[김해 장유 율하맘] 율하신도시 대표 맘카페 - 김해/장유/율하",
+    "url": "https://cafe.naver.com/yul2moms",
+    "region": "김해 장유 율하"
+  },
+  {
+    "id": "nursestudents",
+    "name": "나주맘 맘스팡 - 남평맘카페,나주혁신도시맘카페,나주맘카페.",
+    "url": "https://cafe.naver.com/nursestudents",
+    "region": "나주"
+  },
+  {
+    "id": "yeojumam",
+    "name": "헬로 여주맘 카페",
+    "url": "https://cafe.naver.com/yeojumam",
+    "region": "여주"
+  },
+  {
+    "id": "pt2mandoo",
+    "name": "시화MTV 거북섬에 사는 사람들: 시사사 (거북섬대표카페&맘카페)",
+    "url": "https://cafe.naver.com/pt2mandoo",
+    "region": "시화"
+  },
+  {
+    "id": "ikeaover",
+    "name": "세종맘카페 맘크러쉬,세종3생맘카페,호려울마을,새샘마을,세종시",
+    "url": "https://cafe.naver.com/ikeaover",
+    "region": "세종"
+  },
+  {
+    "id": "hogammam",
+    "name": "호감맘: 호감가는 일상, 하남 감일맘카페",
+    "url": "https://cafe.naver.com/hogammam",
+    "region": "하남 감일"
+  },
+  {
+    "id": "do2ya",
+    "name": "위례에서 공부하기 - 위례 No.1 교육정보 커뮤니티 , 위례맘카페",
+    "url": "https://cafe.naver.com/do2ya",
+    "region": "위례"
+  },
+  {
+    "id": "moms1004",
+    "name": "검단맘검단신도시맘/검암맘/인천맘/너나들이",
+    "url": "https://cafe.naver.com/moms1004",
+    "region": "인천 검단"
+  },
+  {
+    "id": "mokammamheart",
+    "name": "♥목감맘스맘♥-목감맘 1등 카페,지역정보,이벤트,최다육아정보",
+    "url": "https://cafe.naver.com/mokammamheart",
+    "region": "목감"
+  },
+  {
+    "id": "gcmomcafe",
+    "name": "과천맘 지정타맘 카페 - 과천 맘들의 정보 공유 카페",
+    "url": "https://cafe.naver.com/gcmomcafe",
+    "region": "과천"
+  },
+  {
+    "id": "ksmoms",
+    "name": "경산맘들 모여라 │ 네이버 지역 대표 맘카페",
+    "url": "https://cafe.naver.com/ksmoms",
+    "region": "경산"
+  },
+  {
+    "id": "shsrhd",
+    "name": "달성맘카페",
+    "url": "https://cafe.naver.com/shsrhd",
+    "region": "달성"
+  },
+  {
+    "id": "dohwamam",
+    "name": "도화주안맘 카페: 인천미추홀구 맘&파파 육아/나눔/생활정보 동네카페",
+    "url": "https://cafe.naver.com/dohwamam",
+    "region": "인천 미추홀"
+  },
+  {
+    "id": "younggyun",
+    "name": "고덕맘스토리 ♥ 평택 고덕신도시맘 지제맘 카페-평택맘 송탄맘",
+    "url": "https://cafe.naver.com/younggyun",
+    "region": "평택 고덕"
+  },
+  {
+    "id": "sejonglovelymom",
+    "name": "세종맘카페 러블리맘,세종4생맘,새나루마을,수루배마을,집현동",
+    "url": "https://cafe.naver.com/sejonglovelymom",
+    "region": "세종"
+  },
+  {
+    "id": "hwaapo",
+    "name": "비슬빵빵 - 달성군,화원,옥포,비슬로 대표 소통 커뮤니티,맘카페",
+    "url": "https://cafe.naver.com/hwaapo",
+    "region": "달성"
+  },
+  {
+    "id": "townmoim",
+    "name": "☆★구로금천광명맘 모여라★☆ (구로구,금천구,광명시 맘카페) 동네카페",
+    "url": "https://cafe.naver.com/townmoim",
+    "region": "구로 금천 광명"
+  },
+  {
+    "id": "momspanggju",
+    "name": "광주맘 - 광주맘카페 맘스팡",
+    "url": "https://cafe.naver.com/momspanggju",
+    "region": "광주"
+  },
+  {
+    "id": "cafeadvertisement",
+    "name": "부산남구맘♥부산남구 엄마들의 행복 맘카페",
+    "url": "https://cafe.naver.com/cafeadvertisement",
+    "region": "부산 남구"
+  },
+  {
+    "id": "hnmommy",
+    "name": "향남맘카페_네이버 대표 향남맘 카페(향남1,향남2지구,향남엄마)",
+    "url": "https://cafe.naver.com/hnmommy",
+    "region": "향남"
+  },
+  {
+    "id": "worldcupmoms",
+    "name": "DMC 상암맘 카페",
+    "url": "https://cafe.naver.com/worldcupmoms",
+    "region": "상암"
+  },
+  {
+    "id": "ecometro111",
+    "name": "너나들이 인천 논현맘 (인천 논현동 맘카페)",
+    "url": "https://cafe.naver.com/ecometro111",
+    "region": "인천 논현"
+  },
+  {
+    "id": "namakmom2",
+    "name": "남악맘 오룡맘들의 행복 맘카페 <무안 대표 맘카페>",
+    "url": "https://cafe.naver.com/namakmom2",
+    "region": "무안"
+  },
+  {
+    "id": "ouryongsangu",
+    "name": "용산맘을 부탁해(용산맘카페)",
+    "url": "https://cafe.naver.com/ouryongsangu",
+    "region": "용산"
+  },
+  {
+    "id": "hongjemoms",
+    "name": "홍제녹번맘카페(3호선맘)",
+    "url": "https://cafe.naver.com/hongjemoms",
+    "region": "홍제 녹번"
+  },
+  {
+    "id": "lovable1",
+    "name": "다맘 ♥ 다산신도시 다산맘 카페-남양주맘 왕숙맘 구리맘 갈매맘",
+    "url": "https://cafe.naver.com/lovable1",
+    "region": "다산"
+  },
+  {
+    "id": "06rkddkwl",
+    "name": "경기광주맘카페 광주맘들의 행복만들기(친목+정보+프리마켓)",
+    "url": "https://cafe.naver.com/06rkddkwl",
+    "region": "경기 광주"
+  },
+  {
+    "id": "sejong6zonemom",
+    "name": "[아육맘] 세종맘카페. 세종시6생맘. 해밀마을.산울마을.산울동",
+    "url": "https://cafe.naver.com/sejong6zonemom",
+    "region": "세종"
+  },
+  {
+    "id": "ptcla",
+    "name": "평택 고덕맘. 고덕신도시맘 카페 [고덕맘띠아모]",
+    "url": "https://cafe.naver.com/ptcla",
+    "region": "평택 고덕"
+  },
+  {
+    "id": "fo2b",
+    "name": "안평맘 ♥ 평택 안성 1위 맘카페-평택맘 안성맘 고덕맘 오산맘",
+    "url": "https://cafe.naver.com/fo2b",
+    "region": "평택 안성"
+  },
+  {
+    "id": "junsea",
+    "name": "경기광주 태전 고산지구 맘카페",
+    "url": "https://cafe.naver.com/junsea",
+    "region": "경기 광주"
+  },
+  {
+    "id": "kmslegend",
+    "name": "가재울·DMC·상암동·수색증산 가디언스 맘카페 동네카페",
+    "url": "https://cafe.naver.com/kmslegend",
+    "region": "가재울 DMC"
+  },
+  {
+    "id": "allgirl",
+    "name": "맘스홀릭 안양군포의왕 ♥ 안양맘 군포맘 의왕맘 과천맘 카페",
+    "url": "https://cafe.naver.com/allgirl",
+    "region": "안양 군포 의왕"
+  },
+  {
+    "id": "dohwamama",
+    "name": "미추홀구대표맘카페 미마 (도화/주안/용현/학익/관교/숭의/문학)",
+    "url": "https://cafe.naver.com/dohwamama",
+    "region": "인천 미추홀"
+  },
+  {
+    "id": "gray2lbka",
+    "name": "김해중심 주촌 러블리맘블리 맘카페",
+    "url": "https://cafe.naver.com/gray2lbka",
+    "region": "김해"
+  },
+  {
+    "id": "busanmiz",
+    "name": "명지에코맘 ♥ 명지맘,에코맘카페-국제신도시,오션,에코델타시티",
+    "url": "https://cafe.naver.com/busanmiz",
+    "region": "명지"
+  },
+  {
+    "id": "realseason1",
+    "name": "양주맘스홀릭 (양주맘카페,옥정동,회천동,덕정,고읍,삼숭,덕계)",
+    "url": "https://cafe.naver.com/realseason1",
+    "region": "양주"
+  },
+  {
+    "id": "aldisgo123d",
+    "name": "강노봉 - 강북맘 노원맘 도봉맘 성북맘 벼룩시장 맛집 육아카페",
+    "url": "https://cafe.naver.com/aldisgo123d",
+    "region": "강북 노원"
+  },
+  {
+    "id": "sejong4zone",
+    "name": "세사맘,세종맘카페,세종4생맘,새나루마을,수루배마을,집현동",
+    "url": "https://cafe.naver.com/sejong4zone",
+    "region": "세종"
+  },
+  {
+    "id": "cheongnastudy",
+    "name": "[청라맹모]청라맘카페/청라교육정보/인천/서구/학원/학교/공부",
+    "url": "https://cafe.naver.com/cheongnastudy",
+    "region": "인천 청라"
+  },
+  {
+    "id": "homejuyoen",
+    "name": "부천맘 범박소사옥길역곡맘 카페 동네카페",
+    "url": "https://cafe.naver.com/homejuyoen",
+    "region": "부천"
+  },
+  {
+    "id": "geahwa73",
+    "name": "안양군포의왕과천맘(안양맘 군포맘 의왕맘 수원맘산본 톡 지정타",
+    "url": "https://cafe.naver.com/geahwa73",
+    "region": "안양 군포 의왕"
+  },
+  {
+    "id": "dedfed",
+    "name": "경기광주맘 스토리-광주맘카페 교육 육아 맛집 플리마켓",
+    "url": "https://cafe.naver.com/dedfed",
+    "region": "경기 광주"
+  },
+  {
+    "id": "allinmom",
+    "name": "대구북구맘-연경맘,도남맘,칠곡맘,연경지구,대구맘 1st 대표카페",
+    "url": "https://cafe.naver.com/allinmom",
+    "region": "대구 북구"
+  },
+  {
+    "id": "2zoneoflife",
+    "name": "세종맘카페 맘스렐라,세종시,세종1생맘,세종2생맘,새롬동,아름동",
+    "url": "https://cafe.naver.com/2zoneoflife",
+    "region": "세종"
+  },
+  {
+    "id": "leo01",
+    "name": "고덕맘 수다방 (임신,출산,육아, 평택 고덕맘카페 -고덕신도시)",
+    "url": "https://cafe.naver.com/leo01",
+    "region": "평택 고덕"
+  },
+  {
+    "id": "loveofbundang",
+    "name": "이천맘모여라(3만명카페 이천맘카페 병원 학원 여주맘경기광주맘",
+    "url": "https://cafe.naver.com/loveofbundang",
+    "region": "이천"
+  },
+  {
+    "id": "myungjicafe",
+    "name": "명지2단계 명지아파트 명지맛집 강서맘 명지카페 | 강서이야기",
+    "url": "https://cafe.naver.com/myungjicafe",
+    "region": "명지"
+  },
+  {
+    "id": "geomdanmoms",
+    "name": "[검신맘] 검단신도시맘카페 사랑나눔뜰 아라신도시 아라동",
+    "url": "https://cafe.naver.com/geomdanmoms",
+    "region": "인천 검단"
+  },
+  {
+    "id": "sjedu1",
+    "name": "[세종교육]세종맘카페,세종맘,아빠들의 자녀교육/입시,세종맹모",
+    "url": "https://cafe.naver.com/sjedu1",
+    "region": "세종"
+  },
+  {
+    "id": "gumibabyparty",
+    "name": "::구미맘맘맘::구미맘,구미,구미맘카페",
+    "url": "https://cafe.naver.com/gumibabyparty",
+    "region": "구미"
+  },
+  {
+    "id": "min123823700",
+    "name": "대전어울림맘카페",
+    "url": "https://cafe.naver.com/min123823700",
+    "region": "대전"
+  },
+  {
+    "id": "hanamnmisa",
+    "name": "하강맘: 하남 미사 감일 교산 위례 강동 맘카페♡ 하남시 강동구",
+    "url": "https://cafe.naver.com/hanamnmisa",
+    "region": "하남"
+  },
+  {
+    "id": "q5q5q5",
+    "name": "강양맘♥강서맘 양천맘카페-목동맘 마곡맘 강서구 김포맘 부천맘",
+    "url": "https://cafe.naver.com/q5q5q5",
+    "region": "강서 양천"
+  },
+  {
+    "id": "daegumam2003",
+    "name": "대구맘 - SINCE 2003 네이버 카페",
+    "url": "https://cafe.naver.com/daegumam2003",
+    "region": "대구"
+  },
+  {
+    "id": "mktsesang",
+    "name": "강남3구맘♥강남맘 서초맘 송파맘 맘카페-서울맘 강남구 서초구",
+    "url": "https://cafe.naver.com/mktsesang",
+    "region": "강남 서초 송파"
+  },
+  {
+    "id": "zzandol",
+    "name": "송파맘♡강동맘 모임-강동구 송파구 잠실맘 위례맘 육아 맘카",
+    "url": "https://cafe.naver.com/zzandol",
+    "region": "송파 강동"
+  },
+  {
+    "id": "baby8",
+    "name": "인천맘톡 (인천맘 소중한인연)",
+    "url": "https://cafe.naver.com/baby8",
+    "region": "인천"
+  },
+  {
+    "id": "joshuasky",
+    "name": "부산맘카페-진구/동구/남구/북구/연제구/사상구/해운대구/강서구",
+    "url": "https://cafe.naver.com/joshuasky",
+    "region": "부산"
+  },
+  {
+    "id": "gyeongbuk007",
+    "name": "아이러브맘 (구미맘,김천맘,육아,취미,정보공유카페)",
+    "url": "https://cafe.naver.com/gyeongbuk007",
+    "region": "구미 김천"
+  },
+  {
+    "id": "everyhomework",
+    "name": "송강맘 ♥ 송파맘 강동맘 맘카페 - 송파구 강동구 잠실맘 위례맘",
+    "url": "https://cafe.naver.com/everyhomework",
+    "region": "송파 강동"
+  },
+  {
+    "id": "clanhing",
+    "name": "러블리양산맘카페(사송엄빠맘)",
+    "url": "https://cafe.naver.com/clanhing",
+    "region": "양산"
+  },
+  {
+    "id": "aibahailie",
+    "name": "교산시도시 대표맘카페 교산맘라이프",
+    "url": "https://cafe.naver.com/aibahailie",
+    "region": "교산"
+  },
+  {
+    "id": "androinfo",
+    "name": "부천맘 모여라♥오정맘 원미맘 소사맘 중동맘 상동맘 인천맘카페",
+    "url": "https://cafe.naver.com/androinfo",
+    "region": "부천"
+  },
+  {
+    "id": "supermother",
+    "name": "부천맘 'S 부천지역 대표맘카페",
+    "url": "https://cafe.naver.com/supermother",
+    "region": "부천"
+  },
+  {
+    "id": "dadada1313",
+    "name": "관동맘 ♥ 관악맘 동작맘 맘카페 - 관악구 동작구 사당맘 금천맘",
+    "url": "https://cafe.naver.com/dadada1313",
+    "region": "관악 동작"
+  },
+  {
+    "id": "twdestiny",
+    "name": "덕양맘 모여라♥덕양구 카페 고양맘 지축 화정 행신 삼송 일산맘",
+    "url": "https://cafe.naver.com/twdestiny",
+    "region": "고양"
+  },
+  {
+    "id": "cinemaple",
+    "name": "송도맘 모여라 ♥ 인천 송도신도시 맘카페 (인천맘 연수구맘)",
+    "url": "https://cafe.naver.com/cinemaple",
+    "region": "인천 송도"
+  },
+  {
+    "id": "najumomtalk",
+    "name": "나주맘카페 나주맘톡 - 나주 빛가람 혁신도시 대표 맘카페",
+    "url": "https://cafe.naver.com/najumomtalk",
+    "region": "나주"
+  },
+  {
+    "id": "seocheonmom",
+    "name": "샤인기흥맘 - No.1 기흥맘 대표카페 ( 용인맘 동백 흥덕 서천 ) 동네카페",
+    "url": "https://cafe.naver.com/seocheonmom",
+    "region": "용인 기흥"
+  },
+  {
+    "id": "dntkdemf",
+    "name": "구영금♥구로맘 영등포맘 금천맘 맘카페-신도림맘 당산맘 여의도",
+    "url": "https://cafe.naver.com/dntkdemf",
+    "region": "구로 영등포"
+  },
+  {
+    "id": "mssurface",
+    "name": "화양맘앤대디♥평택 화양지구 화양맘카페-안중맘 현덕맘 포승맘",
+    "url": "https://cafe.naver.com/mssurface",
+    "region": "평택 화양"
+  },
+  {
+    "id": "androidap",
+    "name": "양주신도시 옥정맘카페 ♥ 옥정신도시 회천신도시 모여라",
+    "url": "https://cafe.naver.com/androidap",
+    "region": "양주"
+  },
+  {
+    "id": "junkart",
+    "name": "용광맘(용인맘 광교맘 수지맘 분당맘 수원맘 판교맘 광주 동탄맘",
+    "url": "https://cafe.naver.com/junkart",
+    "region": "용인"
+  },
+  {
+    "id": "motiontree",
+    "name": "강남맘 서초맘 모여라♥강남구 서초구 엄마들의 모임.서울맘카페 동네카페",
+    "url": "https://cafe.naver.com/motiontree",
+    "region": "강남 서초"
+  },
+  {
+    "id": "cryingbebe",
+    "name": "크라잉베베: 크베맘 카페[임신,출산,육아, 핫딜 정보]",
+    "url": "https://cafe.naver.com/cryingbebe",
+    "region": "전국"
+  },
+  {
+    "id": "ilovejgmom",
+    "name": "부산진구맘카페-부산 진구맘카페 ■아이러브 부산진구맘■부산맘",
+    "url": "https://cafe.naver.com/ilovejgmom",
+    "region": "부산 진구"
+  },
+  {
+    "id": "happylove01",
+    "name": "대전 서구맘 카페 - 둔산 만년 월평 갈마 탄방 용문 괴정 도마",
+    "url": "https://cafe.naver.com/happylove01",
+    "region": "대전 서구"
+  },
+  {
+    "id": "rumorxfile",
+    "name": "안군의♥안양맘 군포맘 의왕맘 육아 맘카페-평촌맘 범계맘안양시",
+    "url": "https://cafe.naver.com/rumorxfile",
+    "region": "안양 군포 의왕"
+  },
+  {
+    "id": "sjkdhj467",
+    "name": "노도강 ♥ 노원맘 도봉맘 강북맘 성북맘 육아 맘카페 - 의정부맘",
+    "url": "https://cafe.naver.com/sjkdhj467",
+    "region": "노원 도봉"
+  },
+  {
+    "id": "koreakmc",
+    "name": "송파♡강동맘 톡 - 송파맘카페, 강동맘카페, 잠실맘, 위례맘",
+    "url": "https://cafe.naver.com/koreakmc",
+    "region": "송파 강동"
+  },
+  {
+    "id": "alswltkfkd77",
+    "name": "광주맘카페광주맘스홀릭(광수방/광주맘수다방/맘스팡/광주맘)",
+    "url": "https://cafe.naver.com/alswltkfkd77",
+    "region": "광주"
+  },
+  {
+    "id": "nhdmiddleschool",
+    "name": "울산맘 - 맘앤파파 보물섬 , 울산맘카페,임신출산육아 맘카페",
+    "url": "https://cafe.naver.com/nhdmiddleschool",
+    "region": "울산"
+  },
+  {
+    "id": "dochiya",
+    "name": "성광중♥성동맘 광진맘 중랑맘카페-성동구 광진구 중랑구 동대문",
+    "url": "https://cafe.naver.com/dochiya",
+    "region": "성동 광진"
+  },
+  {
+    "id": "skydevelopers",
+    "name": "은마서♥은평맘 마포맘 서대문맘 맘카페-은평구 마포구 서대문구",
+    "url": "https://cafe.naver.com/skydevelopers",
+    "region": "은평 마포"
+  },
+  {
+    "id": "agameworld",
+    "name": "응답하라아지매 (강북맘 노원맘 도봉맘 성북맘 육아카페)",
+    "url": "https://cafe.naver.com/agameworld",
+    "region": "강북 노원"
+  },
+  {
+    "id": "haptic15",
+    "name": "THE 강남맘 ♥ 강남구 맘카페-도곡 대치 역삼 개포 논현 더 강남",
+    "url": "https://cafe.naver.com/haptic15",
+    "region": "강남"
+  },
+  {
+    "id": "2daumnet",
+    "name": "강서 양천맘 모여라(강서맘 양천맘 김포맘 마곡맘 목동맘 카페)",
+    "url": "https://cafe.naver.com/2daumnet",
+    "region": "강서 양천"
+  },
+  {
+    "id": "ilovesasangmom",
+    "name": "사상구맘카페-사상맘카페 ■아이러브 사상구맘■사하구맘 사하맘",
+    "url": "https://cafe.naver.com/ilovesasangmom",
+    "region": "부산 사상"
+  },
+  {
+    "id": "sghi900user",
+    "name": "분당 판교 위례맘 카페(분당맘 판교맘 성남 육아 교육 중고거래) 동네카페",
+    "url": "https://cafe.naver.com/sghi900user",
+    "region": "분당 판교"
+  },
+  {
+    "id": "applelog",
+    "name": "서울 노원맘 대표카페 노원구 맘카페 지역정보 공유&육아&교육",
+    "url": "https://cafe.naver.com/applelog",
+    "region": "노원"
+  },
+  {
+    "id": "chtour",
+    "name": "종용중 ♥ 종로맘 용산맘 중구맘카페-서울맘 종로구 용산구 중구",
+    "url": "https://cafe.naver.com/chtour",
+    "region": "종로 용산"
+  },
+  {
+    "id": "ipadyumyum",
+    "name": "광주맘처럼 (광주맘카페 광주맘부부-광주,전남,전북)",
+    "url": "https://cafe.naver.com/ipadyumyum",
+    "region": "광주"
+  },
+  {
+    "id": "mamworld",
+    "name": "맘들이힐링하는공간 (중랑맘 동대문맘 성동맘 광진맘 육아카페)",
+    "url": "https://cafe.naver.com/mamworld",
+    "region": "중랑 동대문"
+  },
+  {
+    "id": "ailovely",
+    "name": "창원맘처럼 (창원 맘카페-육아 교육 맛집 생활정보 커뮤니티)",
+    "url": "https://cafe.naver.com/ailovely",
+    "region": "창원"
+  },
+  {
+    "id": "languagestudyabroad",
+    "name": "경주맘스토리 / 경주지역 대표 맘카페",
+    "url": "https://cafe.naver.com/languagestudyabroad",
+    "region": "경주"
+  },
+  {
+    "id": "dongraemom",
+    "name": "동래구맘카페 ■아이러브동래구맘■금정구맘카페 금동맘연제구맘",
+    "url": "https://cafe.naver.com/dongraemom",
+    "region": "부산 동래"
+  },
+  {
+    "id": "datepick",
+    "name": "인천부평맘 모여라 (인천 부평맘 카페)",
+    "url": "https://cafe.naver.com/datepick",
+    "region": "인천 부평"
+  },
+  {
+    "id": "pusertre",
+    "name": "계양맘캐슬(16만명카페 계양테크노밸리 계양신도시 인천맘귤현동",
+    "url": "https://cafe.naver.com/pusertre",
+    "region": "인천 계양"
+  },
+  {
+    "id": "yerimj000817",
+    "name": "천안,아산ㅣ아리맘ㅣ이벤트/체험단/육아/맘카페",
+    "url": "https://cafe.naver.com/yerimj000817",
+    "region": "천안 아산"
+  },
+  {
+    "id": "pusanmommy",
+    "name": "부산맘 카페 - 부산 맘카페 결혼 웨딩 프리마켓 스튜디오 박람회",
+    "url": "https://cafe.naver.com/pusanmommy",
+    "region": "부산"
+  },
+  {
+    "id": "baby090",
+    "name": "남구중◆남양주맘 구리맘 중랑구 육아맘카페 갈매 별내 아기공구",
+    "url": "https://cafe.naver.com/baby090",
+    "region": "남양주 구리"
+  },
+  {
+    "id": "newmusicbox",
+    "name": "성광중 카페 - 성동맘 광진맘 중랑맘 육아 교육 벼룩시장 맘카페",
+    "url": "https://cafe.naver.com/newmusicbox",
+    "region": "성동 광진"
+  },
+  {
+    "id": "sojbb2233",
+    "name": "송강서 맘카페 - 송파맘 강남맘 서초맘 육아 교육 벼룩시장 맛집",
+    "url": "https://cafe.naver.com/sojbb2233",
+    "region": "송파 강남"
+  },
+  {
+    "id": "phoneinside",
+    "name": "성종동♡성북맘 종로맘 동대문맘 육아 교육 벼룩시장 중고 카페",
+    "url": "https://cafe.naver.com/phoneinside",
+    "region": "성북 종로"
+  },
+  {
+    "id": "eulkwan",
+    "name": "동탄맘[동탄맘들모여라,동탄맘카페 체험단,동투맘,동탄2신도시]",
+    "url": "https://cafe.naver.com/eulkwan",
+    "region": "동탄"
+  },
+  {
+    "id": "09naraya",
+    "name": "부천맘톡 (부천맘카페,부천플리마켓,부천정보,임신,출산,육아)",
+    "url": "https://cafe.naver.com/09naraya",
+    "region": "부천"
+  },
+  {
+    "id": "nanuginara",
+    "name": "마용맘♡마포맘 용산맘 마포구 용산구 벼룩시장 교육 육아 카페",
+    "url": "https://cafe.naver.com/nanuginara",
+    "region": "마포 용산"
+  },
+  {
+    "id": "drama79com",
+    "name": "제주맘 카페",
+    "url": "https://cafe.naver.com/drama79com",
+    "region": "제주"
+  },
+  {
+    "id": "dgmhdb",
+    "name": "대구맘카페 대구맘-달서구맘 수성구맘 구미맘 경산맘 카페맘카페",
+    "url": "https://cafe.naver.com/dgmhdb",
+    "region": "대구"
+  },
+  {
+    "id": "hsite",
+    "name": "하남맘 모여라♥하남시 맘카페-감일맘 미사맘 위례맘 덕풍 교산",
+    "url": "https://cafe.naver.com/hsite",
+    "region": "하남"
+  },
+  {
+    "id": "jaekyung0219",
+    "name": "울산맘스홀릭 - 울산맘/울산맘카페/울산맛집",
+    "url": "https://cafe.naver.com/jaekyung0219",
+    "region": "울산"
+  },
+  {
+    "id": "kfromancer",
+    "name": "하남맘카페 미사맘카페 모담모담 : 하남미사를 모두담다",
+    "url": "https://cafe.naver.com/kfromancer",
+    "region": "하남"
+  },
+  {
+    "id": "autodot3",
+    "name": "★운정교하맘 - 파주,운정,교하 신도시 No.1 맘카페(맛집, 육아)",
+    "url": "https://cafe.naver.com/autodot3",
+    "region": "파주 운정"
+  },
+  {
+    "id": "mp3musicbox",
+    "name": "[하남맘] - 지역카페♥하남,미사,위례,교산,감일 엄마들의 모임",
+    "url": "https://cafe.naver.com/mp3musicbox",
+    "region": "하남"
+  },
+  {
+    "id": "gta3a",
+    "name": "다산맘스♥다산신도시 대표no1 다산맘카페(다산,지금,도농,가운) 동네카페",
+    "url": "https://cafe.naver.com/gta3a",
+    "region": "다산"
+  },
+  {
+    "id": "bopingonline1",
+    "name": "전주야놀자 (전주모임,맛집,카페,동호회,캠핑,낚시,등산,부동산) 동네카페",
+    "url": "https://cafe.naver.com/bopingonline1",
+    "region": "전주"
+  },
+  {
+    "id": "dnfnf",
+    "name": "여주맘[여주맘카페] 꼬리잡기,이벤트,홀리장터,부동산,분양,정보",
+    "url": "https://cafe.naver.com/dnfnf",
+    "region": "여주"
+  },
+  {
+    "id": "mnp2022",
+    "name": "엄빠라면 - 수원/안양/의왕/군포 맘 파파 육아카페",
+    "url": "https://cafe.naver.com/mnp2022",
+    "region": "수원 안양"
+  },
+  {
+    "id": "nexus01",
+    "name": "수원맘스토리♥영통 권선 장안 팔달 광교맘카페-동탄 오산 화성",
+    "url": "https://cafe.naver.com/nexus01",
+    "region": "수원"
+  },
+  {
+    "id": "kakaogamehappy",
+    "name": "은일파♥은평맘 일산맘 파주맘 육아맘카페-고양맘 고양시 은평구",
+    "url": "https://cafe.naver.com/kakaogamehappy",
+    "region": "은평 일산"
+  },
+  {
+    "id": "agi0909",
+    "name": "까꿍맘(용인맘 기흥맘 수지맘 처인맘 광교맘 육아 교육 맘카페)",
+    "url": "https://cafe.naver.com/agi0909",
+    "region": "용인"
+  },
+  {
+    "id": "starkart",
+    "name": "서울맘스러브 ♥ 육아카페 서울맘 대표카페, 정보교류 및 수다방",
+    "url": "https://cafe.naver.com/starkart",
+    "region": "서울"
+  },
+  {
+    "id": "imu310",
+    "name": "구동관♡동작맘 관악맘 구로맘 육아 교육 중고 벼룩시장 맘카페",
+    "url": "https://cafe.naver.com/imu310",
+    "region": "동작 관악"
+  },
+  {
+    "id": "nihongokkureomi",
+    "name": "동성종◆동대문맘 성북맘 종로맘 육아맘카페 교육 벼룩시장 중고",
+    "url": "https://cafe.naver.com/nihongokkureomi",
+    "region": "동대문 성북"
+  },
+  {
+    "id": "nojungmin",
+    "name": "검단신도시맘카페",
+    "url": "https://cafe.naver.com/nojungmin",
+    "region": "인천 검단"
+  },
+  {
+    "id": "movimamcafe",
+    "name": "모비맘 맘카페",
+    "url": "https://cafe.naver.com/movimamcafe",
+    "region": "전국"
+  },
+  {
+    "id": "ideamall",
+    "name": "광명구로금천양천[서울남서부맘카페]♡구로금천광명양천맘톡",
+    "url": "https://cafe.naver.com/ideamall",
+    "region": "광명 구로"
+  },
+  {
+    "id": "janganmomcafe",
+    "name": "♥장안맘카페♥ 화성시 장안면 지역 네이버 대표 맘카페",
+    "url": "https://cafe.naver.com/janganmomcafe",
+    "region": "화성 장안"
+  },
+  {
+    "id": "ilovesnmom",
+    "name": "수영구맘카페-부산남구맘카페■아이러브 수영남구맘■부산맘카페",
+    "url": "https://cafe.naver.com/ilovesnmom",
+    "region": "부산 수영"
+  },
+  {
+    "id": "ilovegm1",
+    "name": "나눔카페 [구]광명맘&대디 -광명시,광명동,철산동,소하동,하안동",
+    "url": "https://cafe.naver.com/ilovegm1",
+    "region": "광명"
+  },
+  {
+    "id": "kwasamo",
+    "name": "음성맘스(충북음성진천충북혁신맘카페)",
+    "url": "https://cafe.naver.com/kwasamo",
+    "region": "음성"
+  },
+  {
+    "id": "bangseomam",
+    "name": "청주 동남지구, 방서지구 맘카페",
+    "url": "https://cafe.naver.com/bangseomam",
+    "region": "청주"
+  },
+  {
+    "id": "jisastory",
+    "name": "지사동이야기 [지사동 대표카페] 지사동맘파파 동네카페",
+    "url": "https://cafe.naver.com/jisastory",
+    "region": "지사동"
+  },
+  {
+    "id": "sdfsfdsdf1",
+    "name": "부천맘 요술램프 <부천맘카페 /부천벼룩시장 /부천플리마켓>",
+    "url": "https://cafe.naver.com/sdfsfdsdf1",
+    "region": "부천"
+  },
+  {
+    "id": "50222",
+    "name": "도봉구맘들의 이야기 [상업성0% 도봉구 유일 순.수.지역맘 카페]",
+    "url": "https://cafe.naver.com/50222",
+    "region": "도봉"
+  },
+  {
+    "id": "babylovecafe",
+    "name": "베이비러브 양주시대표카페 양주맘카페 옥정신도시카페 동네카페",
+    "url": "https://cafe.naver.com/babylovecafe",
+    "region": "양주"
+  },
+  {
+    "id": "qkekgksmfkim",
+    "name": "<속초대표맘카페>속대맘카페",
+    "url": "https://cafe.naver.com/qkekgksmfkim",
+    "region": "속초"
+  },
+  {
+    "id": "ddcmom21",
+    "name": "동두천알뜰맘카페-동두천맘 중고,벼룩,공구,직거래장터",
+    "url": "https://cafe.naver.com/ddcmom21",
+    "region": "동두천"
+  },
+  {
+    "id": "orangedcdht",
+    "name": "별내사람 (별내맘,남양주,별내카페,별내동)",
+    "url": "https://cafe.naver.com/orangedcdht",
+    "region": "별내"
+  },
+  {
+    "id": "focsa",
+    "name": "화성맘♥경기도 화성시 육아 맘카페♥동탄 신도시",
+    "url": "https://cafe.naver.com/focsa",
+    "region": "화성"
+  },
+  {
+    "id": "cjmomsclass",
+    "name": "♥방서동남맘♥ 청주 방서지구 동남지구 맘카페",
+    "url": "https://cafe.naver.com/cjmomsclass",
+    "region": "청주"
+  },
+  {
+    "id": "happymomscg",
+    "name": "칠곡맘들의휴식처(네이버대표카페)",
+    "url": "https://cafe.naver.com/happymomscg",
+    "region": "칠곡"
+  },
+  {
+    "id": "onzam",
+    "name": "김검맘카페(김포, 검단맘)",
+    "url": "https://cafe.naver.com/onzam",
+    "region": "김포 검단"
+  },
+  {
+    "id": "ssnewcitymom",
+    "name": "사송맘(양산사송맘카페)",
+    "url": "https://cafe.naver.com/ssnewcitymom",
+    "region": "양산"
+  },
+  {
+    "id": "gimpoyeosa",
+    "name": "김 여 사 - 김포 여인들의 사랑방 (김포맘카페, 김포맛집정보)",
+    "url": "https://cafe.naver.com/gimpoyeosa",
+    "region": "김포"
+  },
+  {
+    "id": "momsdabang",
+    "name": "수원맘쓰다방 [수원맘카페 장안&권선&팔달&영통 맘들의 놀이터]",
+    "url": "https://cafe.naver.com/momsdabang",
+    "region": "수원"
+  },
+  {
+    "id": "yuseongmom",
+    "name": "대전죽동맘카페",
+    "url": "https://cafe.naver.com/yuseongmom",
+    "region": "대전"
+  },
+  {
+    "id": "dnjscl",
+    "name": "맘스1번지 - 결혼 임신 출산 육아 교육 핫딜 공구 맛집 맘카페",
+    "url": "https://cafe.naver.com/dnjscl",
+    "region": "전국"
+  },
+  {
+    "id": "ulsan333",
+    "name": "♡울산동구맘♡-울산맘카페/울산동구맘/울산동구맛집/울산동구",
+    "url": "https://cafe.naver.com/ulsan333",
+    "region": "울산 동구"
+  },
+  {
+    "id": "naegokmom",
+    "name": "[내곡맘 카페] 따뜻한 내곡맘들과 함께 만들어요",
+    "url": "https://cafe.naver.com/naegokmom",
+    "region": "내곡"
+  },
+  {
+    "id": "hnmom",
+    "name": "♡향남 맘스홀릭♡ 향남 맘 네이버 대표카페 (향남 & 향남 주변)",
+    "url": "https://cafe.naver.com/hnmom",
+    "region": "향남"
+  },
+  {
+    "id": "fmms02",
+    "name": "충북혁신맘 모여라~!(충북혁신도시맘 대표카페)",
+    "url": "https://cafe.naver.com/fmms02",
+    "region": "충북"
+  },
+  {
+    "id": "neunggoknews",
+    "name": "장현맘카페❤사랑방 (시흥맘 장현 장곡 능곡 연성 하중 하상맘)",
+    "url": "https://cafe.naver.com/neunggoknews",
+    "region": "시흥"
+  },
+  {
+    "id": "imsanbu",
+    "name": "맘스홀릭베이비",
+    "url": "https://cafe.naver.com/imsanbu",
+    "region": "전국"
+  },
+  {
+    "id": "remonterrace",
+    "name": "레몬테라스",
+    "url": "https://cafe.naver.com/remonterrace",
+    "region": "전국"
+  }
+]

@@ -6,6 +6,7 @@ import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
 import { Search, MessageSquare, ExternalLink, RefreshCw, Loader2, CheckCircle2, Trash2, Calendar, X } from "lucide-react"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
+import { getShowById } from "@/lib/constants/shows"
 
 interface ViralPost {
   id: string
@@ -31,6 +32,7 @@ interface CrawlProgress {
   message: string
   startedAt?: string
   completedAt?: string
+  logs?: Array<{ timestamp: string; message: string }>
 }
 
 export function CommunityViralManage() {
@@ -44,11 +46,19 @@ export function CommunityViralManage() {
   // 데이터 로드
   const loadPosts = async () => {
     try {
-      const res = await fetch("/api/admin/marketer/community/crawl")
+      console.log("[CommunityViral] 게시글 목록 로딩 시작...")
+      // 캐시 방지를 위해 timestamp 추가
+      const timestamp = Date.now()
+      const res = await fetch(`/api/admin/marketer/community/crawl?_t=${timestamp}`, {
+        cache: 'no-store'
+      })
       const data = await res.json()
-      if (data.success) setPosts(data.posts)
+      console.log("[CommunityViral] 로드된 게시글 수:", data.posts?.length || 0)
+      if (data.success) {
+        setPosts(data.posts || [])
+      }
     } catch (error) {
-      console.error("Failed to load posts", error)
+      console.error("[CommunityViral] 게시글 로드 실패:", error)
     }
   }
 
@@ -159,15 +169,44 @@ export function CommunityViralManage() {
     if (!confirm("이 게시글을 삭제하시겠습니까?")) return
     
     try {
+      console.log("[CommunityViral] 삭제 시작 - ID:", id)
+      console.log("[CommunityViral] 현재 게시글 수:", posts.length)
+      
       const res = await fetch(`/api/admin/marketer/community/crawl?id=${id}`, {
         method: "DELETE"
       })
-      if (res.ok) {
-        setPosts(prev => prev.filter(p => p.id !== id))
-        toast({ title: "삭제 완료" })
+      
+      console.log("[CommunityViral] API 응답 상태:", res.status)
+      const data = await res.json()
+      console.log("[CommunityViral] API 응답 데이터:", data)
+      
+      if (data.success || res.status === 200) {
+        console.log("[CommunityViral] 삭제 성공, UI 업데이트 시작")
+        
+        // UI에서 즉시 제거 - 더 명확한 로직
+        const newPosts = posts.filter(p => p.id !== id)
+        console.log("[CommunityViral] 필터링 후 게시글 수:", newPosts.length)
+        setPosts(newPosts)
+        
+        toast({ title: "삭제 완료", description: "게시글이 삭제되었습니다." })
+        
+        // 확실한 새로고침을 위해 즉시 실행
+        console.log("[CommunityViral] 목록 새로고침 시작")
+        setTimeout(() => {
+          loadPosts()
+        }, 500)
+      } else {
+        throw new Error(data.error || "삭제 실패")
       }
-    } catch (error) {
-      toast({ title: "삭제 실패", variant: "destructive" })
+    } catch (error: any) {
+      console.error("[CommunityViral] 삭제 오류:", error)
+      toast({ 
+        title: "삭제 실패", 
+        description: error.message || "게시글 삭제 중 오류가 발생했습니다.",
+        variant: "destructive" 
+      })
+      // 오류가 발생해도 목록 새로고침 시도
+      loadPosts()
     }
   }
 
@@ -250,6 +289,26 @@ export function CommunityViralManage() {
                   />
                 </div>
               )}
+              
+              {/* 실시간 로그 */}
+              {progress.logs && progress.logs.length > 0 && (
+                <div className="mt-3 p-3 bg-white/90 rounded-lg border border-orange-200 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs font-bold text-gray-700 uppercase">실시간 로그</span>
+                  </div>
+                  <div className="max-h-32 overflow-y-auto space-y-1 font-mono text-xs">
+                    {progress.logs.slice(-10).map((log, idx) => (
+                      <div key={idx} className="flex gap-2 text-gray-600 hover:bg-orange-50 px-2 py-1 rounded">
+                        <span className="text-gray-400 shrink-0">
+                          {new Date(log.timestamp).toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                        </span>
+                        <span className="break-all">{log.message}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -264,12 +323,19 @@ export function CommunityViralManage() {
                 <div className="p-4 flex flex-col md:flex-row gap-4">
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge variant="outline" className="bg-gray-100 uppercase text-[10px]">
-                          {post.source}
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <Badge variant="outline" className="bg-gray-100 text-xs px-2 py-1">
+                          {post.sourceName || (post.source === 'mamacafe' ? '맘카페' :
+                            post.source === '82cook' ? '82쿡' :
+                            post.source === 'dcinside' ? '디시인사이드' : 
+                            post.source === 'fmkorea' ? '에펨코리아' :
+                            post.source === 'theqoo' ? '더쿠' :
+                            post.source === 'clien' ? '클리앙' :
+                            post.source === 'nate' ? '네이트판' :
+                            post.source)}
                         </Badge>
-                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-[10px]">
-                          {post.showId}
+                        <Badge className="bg-blue-100 text-blue-700 border-blue-200 text-xs px-2 py-1">
+                          {getShowById(post.showId)?.displayName || post.showId}
                         </Badge>
                         <span className="text-xs text-gray-400 flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
@@ -281,11 +347,12 @@ export function CommunityViralManage() {
                       </div>
                       <Button 
                         variant="ghost" 
-                        size="sm" 
+                        size="default"
                         onClick={() => handleDelete(post.id)}
-                        className="text-gray-400 hover:text-red-500 h-8 w-8 p-0"
+                        className="text-gray-400 hover:text-red-500 hover:bg-red-50 h-10 px-3"
                       >
-                        <Trash2 className="w-4 h-4" />
+                        <Trash2 className="w-5 h-5 mr-1" />
+                        삭제
                       </Button>
                     </div>
                     
@@ -312,38 +379,41 @@ export function CommunityViralManage() {
                       </p>
                       <Button 
                         variant="ghost" 
-                        size="sm" 
-                        className="mt-2 text-[10px] h-7 gap-1 text-gray-500 hover:text-orange-600"
+                        size="default"
+                        className="mt-2 h-9 px-3 gap-2 text-gray-500 hover:text-orange-600 hover:bg-orange-50"
                         onClick={() => {
                           navigator.clipboard.writeText(post.suggestedComment)
                           toast({ title: "복사 완료", description: "댓글 내용이 클립보드에 복사되었습니다." })
                         }}
                       >
-                        <MessageSquare className="w-3 h-3" />
+                        <MessageSquare className="w-4 h-4" />
                         댓글 복사하기
                       </Button>
                     </div>
                   </div>
 
-                  <div className="flex md:flex-col justify-end gap-2 shrink-0">
+                  <div className="flex md:flex-col justify-end gap-3 shrink-0">
                     <Button 
                       asChild 
                       variant="outline" 
-                      className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50"
+                      size="default"
+                      className="gap-2 border-orange-200 text-orange-700 hover:bg-orange-50 h-10 px-4"
                     >
                       <a href={post.url} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="w-4 h-4" />
                         원문 이동
                       </a>
                     </Button>
                     <Button 
                       onClick={() => handleComplete(post.id)}
                       disabled={post.status === 'completed'}
-                      className={post.status === 'completed' ? "bg-green-500" : "bg-gray-900"}
+                      size="default"
+                      className={`h-10 px-4 ${post.status === 'completed' ? "bg-green-500 hover:bg-green-600" : "bg-gray-900 hover:bg-gray-800"}`}
                     >
                       {post.status === 'completed' ? (
                         <><CheckCircle2 className="w-4 h-4 mr-2" /> 완료됨</>
                       ) : (
-                        "작성 완료 처리"
+                        <><CheckCircle2 className="w-4 h-4 mr-2" /> 작성 완료 처리</>
                       )}
                     </Button>
                   </div>

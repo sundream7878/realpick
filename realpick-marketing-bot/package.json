@@ -1,0 +1,23 @@
+{
+  "name": "realpick-marketing-bot",
+  "version": "1.0.0",
+  "description": "리얼픽 마케팅 자동화 시스템 (로컬 전용)",
+  "private": true,
+  "workspaces": [
+    "backend",
+    "dashboard"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev -w backend\" \"npm run dev -w dashboard\"",
+    "dev:backend": "npm run dev -w backend",
+    "dev:dashboard": "npm run dev -w dashboard",
+    "migrate": "npm run migrate -w backend",
+    "install:all": "npm install && npm install -w backend && npm install -w dashboard"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

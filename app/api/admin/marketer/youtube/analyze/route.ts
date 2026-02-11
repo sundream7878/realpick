@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
       const showInfo = getShowById(finalShowId);
       const finalCategory = showInfo?.category || 'LOVE';
 
-      const missionRef = adminDb.collection('ai_missions').doc();
+      const missionRef = adminDb.collection('t_marketing_ai_missions').doc();
       const missionData = {
         title: mission.title,
         description: mission.description || '',

@@ -42,7 +42,10 @@ export async function runMarketerBridge(command: string, args: Record<string, an
       });
 
       child.stderr?.on("data", (data) => {
-        stderr += data.toString('utf8');
+        const stderrText = data.toString('utf8');
+        stderr += stderrText;
+        // 실시간 stderr 출력 (Python 로그)
+        process.stderr.write(stderrText);
       });
 
       child.on("close", (code) => {
@@ -55,8 +58,9 @@ export async function runMarketerBridge(command: string, args: Record<string, an
           console.warn("[Marketer Bridge] 임시 파일 삭제 실패:", e);
         }
 
-        if (stderr) {
-          console.warn("[Marketer Bridge] stderr:", stderr);
+        // stderr는 이미 실시간으로 출력되었으므로 추가 출력 불필요
+        if (code !== 0 && stderr) {
+          console.error(`[Marketer Bridge] 프로세스 종료 코드: ${code}`);
         }
 
         // 4. 결과 파싱

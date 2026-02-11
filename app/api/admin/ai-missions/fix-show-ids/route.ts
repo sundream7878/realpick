@@ -50,8 +50,8 @@ function extractShowKeyword(title: string, channelName?: string, description?: s
 
 export async function POST(request: NextRequest) {
   try {
-    // ai_missions 컬렉션의 모든 PENDING 미션 가져오기
-    const aiMissionsRef = adminDb.collection('ai_missions')
+    // t_marketing_ai_missions 컬렉션의 모든 PENDING 미션 가져오기
+    const aiMissionsRef = adminDb.collection('t_marketing_ai_missions')
       .where('status', '==', 'PENDING');
     
     const snapshot = await aiMissionsRef.get();
@@ -124,7 +124,7 @@ export async function POST(request: NextRequest) {
     const batch = adminDb.batch();
     
     for (const update of updates) {
-      const docRef = adminDb.collection('ai_missions').doc(update.id);
+      const docRef = adminDb.collection('t_marketing_ai_missions').doc(update.id);
       batch.update(docRef, { 
         showId: update.newShowId,
         category: update.newCategory,

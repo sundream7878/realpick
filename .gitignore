@@ -49,11 +49,32 @@ scripts/marketing/data/temp/
 scripts/marketing/firebase-key.json
 scripts/marketing/*.log
 
+# Marketing Bot - 민감한 파일만 제외 (Git 커밋 O, Netlify 배포 X)
+realpick-marketing-bot/node_modules/
+realpick-marketing-bot/*/node_modules/
+realpick-marketing-bot/.env.local
+realpick-marketing-bot/*/.env.local
+realpick-marketing-bot/backend/dist/
+realpick-marketing-bot/dashboard/dist/
+realpick-marketing-bot/crawler/__pycache__/
+realpick-marketing-bot/crawler/**/__pycache__/
+realpick-marketing-bot/crawler/*.pyc
+realpick-marketing-bot/crawler/naver_cookies.pkl
+realpick-marketing-bot/crawler/.args_*.json
+
 #firebase
 firebase-*.json
 
 #supabase
 supabase-*.json
 
+
+# Video rendering temp files
+temp/
+*.mp4
+*.mov
+*.avi
+assets/fonts/*.ttf
+assets/fonts/*.otf
 
 #netlify

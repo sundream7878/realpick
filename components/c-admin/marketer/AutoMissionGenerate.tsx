@@ -25,7 +25,6 @@ const AUTO_KEYWORDS = [
 
 export function AutoMissionGenerate() {
     const [isRunning, setIsRunning] = useState(false)
-    const [isTesting, setIsTesting] = useState(false)
     const [currentKeyword, setCurrentKeyword] = useState("")
     const [progress, setProgress] = useState(0)
     const [logs, setLogs] = useState<string[]>([])
@@ -41,128 +40,65 @@ export function AutoMissionGenerate() {
         setLogs(prev => [...prev, `[${timestamp}] ${message}`])
     }
 
-    // 간단한 테스트 함수 (3개 영상, 1-2개 키워드만)
-    const handleQuickTest = async () => {
-        setIsTesting(true)
-        setLogs([])
-        setStats({ totalVideos: 0, totalMissions: 0, completedKeywords: 0 })
-        
-        addLog("🧪 빠른 테스트 시작 (나는솔로 3개 영상)")
-        
-        try {
-            const keyword = "나는솔로"
-            addLog(`📺 "${keyword}" 키워드로 3개 영상 수집 및 AI 미션 자동 생성 중...`)
-            
-            // test-collect API 사용 (크롤링 + 저장 + AI 미션 생성 한번에)
-            const response = await fetch("/api/admin/marketer/youtube/test-collect", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ keyword })
-            })
-            
-            const data = await response.json()
-            
-            if (!data.success) {
-                addLog(`❌ 실패: ${data.error}`)
-                if (data.details) {
-                    addLog(`🔍 상세 정보: ${JSON.stringify(data.details)}`)
-                }
-                toast({ 
-                    title: "테스트 실패", 
-                    description: data.error || "알 수 없는 오류", 
-                    variant: "destructive" 
-                })
-                return
-            }
-            
-            // 결과 출력
-            addLog(`✅ 영상 수집: ${data.stats.videos}개`)
-            addLog(`✅ 채널 저장: ${data.stats.channels}개`)
-            addLog(`✨ AI 미션 생성: ${data.stats.missions}개`)
-            
-            if (data.generatedMissions && data.generatedMissions.length > 0) {
-                data.generatedMissions.forEach((mission: any, idx: number) => {
-                    addLog(`📝 미션 ${idx + 1}: "${mission.title}"`)
-                    addLog(`   선택지: ${mission.options.join(', ')}`)
-                })
-            }
-            
-            if (data.collectedVideos && data.collectedVideos.length > 0) {
-                addLog(`\n📹 수집된 영상들:`)
-                data.collectedVideos.forEach((video: any, idx: number) => {
-                    addLog(`  ${idx + 1}. ${video.title.substring(0, 50)}...`)
-                    addLog(`     조회수: ${parseInt(video.viewCount).toLocaleString()}회`)
-                })
-            }
-            
-            setStats({
-                totalVideos: data.stats.videos,
-                totalMissions: data.stats.missions,
-                completedKeywords: 1
-            })
-            
-            addLog(`\n🎉 테스트 완료! 생성된 미션은 [미션 승인 관리]에서 확인하세요.`)
-            toast({ 
-                title: "테스트 성공", 
-                description: `${data.stats.videos}개 영상에서 ${data.stats.missions}개 미션 생성 완료` 
-            })
-            
-        } catch (error: any) {
-            addLog(`❌ 오류: ${error.message}`)
-            console.error("Test error:", error)
-            toast({ 
-                title: "테스트 실패", 
-                description: error.message, 
-                variant: "destructive" 
-            })
-        } finally {
-            setIsTesting(false)
-        }
-    }
-
     const handleAutoGenerate = async () => {
         setIsRunning(true)
         setLogs([])
         setProgress(0)
         setStats({ totalVideos: 0, totalMissions: 0, completedKeywords: 0 })
         
-        addLog("🚀 자동 미션 생성 시작 (나는솔로 1개 영상 분석)...")
+        addLog(`🚀 자동 미션 생성 시작 (${AUTO_KEYWORDS.length}개 프로그램 × 2개 영상)...`)
         
-        const today = new Date().toISOString().split('T')[0]
         let totalVideos = 0
         let totalMissions = 0
+        let completedCount = 0
         
         try {
-            // 테스트를 위해 나는솔로 1개 영상만 처리
-            const keyword = "나는솔로"
-            setCurrentKeyword(keyword)
-            
-            addLog(`📺 "${keyword}" 키워드 수집 중...`)
-            
-            // 1. YouTube 크롤링 (1개 영상만)
-            const crawlRes = await fetch("/api/admin/marketer/youtube/crawl", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    keywords: keyword,
-                    maxResults: 1, // 1개만 수집
-                    startDate: today,
-                    endDate: today
+            // 모든 키워드를 순회하며 각각 2개씩 크롤링
+            for (let i = 0; i < AUTO_KEYWORDS.length; i++) {
+                const keyword = AUTO_KEYWORDS[i]
+                setCurrentKeyword(keyword)
+                const keywordProgress = Math.round(((i + 1) / AUTO_KEYWORDS.length) * 100)
+                setProgress(keywordProgress)
+                
+                addLog(`📺 [${i + 1}/${AUTO_KEYWORDS.length}] "${keyword}" 키워드 수집 중... (2개 영상)`)
+                
+                // 1. YouTube 크롤링 (프로그램당 2개씩)
+                const crawlRes = await fetch("/api/admin/marketer/youtube/crawl", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        keywords: keyword,
+                        maxResults: 2, // 프로그램당 2개씩
+                    })
                 })
-            })
-            
-            const crawlData = await crawlRes.json()
-            
-            if (!crawlData.success || !crawlData.results?.channels?.[keyword]?.videos) {
-                addLog(`⚠️ "${keyword}" 수집 실패 또는 영상 없음`)
-            } else {
+                
+                const crawlData = await crawlRes.json()
+                
+                if (!crawlData.success || !crawlData.results?.channels?.[keyword]?.videos) {
+                    addLog(`⚠️ "${keyword}" 수집 실패 또는 영상 없음`)
+                    completedCount++
+                    setStats({
+                        totalVideos,
+                        totalMissions,
+                        completedKeywords: completedCount
+                    })
+                    continue
+                }
+                
                 const videos = crawlData.results.channels[keyword].videos
                 addLog(`✅ "${keyword}" ${videos.length}개 영상 수집 완료`)
                 totalVideos += videos.length
                 
                 // 2. 수집된 영상 AI 분석 및 미션 생성
-                for (const video of videos) {
-                    addLog(`🤖 "${video.title.substring(0, 30)}..." 분석 중...`)
+                for (let vidIdx = 0; vidIdx < videos.length; vidIdx++) {
+                    const video = videos[vidIdx]
+                    addLog(`🤖 "${video.title.substring(0, 40)}..." 분석 중...`)
+                    
+                    // API 제한 방지를 위해 요청 간 딜레이 (첫 번째 요청 제외)
+                    if (vidIdx > 0) {
+                        addLog(`⏳ API 제한 방지를 위해 3초 대기 중...`)
+                        await new Promise(resolve => setTimeout(resolve, 3000))
+                    }
                     
                     const analyzeRes = await fetch("/api/admin/marketer/youtube/analyze", {
                         method: "POST",
@@ -172,7 +108,8 @@ export function AutoMissionGenerate() {
                             title: video.title,
                             desc: video.description || "",
                             channelName: video.channel_title,
-                            channelId: video.channel_id
+                            channelId: video.channel_id,
+                            keyword: keyword // 키워드 전달하여 정확한 프로그램 분류
                         })
                     })
                     
@@ -184,22 +121,50 @@ export function AutoMissionGenerate() {
                         addLog(`✨ 미션 생성 완료: "${analyzeData.missions[0].title}"`)
                         addLog(`📝 생성된 선택지: ${analyzeData.missions[0].options.join(', ')}`)
                     } else {
-                        addLog(`⚠️ 미션 생성 실패: ${analyzeData.error || '알 수 없는 오류'}`)
+                        // 429 에러인 경우 특별 처리
+                        if (analyzeData.error && (analyzeData.error.includes('429') || analyzeData.error.includes('Resource exhausted'))) {
+                            addLog(`⚠️ API 제한 초과. 10초 대기 후 재시도...`)
+                            await new Promise(resolve => setTimeout(resolve, 10000))
+                            // 재시도
+                            const retryRes = await fetch("/api/admin/marketer/youtube/analyze", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    videoId: video.video_id,
+                                    title: video.title,
+                                    desc: video.description || "",
+                                    channelName: video.channel_title,
+                                    channelId: video.channel_id,
+                                    keyword: keyword
+                                })
+                            })
+                            const retryData = await retryRes.json()
+                            if (retryData.success && retryData.missions) {
+                                const missionCount = retryData.missions.length
+                                totalMissions += missionCount
+                                addLog(`✨ 재시도 성공! 미션 생성 완료: "${retryData.missions[0].title}"`)
+                            } else {
+                                addLog(`❌ 재시도 실패: ${retryData.error || '알 수 없는 오류'}`)
+                            }
+                        } else {
+                            addLog(`⚠️ 미션 생성 실패: ${analyzeData.error || '알 수 없는 오류'}`)
+                        }
                     }
                 }
+                
+                completedCount++
+                setStats({
+                    totalVideos,
+                    totalMissions,
+                    completedKeywords: completedCount
+                })
             }
-            
-            setStats({
-                totalVideos,
-                totalMissions,
-                completedKeywords: 1
-            })
             
             setProgress(100)
             addLog(`🎉 완료! 총 ${totalVideos}개 영상에서 ${totalMissions}개 미션 생성`)
             toast({ 
                 title: "자동 생성 완료", 
-                description: `나는솔로 미션이 생성되었습니다. [미션 승인 관리]에서 확인하세요.` 
+                description: `${AUTO_KEYWORDS.length}개 프로그램에서 ${totalVideos}개 영상 수집, ${totalMissions}개 미션 생성 완료. [미션 승인 관리]에서 확인하세요.` 
             })
             
         } catch (error: any) {
@@ -279,40 +244,11 @@ export function AutoMissionGenerate() {
 
                     {/* 버튼 그룹 */}
                     <div className="space-y-3">
-                        {/* 빠른 테스트 버튼 (권장) */}
-                        <Button 
-                            className="w-full bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 gap-2 h-12 text-base font-semibold"
-                            onClick={handleQuickTest}
-                            disabled={isRunning || isTesting}
-                        >
-                            {isTesting ? (
-                                <>
-                                    <Loader2 className="w-5 h-5 animate-spin" />
-                                    테스트 진행 중...
-                                </>
-                            ) : (
-                                <>
-                                    <Zap className="w-5 h-5" />
-                                    🧪 빠른 테스트 (나는솔로 3개 영상)
-                                </>
-                            )}
-                        </Button>
-                        
-                        {/* 구분선 */}
-                        <div className="relative">
-                            <div className="absolute inset-0 flex items-center">
-                                <div className="w-full border-t border-gray-300"></div>
-                            </div>
-                            <div className="relative flex justify-center text-xs">
-                                <span className="bg-white px-2 text-gray-500">또는</span>
-                            </div>
-                        </div>
-                        
                         {/* 전체 자동 생성 버튼 */}
                         <Button 
                             className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 gap-2 h-12 text-base font-semibold"
                             onClick={handleAutoGenerate}
-                            disabled={isRunning || isTesting}
+                            disabled={isRunning}
                         >
                             {isRunning ? (
                                 <>
@@ -347,27 +283,7 @@ export function AutoMissionGenerate() {
             )}
 
             {/* 안내 문구 */}
-            <div className="grid gap-4 md:grid-cols-2">
-                {/* 테스트 모드 안내 */}
-                <Card className="border-cyan-200 bg-cyan-50/30">
-                    <CardContent className="p-4">
-                        <div className="flex gap-3">
-                            <div className="text-cyan-600 mt-0.5">
-                                <Zap className="w-5 h-5" />
-                            </div>
-                            <div className="space-y-2 text-sm text-cyan-900">
-                                <p className="font-semibold">🧪 빠른 테스트 모드 (권장)</p>
-                                <ul className="list-disc list-inside space-y-1 text-cyan-700">
-                                    <li>나는솔로 키워드로 최근 3개 영상 수집</li>
-                                    <li>자막이 있는 영상만 자동으로 AI 미션 생성</li>
-                                    <li>약 30초~1분 소요 (영상당 10-20초)</li>
-                                    <li>질문과 답변이 제대로 생성되는지 빠르게 확인</li>
-                                </ul>
-                            </div>
-                        </div>
-                    </CardContent>
-                </Card>
-
+            <div className="grid gap-4 md:grid-cols-1">
                 {/* 전체 모드 안내 */}
                 <Card className="border-purple-200 bg-purple-50/30">
                     <CardContent className="p-4">

@@ -1,0 +1,38 @@
+{
+  "name": "@realpick-bot/dashboard",
+  "version": "1.0.0",
+  "description": "마케팅 봇 관리 대시보드 (로컬 전용)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "latest",
+    "@radix-ui/react-progress": "latest",
+    "@radix-ui/react-tabs": "latest",
+    "@radix-ui/react-toast": "latest",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tanstack/react-query": "^5.0.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "firebase": "^12.7.0",
+    "lucide-react": "^0.454.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "tailwind-merge": "^2.6.1",
+    "zustand": "^4.5.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "@vitejs/plugin-react": "^4.0.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.5",
+    "tailwindcss": "^4.1.9",
+    "typescript": "^5",
+    "vite": "^5.0.0"
+  }
+}

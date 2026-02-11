@@ -4,6 +4,9 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
+import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
+import { MobileBottomBanner } from "@/components/c-banner-ad/mobile-bottom-banner"
+import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/c-ui/card"
 import { Button } from "@/components/c-ui/button"
 import { Badge } from "@/components/c-ui/badge"
@@ -15,7 +18,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/c
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getShowStatuses, updateShowStatuses, getShowVisibility, updateShowVisibility, getCustomShows, addCustomShow, deleteCustomShow, updateShowInfo } from "@/lib/firebase/admin-settings"
 import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
-import { SHOWS, CATEGORIES, type TShowCategory, getShowById } from "@/lib/constants/shows"
+import { SHOWS, CATEGORIES, type TShowCategory, getShowById, normalizeShowId } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
 import { auth, db } from "@/lib/firebase/config"
 import { doc, getDoc } from "firebase/firestore"
@@ -485,18 +488,34 @@ export default function AdminPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50 pb-20">
-            <AppHeader
-                selectedShow="나는솔로"
-                onShowChange={() => { }}
-                userNickname="관리자"
-                userPoints={0}
-                userTier={{
-                    name: "관리자",
-                    minPoints: 0,
-                }}
-            />
-            <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="min-h-screen bg-gray-50 pb-30 md:pb-0 relative overflow-x-hidden">
+            <DesktopWingBanner side="left" />
+            <DesktopWingBanner side="right" />
+            
+            <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
+                <AppHeader
+                    selectedShow="나는솔로"
+                    onShowChange={() => { }}
+                    userNickname="관리자"
+                    userPoints={0}
+                    userTier={{
+                        name: "관리자",
+                        minPoints: 0,
+                    }}
+                    onAvatarClick={() => router.push("/p-profile")}
+                    selectedShowId={null}
+                    onShowSelect={(showId) => {
+                        // 프로그램 선택 시 해당 미션 페이지로 리다이렉트
+                        if (showId) {
+                            const normalizedShowId = normalizeShowId(showId)
+                            router.push(`/?show=${normalizedShowId || showId}`)
+                        } else {
+                            router.push("/")
+                        }
+                    }}
+                />
+                <SidebarNavigation />
+                <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">관리자 페이지</h1>
                 </div>
@@ -841,8 +860,10 @@ export default function AdminPage() {
                         <MarketerManagement />
                     </TabsContent>
                 </Tabs>
-            </main>
-            <BottomNavigation />
+                </main>
+                <BottomNavigation />
+            </div>
+            <MobileBottomBanner />
             
             {/* 프로그램 추가/수정 다이얼로그 */}
             <Dialog open={isShowDialogOpen} onOpenChange={setIsShowDialogOpen}>

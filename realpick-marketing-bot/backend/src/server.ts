@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import admin from 'firebase-admin';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -11,6 +12,21 @@ const __dirname = dirname(__filename);
 // 환경 변수 로드 (.env.local)
 const envPath = path.resolve(__dirname, '..', '..', '.env.local');
 dotenv.config({ path: envPath });
+
+// Firebase Admin 초기화
+if (!admin.apps.length) {
+  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+  
+  admin.initializeApp({
+    credential: admin.credential.cert({
+      projectId: process.env.FIREBASE_PROJECT_ID,
+      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+      privateKey: privateKey,
+    }),
+  });
+  
+  console.log('✅ Firebase Admin 초기화 완료');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -43,7 +59,17 @@ app.use((req, res, next) => {
   next();
 });
 
-// 라우트 (동적 import로 나중에 추가)
+// 라우트 (동적 import)
+const loadRoutes = async () => {
+  const youtubeRouter = (await import('./routes/youtube.js')).default;
+  const communityRouter = (await import('./routes/community.js')).default;
+  
+  app.use('/api/youtube', youtubeRouter);
+  app.use('/api/community', communityRouter);
+};
+
+loadRoutes().catch(console.error);
+
 app.get('/', (req, res) => {
   res.json({ 
     success: true, 
@@ -52,11 +78,10 @@ app.get('/', (req, res) => {
     endpoints: [
       'GET  /api/health',
       'POST /api/youtube/crawl',
-      'POST /api/community/crawl',
-      'POST /api/naver-cafe/crawl',
       'POST /api/youtube/analyze',
-      'GET  /api/posts',
-      'DELETE /api/posts/:id'
+      'POST /api/community/crawl',
+      'GET  /api/community/posts',
+      'DELETE /api/community/posts/:id'
     ]
   });
 });

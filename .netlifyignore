@@ -1,0 +1,33 @@
+# ============================================================
+# Netlify 배포 제외 설정
+# Git 커밋 O, Netlify 배포 X
+# ============================================================
+
+# 🚫 마케팅 봇 (로컬 전용 - 절대 배포 금지!)
+realpick-marketing-bot/
+realpick-marketing-bot/**/*
+
+# 🚫 마케팅 관련 Python 스크립트 (실행 환경 없음)
+scripts/marketing/
+scripts/marketing/**/*
+
+# 🚫 마케팅 관련 백업 파일 (이동 전 원본)
+components/c-admin/marketer/
+lib/marketer/
+
+# 개발 전용 파일
+.vscode/
+.idea/
+*.log
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# 문서 파일 (README는 제외)
+*.md
+!README.md
+
+# 환경 변수 파일 (추가 안전장치)
+.env*
+!.env.example

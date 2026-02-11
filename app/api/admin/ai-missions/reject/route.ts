@@ -13,8 +13,8 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ai_missions 컬렉션에서 status를 REJECTED로 변경
-    await adminDb.collection('ai_missions').doc(missionId).update({
+    // t_marketing_ai_missions 컬렉션에서 status를 REJECTED로 변경
+    await adminDb.collection('t_marketing_ai_missions').doc(missionId).update({
       status: 'REJECTED',
       rejectedAt: new Date().toISOString()
     });

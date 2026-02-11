@@ -26,6 +26,7 @@ export interface TDealer {
   introMessage?: string
   broadcastSection?: string
   status: "PENDING" | "ACTIVE" | "STOP"
+  instagramHandle?: string // 인스타그램 아이디 ('@' 제외)
   createdAt: string
   updatedAt: string
 }
@@ -100,6 +101,8 @@ export interface TMission {
   submissionType?: "selection" | "text"
   requiredAnswerCount?: number
   isLive?: boolean // 라이브 미션 여부
+  relatedAccounts?: string[] // 태그할 출연자/공식 계정 리스트 (인스타그램 아이디, '@' 제외)
+  viralHashtags?: string // 업로드 시 본문에 붙일 해시태그 뭉치
   createdAt: string
   updatedAt?: string
 }

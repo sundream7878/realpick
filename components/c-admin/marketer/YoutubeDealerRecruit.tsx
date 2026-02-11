@@ -1354,16 +1354,16 @@ export function YoutubeDealerRecruit() {
                                     <Card key={mission.id} className="border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/20">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between gap-4">
-                                                <div className="flex-1 space-y-2">
-                                                    <div className="flex items-center gap-2 flex-wrap">
-                                                        <Badge variant="outline" className="text-[10px] bg-yellow-50 border-yellow-300 text-yellow-700">
+                                                <div className="flex-1 space-y-2 min-w-0">
+                                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-yellow-50 border-yellow-300 text-yellow-700">
                                                             승인 대기
                                                         </Badge>
                                                         {(() => {
                                                             const cat = getMissionCategory(mission)
                                                             const catInfo = CATEGORIES[cat as keyof typeof CATEGORIES]
                                                             return catInfo ? (
-                                                                <Badge variant="outline" className="text-[10px] bg-blue-50 flex items-center gap-1">
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-blue-50 flex items-center gap-1">
                                                                     <img 
                                                                         src={catInfo.iconPath} 
                                                                         alt={catInfo.description}
@@ -1377,27 +1377,27 @@ export function YoutubeDealerRecruit() {
                                                             const normalizedShowId = normalizeShowId(mission.showId)
                                                             const show = getShowById(normalizedShowId || '')
                                                             return show ? (
-                                                                <Badge variant="outline" className="text-[10px] bg-purple-50">
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-purple-50">
                                                                     {show.displayName}
                                                                 </Badge>
                                                             ) : (
-                                                                <Badge variant="outline" className="text-[10px] bg-red-50 text-red-600 border-red-200">
+                                                                <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-red-50 text-red-600 border-red-200">
                                                                     미분류 ({mission.showId})
                                                                 </Badge>
                                                             )
                                                         })()}
-                                                        <Badge variant="outline" className={`text-[10px] ${mission.kind === 'PREDICT' ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-green-50 border-green-300 text-green-700'}`}>
+                                                        <Badge variant="outline" className={`text-[10px] px-1.5 py-0.5 whitespace-nowrap ${mission.kind === 'PREDICT' ? 'bg-purple-50 border-purple-300 text-purple-700' : 'bg-green-50 border-green-300 text-green-700'}`}>
                                                             {mission.kind === 'PREDICT' ? '예측픽' : '공감픽'}
                                                         </Badge>
-                                                        <Badge variant="outline" className="text-[10px] bg-white">
+                                                        <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-white">
                                                             {mission.form === 'binary' ? '양자' : '다자'}
                                                         </Badge>
                                                         {mission.sourceVideo?.channelName && (
-                                                            <span className="text-[10px] text-gray-500">
+                                                            <span className="text-[10px] text-gray-500 whitespace-nowrap">
                                                                 채널: {mission.sourceVideo.channelName}
                                                             </span>
                                                         )}
-                                                        <span className="text-[10px] text-gray-400">
+                                                        <span className="text-[10px] text-gray-400 whitespace-nowrap">
                                                             생성: {mission.createdAt ? new Date(mission.createdAt).toLocaleDateString('ko-KR') : 'N/A'}
                                                         </span>
                                                     </div>
@@ -1531,9 +1531,9 @@ export function YoutubeDealerRecruit() {
                                                             {mission.description && (
                                                                 <p className="text-sm text-gray-600 line-clamp-2">{mission.description}</p>
                                                             )}
-                                                            <div className="flex flex-wrap gap-1">
+                                                            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                                                                 {mission.options?.map((opt: string, i: number) => (
-                                                                    <Badge key={i} variant="outline" className="text-[10px] bg-white">
+                                                                    <Badge key={i} variant="outline" className="text-[10px] px-2 py-0.5 whitespace-nowrap bg-white">
                                                                         {i + 1}. {opt}
                                                                     </Badge>
                                                                 ))}
@@ -1559,11 +1559,11 @@ export function YoutubeDealerRecruit() {
                                                         </div>
                                                     )}
                                                 </div>
-                                                <div className="flex flex-col gap-2">
+                                                <div className="flex items-center gap-1.5 shrink-0">
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
-                                                        className="h-8 text-purple-600 border-purple-200 hover:bg-purple-50"
+                                                        className="h-8 px-2 text-purple-600 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
                                                         onClick={() => {
                                                             setEditingMissionId(mission.id)
                                                             setEditForm({
@@ -1575,13 +1575,12 @@ export function YoutubeDealerRecruit() {
                                                             })
                                                         }}
                                                     >
-                                                        <Edit2 className="w-3 h-3 mr-1" />
-                                                        수정
+                                                        <Edit2 className="w-3 h-3" />
                                                     </Button>
                                                     <Button 
                                                         variant="default" 
                                                         size="sm" 
-                                                        className="h-8 bg-green-600 hover:bg-green-700 whitespace-nowrap"
+                                                        className="h-8 px-2 bg-green-600 hover:bg-green-700 whitespace-nowrap"
                                                         onClick={async () => {
                                                             if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
                                                                 try {
@@ -1623,13 +1622,12 @@ export function YoutubeDealerRecruit() {
                                                             }
                                                         }}
                                                     >
-                                                        <Check className="w-3 h-3 mr-1" />
-                                                        승인
+                                                        <Check className="w-3 h-3" />
                                                     </Button>
                                                     <Button 
                                                         variant="outline" 
                                                         size="sm" 
-                                                        className="h-8 text-red-500 hover:text-red-600 hover:bg-red-50"
+                                                        className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 whitespace-nowrap"
                                                         onClick={async () => {
                                                             if (confirm("이 미션을 거부하시겠습니까?")) {
                                                                 try {
@@ -1651,8 +1649,7 @@ export function YoutubeDealerRecruit() {
                                                             }
                                                         }}
                                                     >
-                                                        <Trash2 className="w-3 h-3 mr-1" />
-                                                        거부
+                                                        <Trash2 className="w-3 h-3" />
                                                     </Button>
                                                 </div>
                                             </div>

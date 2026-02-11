@@ -6,8 +6,8 @@ export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
   try {
-    // ai_missions 컬렉션에서 승인 대기 중인 미션들 가져오기
-    const aiMissionsRef = adminDb.collection('ai_missions')
+    // t_marketing_ai_missions 컬렉션에서 승인 대기 중인 미션들 가져오기
+    const aiMissionsRef = adminDb.collection('t_marketing_ai_missions')
       .where('status', '==', 'PENDING')
       .orderBy('createdAt', 'desc')
       .limit(500); // 더 많은 미션 가져오기

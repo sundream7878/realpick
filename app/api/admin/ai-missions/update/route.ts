@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    // ai_missions 컬렉션에서 데이터 업데이트
+    // t_marketing_ai_missions 컬렉션에서 데이터 업데이트
     const updateData: any = {
       updatedAt: new Date().toISOString()
     };
@@ -24,7 +24,7 @@ export async function POST(request: NextRequest) {
     if (options) updateData.options = options;
     if (kind) updateData.kind = kind;
 
-    await adminDb.collection('ai_missions').doc(missionId).update(updateData);
+    await adminDb.collection('t_marketing_ai_missions').doc(missionId).update(updateData);
     
     return NextResponse.json({
       success: true,

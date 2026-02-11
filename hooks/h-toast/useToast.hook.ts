@@ -179,7 +179,7 @@ function useToast() {
         listeners.splice(index, 1)
       }
     }
-  }, [state])
+  }, []) // state를 dependency에서 제거하여 무한 루프 방지
 
   return {
     ...state,

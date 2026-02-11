@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
 
     // 1. 만료된 영상 자동 삭제 (한 달 이상 지난 영상)
     const now = new Date();
-    const expiredVideosSnapshot = await adminDb.collection('videos')
+    const expiredVideosSnapshot = await adminDb.collection('t_marketing_videos')
       .where('expiresAt', '<=', now.toISOString())
       .get();
     
@@ -30,13 +30,12 @@ export async function POST(request: NextRequest) {
       console.log(`🗑️ 만료된 영상 ${expiredVideosSnapshot.size}개 삭제 완료`);
     }
 
+    // 수집 버튼을 누른 시간으로부터 24시간 이내 영상만 수집
     const args: Record<string, any> = {
       keywords,
-      "max-results": maxResults,
+      "max-results": 2, // 프로그램당 2개씩 추출
+      "hours_back": 24, // 24시간 이내
     };
-
-    if (startDate) args["start-date"] = startDate;
-    if (endDate) args["end-date"] = endDate;
 
     const result = await runMarketerBridge("crawl-youtube", args) as any;
     
@@ -49,7 +48,7 @@ export async function POST(request: NextRequest) {
       // Firestore 'in' 쿼리는 최대 10개씩만 가능하므로 청크로 나눠서 조회
       for (let i = 0; i < videoIds.length; i += 10) {
         const chunk = videoIds.slice(i, i + 10);
-        const snapshot = await adminDb.collection('videos')
+        const snapshot = await adminDb.collection('t_marketing_videos')
           .where('videoId', 'in', chunk)
           .get();
         
@@ -135,7 +134,7 @@ export async function POST(request: NextRequest) {
       
       for (const video of newVideos) {
         const videoId = video.video_id;
-        const videoRef = adminDb.collection('videos').doc(videoId);
+        const videoRef = adminDb.collection('t_marketing_videos').doc(videoId);
         
         const videoData = {
           videoId: videoId,

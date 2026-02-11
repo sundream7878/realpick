@@ -1,0 +1,11 @@
+{
+  "command": "crawl-naver-cafe",
+  "cafe_list": "https://cafe.naver.com/no1sejong,https://cafe.naver.com/chengnamomlife,https://cafe.naver.com/2008bunsamo,https://cafe.naver.com/nowonmams,https://cafe.naver.com/sjmoms,https://cafe.naver.com/mammie,https://cafe.naver.com/cjcjmom,https://cafe.naver.com/msbabys,https://cafe.naver.com/beautynpharm,https://cafe.naver.com/chobomamy,https://cafe.naver.com/godeokmaman,https://cafe.naver.com/ksn82599,https://cafe.naver.com/pajumom,https://cafe.naver.com/doanmom1004,https://cafe.naver.com/cheongsmom,https://cafe.naver.com/pusanmom,https://cafe.naver.com/gdnewcity1144,https://cafe.naver.com/chorongggont,https://cafe.naver.com/star4sarang,https://cafe.naver.com/jangantalk,https://cafe.naver.com/yul2moms,https://cafe.naver.com/nursestudents,https://cafe.naver.com/yeojumam,https://cafe.naver.com/pt2mandoo,https://cafe.naver.com/ikeaover,https://cafe.naver.com/hogammam,https://cafe.naver.com/do2ya,https://cafe.naver.com/moms1004,https://cafe.naver.com/mokammamheart,https://cafe.naver.com/gcmomcafe,https://cafe.naver.com/ksmoms,https://cafe.naver.com/shsrhd,https://cafe.naver.com/dohwamam,https://cafe.naver.com/younggyun,https://cafe.naver.com/sejonglovelymom,https://cafe.naver.com/hwaapo,https://cafe.naver.com/townmoim,https://cafe.naver.com/momspanggju,https://cafe.naver.com/cafeadvertisement,https://cafe.naver.com/hnmommy,https://cafe.naver.com/worldcupmoms,https://cafe.naver.com/ecometro111,https://cafe.naver.com/namakmom2,https://cafe.naver.com/ouryongsangu,https://cafe.naver.com/hongjemoms,https://cafe.naver.com/lovable1,https://cafe.naver.com/06rkddkwl,https://cafe.naver.com/sejong6zonemom,https://cafe.naver.com/ptcla,https://cafe.naver.com/fo2b",
+  "keywords": "나는솔로,나는 솔로",
+  "start_date": "2026-02-08",
+  "end_date": "2026-02-10",
+  "exclude_boards": "먹거리,맛집,프리마켓",
+  "limit": 10,
+  "use_browser": "true",
+  "progress_id": "naver_cafe_1770699402790"
+}
