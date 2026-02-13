@@ -31,20 +31,6 @@ const nextConfig = {
       });
     }
 
-    // 프로덕션 빌드 시에만 적용 (개발 모드는 정상 작동)
-    if (isServer && !dev) {
-      const originalExternals = config.externals;
-      config.externals = [
-        ...(Array.isArray(originalExternals) ? originalExternals : [originalExternals]),
-        (context, request, callback) => {
-          if (request.includes('app/api/admin/marketer')) {
-            return callback(null, `commonjs ${request}`);
-          }
-          callback();
-        },
-      ];
-    }
-
     return config;
   },
 }
