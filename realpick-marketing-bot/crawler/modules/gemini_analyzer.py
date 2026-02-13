@@ -67,77 +67,107 @@ class GeminiAnalyzer:
     def analyze_with_transcript(self, video_info: dict, transcript: str) -> dict:
         """영상 정보와 자막을 분석하여 미션 생성"""
         
-        # 제목, 설명, 자막을 모두 합쳐서 분석
-        full_text = f"{video_info.get('title', '')} {video_info.get('description', '')} {transcript[:2000]}".lower()
+        # 크롤링 시 선택한 프로그램 키워드가 있으면 우선 사용 (자막과 일치하는 프로그램 분류)
+        user_keyword = (video_info.get('keyword') or '').strip().lower()
+        full_text = f"{user_keyword} {video_info.get('title', '')} {video_info.get('description', '')} {transcript[:3000]}".lower()
         
         category = "LOVE"  # 기본값
         showId = "nasolo"  # 기본값
         
-        # 키워드 기반 카테고리 및 프로그램 매핑 (우선순위 및 세밀한 분석)
-        # 1. LOVE 카테고리
-        if any(kw in full_text for kw in ['합숙맞선', '합숙 맞선']):
-            category, showId = "LOVE", "habsuk-matseon"
-        elif any(kw in full_text for kw in ['나솔사계', '나는 솔로 그 후', '사랑은 계속된다']):
-            category, showId = "LOVE", "nasolsagye"
-        elif any(kw in full_text for kw in ['나는솔로', '나는 솔로', 'i am solo', '나솔']):
-            category, showId = "LOVE", "nasolo"
-        elif any(kw in full_text for kw in ['환승연애', '환연', '환글']):
-            category, showId = "LOVE", "hwanseung4"
-        elif any(kw in full_text for kw in ['돌싱글즈', '돌싱']):
-            category, showId = "LOVE", "dolsingles6"
-        elif any(kw in full_text for kw in ['솔로지옥']):
-            category, showId = "LOVE", "solojihuk5"
-        elif any(kw in full_text for kw in ['끝사랑']):
-            category, showId = "LOVE", "kkeut-sarang"
-        elif any(kw in full_text for kw in ['연애남매']):
-            category, showId = "LOVE", "yeonae-nammae"
-            
-        # 2. VICTORY 카테고리
-        elif any(kw in full_text for kw in ['골때녀', '골 때리는 그녀들', '골때리는', 'fc탑걸', '발라드림', '액셔니스타', '구척장신', '개벤져스', '월드클라쓰']):
-            category, showId = "VICTORY", "goal-girls-8"
-        elif any(kw in full_text for kw in ['최강야구', '최강 몬스터즈']):
-            category, showId = "VICTORY", "choegang-yagu-2025"
-        elif any(kw in full_text for kw in ['강철부대']):
-            category, showId = "VICTORY", "steel-troops-w"
-        elif any(kw in full_text for kw in ['피의게임', '피의 게임']):
-            category, showId = "VICTORY", "blood-game3"
-        elif any(kw in full_text for kw in ['대학전쟁']):
-            category, showId = "VICTORY", "univ-war2"
-        elif any(kw in full_text for kw in ['흑백요리사']):
-            category, showId = "VICTORY", "culinary-class-wars2"
-        elif any(kw in full_text for kw in ['뭉쳐야찬다', '뭉쳐야 찬다', '뭉쳐야']):
-            category, showId = "VICTORY", "kick-together3"
-        elif any(kw in full_text for kw in ['무쇠소녀단', '무쇠소녀']):
-            category, showId = "VICTORY", "iron-girls"
-        elif any(kw in full_text for kw in ['노엑싯게임룸', '노엑싯']):
-            category, showId = "VICTORY", "no-exit-gameroom"
-            
-        # 3. STAR 카테고리
-        elif any(kw in full_text for kw in ['쇼미더머니', 'show me the money', 'smtm', '쇼미']):
-            category, showId = "STAR", "show-me-the-money-12"
-        elif any(kw in full_text for kw in ['미스터트롯']):
-            category, showId = "STAR", "mr-trot3"
-        elif any(kw in full_text for kw in ['미스트롯']):
-            category, showId = "STAR", "mistrot4"
-        elif any(kw in full_text for kw in ['현역가왕']):
-            category, showId = "STAR", "active-king2"
-        elif any(kw in full_text for kw in ['프로젝트7', 'project 7', '프로젝트']):
-            category, showId = "STAR", "project7"
-        elif any(kw in full_text for kw in ['유니버스리그', '유니버스 리그']):
-            category, showId = "STAR", "universe-league"
-        elif any(kw in full_text for kw in ['싱어게인']):
-            category, showId = "STAR", "sing-again"
-        elif any(kw in full_text for kw in ['랩퍼블릭']):
-            category, showId = "STAR", "rap-public"
+        # 1) 사용자가 선택한 키워드로 먼저 매핑 (솔로지옥 영상인데 나는솔로로 잡히는 것 방지)
+        if user_keyword:
+            if any(kw in user_keyword for kw in ['솔로지옥', 'single\'s inferno', 'singles inferno']):
+                category, showId = "LOVE", "solojihuk5"
+            elif any(kw in user_keyword for kw in ['합숙맞선', '합숙 맞선']):
+                category, showId = "LOVE", "habsuk-matseon"
+            elif any(kw in user_keyword for kw in ['나솔사계', '나는 솔로 그 후', '사랑은 계속된다']):
+                category, showId = "LOVE", "nasolsagye"
+            elif any(kw in user_keyword for kw in ['나는솔로', '나는 솔로', 'i am solo', '나솔']):
+                category, showId = "LOVE", "nasolo"
+            elif any(kw in user_keyword for kw in ['환승연애', '환연', '환글']):
+                category, showId = "LOVE", "hwanseung4"
+            elif any(kw in user_keyword for kw in ['돌싱글즈', '돌싱']):
+                category, showId = "LOVE", "dolsingles6"
+            elif any(kw in user_keyword for kw in ['끝사랑']):
+                category, showId = "LOVE", "kkeut-sarang"
+            elif any(kw in user_keyword for kw in ['연애남매']):
+                category, showId = "LOVE", "yeonae-nammae"
+            elif any(kw in user_keyword for kw in ['골때녀', '골 때리는', '골때리는']):
+                category, showId = "VICTORY", "goal-girls-8"
+            elif any(kw in user_keyword for kw in ['최강야구']):
+                category, showId = "VICTORY", "choegang-yagu-2025"
+            elif any(kw in user_keyword for kw in ['흑백요리사']):
+                category, showId = "VICTORY", "culinary-class-wars2"
+            elif any(kw in user_keyword for kw in ['피의게임', '피의 게임']):
+                category, showId = "VICTORY", "blood-game3"
+            elif any(kw in user_keyword for kw in ['미스터트롯', '미스트롯', '현역가왕', '유니버스리그', '쇼미더머니']):
+                category, showId = "STAR", "mr-trot3"  # STAR는 하위 매핑 생략
+        
+        # 2) 키워드가 없거나 매칭 실패 시 full_text(제목+설명+자막) 기반 매핑 (더 구체적인 프로그램 먼저)
+        if not user_keyword or (showId == "nasolo" and "솔로" in user_keyword):
+            # 1. LOVE - 구체적 프로그램 먼저 (솔로지옥이 나는솔로보다 먼저)
+            if any(kw in full_text for kw in ['합숙맞선', '합숙 맞선']):
+                category, showId = "LOVE", "habsuk-matseon"
+            elif any(kw in full_text for kw in ['나솔사계', '나는 솔로 그 후', '사랑은 계속된다']):
+                category, showId = "LOVE", "nasolsagye"
+            elif any(kw in full_text for kw in ['솔로지옥', 'single\'s inferno', 'singles inferno']):
+                category, showId = "LOVE", "solojihuk5"
+            elif any(kw in full_text for kw in ['나는솔로', '나는 솔로', 'i am solo', '나솔']):
+                category, showId = "LOVE", "nasolo"
+            elif any(kw in full_text for kw in ['환승연애', '환연', '환글']):
+                category, showId = "LOVE", "hwanseung4"
+            elif any(kw in full_text for kw in ['돌싱글즈', '돌싱']):
+                category, showId = "LOVE", "dolsingles6"
+            elif any(kw in full_text for kw in ['끝사랑']):
+                category, showId = "LOVE", "kkeut-sarang"
+            elif any(kw in full_text for kw in ['연애남매']):
+                category, showId = "LOVE", "yeonae-nammae"
+            else:
+                # 2. VICTORY 카테고리
+                if any(kw in full_text for kw in ['골때녀', '골 때리는 그녀들', '골때리는', 'fc탑걸', '발라드림', '액셔니스타', '구척장신', '개벤져스', '월드클라쓰']):
+                    category, showId = "VICTORY", "goal-girls-8"
+                elif any(kw in full_text for kw in ['최강야구', '최강 몬스터즈']):
+                    category, showId = "VICTORY", "choegang-yagu-2025"
+                elif any(kw in full_text for kw in ['강철부대']):
+                    category, showId = "VICTORY", "steel-troops-w"
+                elif any(kw in full_text for kw in ['피의게임', '피의 게임']):
+                    category, showId = "VICTORY", "blood-game3"
+                elif any(kw in full_text for kw in ['대학전쟁']):
+                    category, showId = "VICTORY", "univ-war2"
+                elif any(kw in full_text for kw in ['흑백요리사']):
+                    category, showId = "VICTORY", "culinary-class-wars2"
+                elif any(kw in full_text for kw in ['뭉쳐야찬다', '뭉쳐야 찬다', '뭉쳐야']):
+                    category, showId = "VICTORY", "kick-together3"
+                elif any(kw in full_text for kw in ['무쇠소녀단', '무쇠소녀']):
+                    category, showId = "VICTORY", "iron-girls"
+                elif any(kw in full_text for kw in ['노엑싯게임룸', '노엑싯']):
+                    category, showId = "VICTORY", "no-exit-gameroom"
+                # 3. STAR 카테고리
+                elif any(kw in full_text for kw in ['쇼미더머니', 'show me the money', 'smtm', '쇼미']):
+                    category, showId = "STAR", "show-me-the-money-12"
+                elif any(kw in full_text for kw in ['미스터트롯']):
+                    category, showId = "STAR", "mr-trot3"
+                elif any(kw in full_text for kw in ['미스트롯']):
+                    category, showId = "STAR", "mistrot4"
+                elif any(kw in full_text for kw in ['현역가왕']):
+                    category, showId = "STAR", "active-king2"
+                elif any(kw in full_text for kw in ['프로젝트7', 'project 7', '프로젝트']):
+                    category, showId = "STAR", "project7"
+                elif any(kw in full_text for kw in ['유니버스리그', '유니버스 리그']):
+                    category, showId = "STAR", "universe-league"
+                elif any(kw in full_text for kw in ['싱어게인']):
+                    category, showId = "STAR", "sing-again"
+                elif any(kw in full_text for kw in ['랩퍼블릭']):
+                    category, showId = "STAR", "rap-public"
         
         prompt = f"""
         당신은 예능 프로그램 전문 마케팅 분석가입니다. 
-        제공된 유튜브 영상의 제목, 설명, 그리고 자막 내용을 분석하여 시청자들이 참여할 수 있는 '리얼픽(RealPick)' 미션 1개를 생성하세요.
+        **미션은 반드시 아래 '자막 요약'에 적힌 내용만을 기준으로 생성하세요.** 제목·설명·가이드 프로그램명은 참고용이며, 자막에 없는 프로그램·출연진·상황은 사용하지 마세요.
 
-        [분석 지침]
-        1. 현재 영상의 실제 프로그램이 무엇인지 자막과 내용을 통해 정확히 파악하세요.
-        2. 만약 자막 내용이 '합숙맞선'에 관한 것이라면, 반드시 '합숙맞선' 프로그램으로 분류해야 합니다.
-        3. 프로그램 카테고리({{category}})와 ID({{showId}})는 가이드일 뿐이며, 실제 내용과 다르다면 자막 내용을 우선하여 미션을 생성하세요.
+        [필수 원칙]
+        1. **자막 우선**: 미션 제목, 선택지, 출연진 이름은 모두 자막(transcript)에 실제로 등장한 내용만 사용하세요. 자막에 없는 프로그램명이나 인물을 넣지 마세요.
+        2. **프로그램 일치**: 자막 내용이 '솔로지옥'이면 솔로지옥 출연진/상황으로, '나는솔로'면 나는솔로 출연진/상황으로만 미션을 만드세요. 다른 프로그램 내용을 섞지 마세요.
+        3. 프로그램 카테고리({category})와 ID({showId})는 참고용입니다. 자막 내용과 다르면, 자막에 나온 프로그램·출연진을 기준으로 미션만 생성하면 됩니다.
 
         [리얼픽 미션 유형 가이드]
         1. 예측 픽 (kind: PREDICT) - "정답이 있는 게임"
@@ -153,16 +183,16 @@ class GeminiAnalyzer:
 
         [중요: 미션 생성 및 논리 지침]
         - **질문-답변 일치**: 질문이 "누구일까요?"인데 답변이 "놀라운 반전!" 같은 문장이면 안 됩니다. 반드시 "영수", "영숙" 등 구체적인 이름이 나와야 합니다.
-        - **구체적 이름 추출**: 영상 제목, 설명, 자막에 등장하는 출연진 이름(예: 영철, 현숙, 상철 등)을 정확히 파악하여 선택지로 만드세요.
+        - **구체적 이름 추출**: 반드시 위 '자막 요약'에 등장하는 출연진 이름만 선택지로 사용하세요. 자막에 없는 이름은 사용하지 마세요.
         - **어그로성 문장 금지**: 선택지에 감탄사나 추상적인 문장을 넣지 마세요. 유저가 명확하게 대상을 고를 수 있게 하세요.
         - **다양성**: 영상 내용을 분석하여 가장 흥미로운 1개의 미션을 생성하되, 매번 똑같은 형태가 반복되지 않도록 하세요.
 
         [영상 정보]
-        - 제목: {{video_info['title']}}
-        - 설명: {{video_info.get('description', '없음')}}
-        - 자막 요약: {{transcript[:3000]}}... (중략)
-        - 프로그램 카테고리: {{category}}
-        - 프로그램 ID: {{showId}}
+        - 제목: {video_info.get('title', '')}
+        - 설명: {video_info.get('description', '없음')}
+        - 자막 요약: {transcript[:3000]}... (중략)
+        - 프로그램 카테고리: {category}
+        - 프로그램 ID: {showId}
 
         [출력 형식 (JSON)]
         반드시 아래 형식을 지켜 JSON으로만 출력하세요:

@@ -192,7 +192,8 @@ router.post('/analyze', async (req, res) => {
     const result = await runMarketerBridge("analyze-video", { 
       "video-id": videoId,
       title: title,
-      desc: desc || ''
+      desc: desc || '',
+      keyword: keyword || ''
     });
     
     if (result.success && result.missions && result.missions.length > 0) {
@@ -257,6 +258,145 @@ router.post('/analyze', async (req, res) => {
     return res.json(result);
   } catch (error: any) {
     console.error("AI 미션 분석 오류:", error);
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+/**
+ * 매일 새벽 6시 자동 실행: 지난 24시간 영상 수집 → 투표 가치 선정 → 선정된 영상만 미션 생성
+ * body: { keywords: string[], baseUrl: string } (baseUrl = 메인 앱 URL, 스크리닝 API 호출용)
+ * 인증: Authorization: Bearer ${CRON_SECRET}
+ */
+router.post('/run-daily-auto-mission', async (req, res) => {
+  try {
+    const authHeader = req.headers.authorization;
+    const cronSecret = process.env.CRON_SECRET;
+    if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+      return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    const { keywords = [], baseUrl } = req.body as { keywords?: string[]; baseUrl?: string };
+    if (!keywords.length || !baseUrl) {
+      return res.status(400).json({
+        success: false,
+        error: 'keywords(배열)와 baseUrl이 필요합니다.',
+      });
+    }
+
+    const HOURS_BACK = 24;
+    const MAX_RESULTS = 15;
+    const seenIds = new Set<string>();
+    const allVideos: Array<{
+      video_id: string;
+      title: string;
+      description?: string;
+      channel_id?: string;
+      channel_title?: string;
+      keyword?: string;
+      published_at?: string;
+      thumbnail?: string;
+    }> = [];
+
+    // 1. 키워드별로 지난 24시간 영상 수집 (Python 크롤만, DB 저장 없이 수집만)
+    for (const kw of keywords) {
+      try {
+        const result = (await runMarketerBridge('crawl-youtube', {
+          keywords: kw,
+          'max-results': MAX_RESULTS,
+          hours_back: HOURS_BACK,
+        })) as any;
+        if (result?.success && Array.isArray(result.videos)) {
+          for (const v of result.videos) {
+            if (v?.video_id && !seenIds.has(v.video_id)) {
+              seenIds.add(v.video_id);
+              allVideos.push({
+                video_id: v.video_id,
+                title: v.title || '',
+                description: v.description || '',
+                channel_id: v.channel_id,
+                channel_title: v.channel_title,
+                keyword: kw,
+                published_at: v.published_at,
+                thumbnail: v.thumbnail,
+              });
+            }
+          }
+        }
+      } catch (e) {
+        console.warn(`[run-daily-auto-mission] 크롤 실패 (${kw}):`, e);
+      }
+    }
+
+    if (allVideos.length === 0) {
+      return res.json({
+        success: true,
+        totalCollected: 0,
+        totalScreened: 0,
+        totalMissionsCreated: 0,
+        message: '수집된 영상이 없습니다.',
+      });
+    }
+
+    // 2. 메인 앱 스크리닝 API: 투표할 만한 가치가 있는지 판별
+    const base = baseUrl.replace(/\/$/, '');
+    const screened: typeof allVideos = [];
+    for (const video of allVideos) {
+      try {
+        const screenRes = await fetch(`${base}/api/ai/screen-video`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: video.title,
+            description: (video.description || '').slice(0, 1000),
+          }),
+        });
+        const screenData = await screenRes.json();
+        if (screenData.voteWorthy === true) {
+          screened.push(video);
+        }
+      } catch (e) {
+        console.warn(`[run-daily-auto-mission] 스크리닝 실패 (${video.video_id}):`, e);
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
+
+    // 3. 선정된 영상만 미션 생성 (기존 analyze + DB 저장)
+    let missionsCreated = 0;
+    const backendUrl = process.env.MARKETING_BOT_URL || 'http://localhost:3001';
+    for (const video of screened) {
+      try {
+        const analyzeRes = await fetch(`${backendUrl}/api/youtube/analyze`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            videoId: video.video_id,
+            title: video.title,
+            desc: video.description || '',
+            channelName: video.channel_title,
+            channelId: video.channel_id,
+            keyword: video.keyword,
+          }),
+        });
+        const data = await analyzeRes.json();
+        if (data.success && data.missions?.length) missionsCreated++;
+        await new Promise((r) => setTimeout(r, 2500));
+      } catch (e) {
+        console.warn(`[run-daily-auto-mission] 미션 생성 실패 (${video.video_id}):`, e);
+      }
+    }
+
+    console.log(
+      `[run-daily-auto-mission] 완료: 수집 ${allVideos.length} → 선정 ${screened.length} → 미션 ${missionsCreated}개`
+    );
+
+    return res.json({
+      success: true,
+      totalCollected: allVideos.length,
+      totalScreened: screened.length,
+      totalMissionsCreated: missionsCreated,
+    });
+  } catch (error: any) {
+    console.error('run-daily-auto-mission 오류:', error);
     return res.status(500).json({ success: false, error: error.message });
   }
 });

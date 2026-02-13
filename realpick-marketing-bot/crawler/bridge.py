@@ -132,13 +132,17 @@ def analyze_video(args):
             print("DEBUG: HAS_TRANSCRIPT is False", file=sys.stderr)
             transcript_text = "자막 API가 설치되지 않았습니다. 제목과 설명으로 분석합니다."
         
-        # Gemini로 분석
-        print(f"DEBUG: Analyzing with Gemini. Title: {title[:20]}", file=sys.stderr)
+        # Gemini로 분석 (크롤링 시 선택한 프로그램 키워드 전달 → 자막과 맞는 프로그램 분류용)
+        keyword = getattr(args, 'keyword', '') or ''
+        if isinstance(keyword, str):
+            keyword = keyword.strip().strip('"')
+        print(f"DEBUG: Analyzing with Gemini. Title: {title[:20]}, keyword: {keyword}", file=sys.stderr)
         analyzer = GeminiAnalyzer(gemini_key)
         video_info = {
             'title': title.strip('"'),
             'description': desc.strip('"'),
-            'video_id': video_id
+            'video_id': video_id,
+            'keyword': keyword
         }
         
         result = analyzer.analyze_with_transcript(video_info, transcript_text)

@@ -1,6 +1,70 @@
 import { adminDb } from "./admin";
 import { FieldValue } from "firebase-admin/firestore";
 
+const NOTIFICATION_USER_LIMIT = 500;
+
+/**
+ * 알림을 받을 대상 사용자 ID 목록 (봇 제외, 전체 유저 또는 구독자).
+ * 배치 알림용으로 카테고리 무관 전체 대상 반환.
+ */
+export async function getNotificationTargetUserIds(): Promise<string[]> {
+  if (!adminDb) return [];
+  const usersSnapshot = await adminDb.collection("users").limit(NOTIFICATION_USER_LIMIT).get();
+  return usersSnapshot.docs
+    .filter((doc) => !doc.data().isBot)
+    .map((doc) => doc.id);
+}
+
+/**
+ * 매일 정오(12시)·저녁(19시) 배치: 해당 구간에 생성된 미션 목록으로 인앱 알림 1건씩 발송.
+ */
+export async function createDailyMissionBatchNotification({
+  missions,
+  slot,
+}: {
+  missions: Array<{ id: string; title: string; category?: string; showId?: string; creatorNickname?: string }>;
+  slot: "noon" | "evening";
+}) {
+  if (!adminDb || missions.length === 0) {
+    return { success: true, count: 0 };
+  }
+  const userIds = await getNotificationTargetUserIds();
+  if (userIds.length === 0) {
+    return { success: true, count: 0 };
+  }
+  const label = slot === "noon" ? "정오" : "저녁";
+  const count = missions.length;
+  const first = missions[0];
+  const content =
+    count === 1
+      ? `'${first.title}' 미션이 올라왔어요.`
+      : count === 2
+        ? `'${missions[0].title}', '${missions[1].title}' 미션이 올라왔어요.`
+        : `'${first.title}' 외 ${count - 1}개의 새 미션이 올라왔어요.`;
+
+  const batch = adminDb.batch();
+  const notificationsRef = adminDb.collection("notifications");
+  userIds.forEach((userId) => {
+    const ref = notificationsRef.doc();
+    batch.set(ref, {
+      userId,
+      type: "NEW_MISSION",
+      title: `${label} 알림: 새 미션 ${count}개`,
+      content,
+      mission_id: first.id,
+      missionId: first.id,
+      showId: first.showId || "nasolo",
+      category: first.category || "LOVE",
+      creatorId: "AI_SYSTEM",
+      isRead: false,
+      createdAt: FieldValue.serverTimestamp(),
+    });
+  });
+  await batch.commit();
+  console.log(`[Admin Notification] ${label} 배치 알림 완료: ${count}개 미션 → ${userIds.length}명`);
+  return { success: true, count: userIds.length };
+}
+
 /**
  * 모든 (또는 특정 카테고리 구독) 사용자에게 새 미션 알림을 생성합니다.
  */

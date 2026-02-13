@@ -51,10 +51,48 @@ export function NaverCafeCrawl() {
   const [progress, setProgress] = useState<CrawlProgress | null>(null)
   const [progressId, setProgressId] = useState<string | null>(null)
   const [posts, setPosts] = useState<NaverCafePost[]>([])
+  
+  // Firebase에서 실시간 프로그램 상태 가져오기
+  const [showStatuses, setShowStatuses] = useState<Record<string, boolean>>({})
+  const [isLoadingShows, setIsLoadingShows] = useState(true)
+  
   const { toast } = useToast()
 
+  // 프로그램 상태 로드
+  const loadShowStatuses = async () => {
+    setIsLoadingShows(true)
+    try {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/public/shows`)
+      const contentType = res.headers.get('content-type') ?? ''
+      const text = await res.text()
+      let data: { statuses?: Record<string, boolean> } = {}
+      if (res.ok && text && (contentType.includes('application/json') || text.trim().startsWith('{'))) {
+        try {
+          data = JSON.parse(text)
+        } catch (_) {}
+      }
+      
+      if (data.statuses) {
+        setShowStatuses(data.statuses)
+        console.log('[NaverCafe] 프로그램 상태 로드:', data.statuses)
+      }
+    } catch (error) {
+      console.error('[NaverCafe] 프로그램 상태 로드 실패:', error)
+    } finally {
+      setIsLoadingShows(false)
+    }
+  }
+
+  // 활성화된(open) 프로그램만 필터링
   const activeShows = Object.values(SHOWS).flatMap(category => 
-    category.filter(show => show.isActive !== false)
+    category.filter(show => {
+      // Firebase에서 가져온 상태 확인 (open = true)
+      // showStatuses가 비어있거나 로드되지 않은 경우 isActive를 기본값으로 사용
+      const hasStatusData = Object.keys(showStatuses).length > 0
+      const isOpen = hasStatusData ? showStatuses[show.id] === true : show.isActive !== false
+      return isOpen
+    })
   )
 
   const loadPosts = async () => {
@@ -73,6 +111,7 @@ export function NaverCafeCrawl() {
   }
 
   useEffect(() => {
+    loadShowStatuses()
     loadPosts()
   }, [])
 
@@ -298,8 +337,8 @@ export function NaverCafeCrawl() {
 
   return (
     <div className="space-y-6">
-      <Card className="border-blue-200">
-        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="border-blue-200 overflow-visible relative z-50">
+        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 overflow-visible">
           <div className="space-y-4">
             <div className="flex justify-between items-center">
               <div>
@@ -324,7 +363,7 @@ export function NaverCafeCrawl() {
             </div>
 
             {/* 프로그램 선택 드롭다운 */}
-            <div className="relative dropdown-container">
+            <div className="relative dropdown-container overflow-visible">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center gap-2">
                   <label className="text-sm font-semibold text-gray-700">크롤링할 프로그램 선택:</label>
@@ -372,9 +411,15 @@ export function NaverCafeCrawl() {
               </button>
 
               {isDropdownOpen && (
-                <div className="absolute z-10 w-full mt-2 bg-white border-2 border-blue-200 rounded-lg shadow-xl max-h-96 overflow-y-auto">
+                <div className="absolute left-0 right-0 z-[9999] mt-2 bg-white border-2 border-blue-200 rounded-lg shadow-2xl max-h-96 overflow-y-auto">
                   {Object.entries(SHOWS).map(([categoryKey, shows]) => {
-                    const categoryShows = shows.filter(show => show.isActive !== false)
+                    // 활성화된 프로그램만 필터링
+                    const categoryShows = shows.filter(show => {
+                      // showStatuses에 값이 있으면 그 값을 따르고, 없으면(undefined) 기본값(isActive) 사용
+                      const status = showStatuses[show.id]
+                      const isOpen = status !== undefined ? status === true : show.isActive !== false
+                      return isOpen
+                    })
                     if (categoryShows.length === 0) return null
                     
                     const category = CATEGORIES[categoryKey as keyof typeof CATEGORIES]
@@ -382,7 +427,18 @@ export function NaverCafeCrawl() {
                     return (
                       <div key={categoryKey} className="border-b border-gray-100 last:border-b-0">
                         <div className="px-4 py-2 bg-gray-50 font-semibold text-sm text-gray-700 flex items-center gap-2">
-                          <span>{category.emoji}</span>
+                          <img 
+                            src={category.iconPath} 
+                            alt={category.description}
+                            className="w-5 h-5 object-contain"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement
+                              target.style.display = 'none'
+                              const emoji = document.createElement('span')
+                              emoji.textContent = category.emoji
+                              target.parentElement?.appendChild(emoji)
+                            }}
+                          />
                           <span>{category.description}</span>
                         </div>
                         <div className="py-2">

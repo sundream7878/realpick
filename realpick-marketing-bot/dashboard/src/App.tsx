@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { Card, CardContent } from './components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
-import { LayoutDashboard, Users, Zap, Sparkles, Coffee, Instagram, Bell, User, LogOut } from 'lucide-react'
+import { LayoutDashboard, Users, Zap, Sparkles, Coffee, Video } from 'lucide-react'
 import { AutoMissionGenerate } from './components/AutoMissionGenerate'
 import { YoutubeDealerRecruit } from './components/YoutubeDealerRecruit'
 import { CommunityViralManage } from './components/CommunityViralManage'
 import { NaverCafeCrawl } from './components/NaverCafeCrawl'
-import { InstagramViralManage } from './components/InstagramViralManage'
+import { SnsViralManage } from './components/SnsViralManage'
 import { FakeUserBotManage } from './components/FakeUserBotManage'
 import { Badge } from './components/ui/badge'
 
@@ -80,7 +80,7 @@ function App() {
                     {[
                       { value: 'auto', label: '완전 자동 미션 생성' },
                       { value: 'youtube', label: '유튜브 딜러 모집' },
-                      { value: 'instagram', label: '인스타그램 바이럴' },
+                      { value: 'sns', label: 'SNS 바이럴 (영상 생성)' },
                       { value: 'bots', label: '가짜 유저 봇' },
                       { value: 'community', label: '커뮤니티 바이럴' },
                     ].map((tab) => (
@@ -102,8 +102,8 @@ function App() {
                   <TabsContent value="youtube" className="animate-in fade-in duration-300">
                     <YoutubeDealerRecruit />
                   </TabsContent>
-                  <TabsContent value="instagram" className="animate-in fade-in duration-300">
-                    <InstagramViralManage />
+                  <TabsContent value="sns" className="animate-in fade-in duration-300">
+                    <SnsViralManage />
                   </TabsContent>
                   <TabsContent value="bots" className="animate-in fade-in duration-300">
                     <FakeUserBotManage />

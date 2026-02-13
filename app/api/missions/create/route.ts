@@ -66,47 +66,7 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 알림 발송 (AI 미션인 경우)
-    if (isAIMission) {
-      try {
-        console.log(`[Mission Create API] AI 미션 알림 발송 시작: ${title}`);
-        const baseUrl = new URL(request.url).origin;
-        
-        // 1. 인앱 알림 생성
-        const notifResponse = await fetch(`${baseUrl}/api/admin/notifications/mission`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            missionId: docRef.id,
-            missionTitle: title,
-            category: category || 'LOVE',
-            showId: showId || 'nasolo',
-            creatorNickname: finalCreatorNickname
-          })
-        });
-        const notifResult = await notifResponse.json();
-        console.log(`[Mission Create API] 인앱 알림 발송 결과:`, notifResult);
-
-        // 2. 이메일 알림 발송
-        const emailResponse = await fetch(`${baseUrl}/api/send-mission-notification`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            missionId: docRef.id,
-            missionTitle: title,
-            category: category || 'LOVE',
-            showId: showId || 'nasolo',
-            creatorId: "AI_SYSTEM",
-            type: 'new'
-          })
-        });
-        const emailResult = await emailResponse.json();
-        console.log(`[Mission Create API] 이메일 알림 발송 결과:`, emailResult);
-        
-      } catch (notifError) {
-        console.error("[Mission Create API] 알림 발송 실패:", notifError);
-      }
-    }
+    // 알림은 매일 정오(12시)·저녁(19시) 배치로만 발송 (즉시 발송 없음)
 
     return NextResponse.json({ 
       success: true, 

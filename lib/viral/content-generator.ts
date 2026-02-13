@@ -39,7 +39,7 @@ export async function generateMultiPlatformContent(params: {
   platforms: ('instagram' | 'youtube' | 'tiktok')[]
 }): Promise<Record<string, SnsContent>> {
   const { mission, track, dealer, platforms } = params
-  const model = genAI.getGenerativeModel({ model: 'gemini-pro' })
+  const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
   
   const trackContext = {
     auto: '일반 사용자들이 흥미를 느낄 수 있는 친근하고 궁금증을 유발하는 톤',

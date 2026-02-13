@@ -1,6 +1,78 @@
-﻿# 도움말 (마지막 커밋 이후 진행 중 이슈 정리)
+# 도움말 (마지막 커밋 이후 진행 중 이슈 정리)
 
 이 문서는 **현재 진행 중인 작업과 해결이 필요한 이슈**를 정리한 메모입니다.
+
+---
+
+## 📹 영상 관련 진행 흐름 (SNS 바이럴 숏폼)
+
+SNS 바이럴 영상은 **템플릿 기반 렌더링**으로, AI는 텍스트만 생성하고 화면 구성은 고정 템플릿으로 그립니다.
+
+### 전체 흐름 (단계별)
+
+```
+[대시보드 5173] SNS Viral 화면
+       │
+       │ 1. 미션 목록 로드
+       ▼
+GET /api/missions/all?limit=100&status=open  ──► 마케팅 봇 백엔드(3001) → Firestore missions1+missions2
+       │
+       │ 2. 사용자가 미션 선택 + Track(자동/딜러/결과) + 플랫폼 선택 후 "영상 생성"
+       ▼
+POST /api/video/render  ──► 3001이 3000으로 프록시
+       │
+       ▼
+[메인 앱 3000] app/api/video/render/route.ts
+       │
+       ├─ 3. 미션 조회 (missions1 → 없으면 missions2)
+       ├─ 4. 썸네일·원본 영상 URL 수집
+       │      (mission.thumbnailUrl, sourceVideo, t_marketing_ai_missions, 유튜브 URL→hqdefault)
+       │
+       ├─ 5. 시나리오 생성 (lib/video/scenario-generator.ts)
+       │      └─ Gemini: 텍스트만 생성 → { hookMessage, question, optionA, optionB }
+       │      └─ buildTemplateScenario(): 고정 레이아웃(상단 검은 바, 자막바, A/B 박스)에 텍스트 끼워 넣기
+       │
+       ├─ 6. SNS 콘텐츠 생성 (lib/viral/content-generator.ts)
+       │      └─ Gemini: 플랫폼별 캡션/해시태그/CTA
+       │
+       ├─ 7. 영상 렌더링 (lib/video/canvas-renderer.ts)
+       │      └─ 배경: 썸네일 blur + 어두운 오버레이 (또는 그라디언트)
+       │      └─ 상단 검은 바 + 훅(형광 노랑, 두꺼운 테두리)
+       │      └─ 중간 반투명 자막바 + 질문
+       │      └─ 하단 A/B 박스 + VS (Ease-Out-Back 이징 적용)
+       │      └─ 프레임 PNG → FFmpeg로 MP4
+       │
+       ├─ 8. rendering_jobs (Firestore)에 결과 저장
+       │
+       └─ 9. 응답: { success, videoPath, scenario, snsContent }
+       │
+       ▼
+[대시보드] 결과 표시 (시나리오 JSON, SNS 캡션, 다운로드 등)
+```
+
+### 주요 파일
+
+| 역할 | 파일 |
+|------|------|
+| API 진입점 | `app/api/video/render/route.ts` |
+| 텍스트 시나리오 생성 (Gemini) | `lib/video/scenario-generator.ts` |
+| 템플릿 → VideoScenario | `buildTemplateScenario()` (동일 파일) |
+| SNS 캡션/해시태그 (Gemini) | `lib/viral/content-generator.ts` |
+| Canvas 렌더 + FFmpeg | `lib/video/canvas-renderer.ts` |
+| 대시보드 UI | `realpick-marketing-bot/dashboard/src/components/SnsViralManage.tsx` |
+| 프록시 (3001→3000) | `realpick-marketing-bot/backend/src/server.ts` (POST /api/video/render) |
+
+### 서버/포트 정리
+
+- **5173**: 마케팅 봇 대시보드 (Vite). `/api` 요청은 **3001**로 프록시.
+- **3001**: 마케팅 봇 백엔드. `/api/video/render` 는 **3000**으로 프록시.
+- **3000**: 메인 Next.js 앱. 실제 미션 조회·시나리오·렌더·Firestore 저장 수행.
+
+### 참고
+
+- 영상 상세 스펙·AI 역할·유료 Gemini 적용 제안: `docs/AI_ROLES_AND_GEMINI_PAID.md`
+- 릴스형 레이아웃 상수(픽셀): `lib/video/scenario-generator.ts` 내 `REELS` 객체.
+- **TTS(OpenAI) + Remotion 쇼츠** 설정·진행 후 할 일: `docs/SHORTS_TTS_REMOTION_SETUP.md`
 
 ---
 
@@ -488,7 +560,7 @@ python test_naver_cafe.py
 ### 6. 실제 크롤링 (API 사용)
 테스트 성공 후, Next.js 관리자 페이지에서 실행:
 ```
-http://localhost:3000/admin
+http://localhost:3002/admin
 → 마케터 관리 → 네이버 카페 크롤링
 ```
 

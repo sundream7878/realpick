@@ -116,34 +116,9 @@ export async function createMission(missionData: CreateMissionData, userId: stri
     }
 
     const docRef = await addDoc(collection(db, collectionName), missionPayload);
-    
-    // 이메일 알림 발송 (비동기)
-    console.log('[Mission Create] 🚀 Starting email notification...');
-    import("./email-notification").then(({ sendMissionNotification }) => {
-      console.log('[Mission Create] 📧 Calling sendMissionNotification with:', {
-        missionId: docRef.id,
-        missionTitle: missionData.title,
-        category: missionData.category,
-        showId: missionData.showId,
-        creatorId: userId
-      });
-      
-      sendMissionNotification({
-        missionId: docRef.id,
-        missionTitle: missionData.title,
-        category: missionData.category || undefined,
-        showId: missionData.showId || undefined,
-        creatorId: userId
-      }).then((result) => {
-        console.log('[Mission Create] ✅ Email notification result:', result);
-      }).catch(err => {
-        console.error("[Mission Create] ❌ Email notification failed:", err);
-        console.error("[Mission Create] ❌ Error details:", err.message, err.stack);
-      });
-    }).catch(err => {
-      console.error("[Mission Create] ❌ Failed to import email-notification module:", err);
-    });
-    
+
+    // 알림은 매일 정오(12시)·저녁(19시) 배치로만 발송 (즉시 이메일 없음)
+
     return { success: true, missionId: docRef.id };
   } catch (error: any) {
     console.error("Firebase 미션 생성 실패:", error);

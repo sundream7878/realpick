@@ -271,8 +271,21 @@ export function YoutubeDealerRecruit() {
         setIsLoadingChannels(true)
         try {
             const res = await fetch("/api/admin/dealers/list")
-            const data = await res.json()
-            if (data.success) {
+            const contentType = res.headers.get('content-type') ?? ''
+            const text = await res.text()
+            const trimmed = text.trim()
+            if (!res.ok || trimmed.startsWith('<') || (!contentType.includes('application/json') && !trimmed.startsWith('{'))) {
+                setChannelList([])
+                return
+            }
+            let data: { success?: boolean; dealers?: any[] }
+            try {
+                data = JSON.parse(text)
+            } catch {
+                setChannelList([])
+                return
+            }
+            if (data.success && Array.isArray(data.dealers)) {
                 const dealerChannels = data.dealers.map((d: any) => ({
                     channelId: d.channelId,
                     title: d.channelName,
@@ -283,8 +296,12 @@ export function YoutubeDealerRecruit() {
                     fromDB: true
                 }))
                 setChannelList(dealerChannels)
+            } else {
+                setChannelList([])
             }
         } catch (error: any) {
+            setChannelList([])
+            if (error?.message?.includes('JSON') || (error instanceof SyntaxError)) return
             toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
         } finally {
             setIsLoadingChannels(false)
@@ -320,6 +337,11 @@ export function YoutubeDealerRecruit() {
         loadDealersFromDB()
     }, [])
 
+    // 미션 탭 진입 시 자동으로 승인 대기 미션 목록 로드
+    useEffect(() => {
+        loadApprovedMissions()
+    }, [])
+
     const updateChannelEmail = (idx: number, email: string) => {
         setChannelList(prev => prev.map((c, i) => i === idx ? { ...c, email } : c))
     }
@@ -335,13 +357,28 @@ export function YoutubeDealerRecruit() {
         setIsLoadingMissions(true)
         try {
             const res = await fetch(`/api/admin/ai-missions/list?t=${Date.now()}`)
-            const data = await res.json()
+            const contentType = res.headers.get('content-type') ?? ''
+            const text = await res.text()
+            const trimmed = text.trim()
+            if (!res.ok || trimmed.startsWith('<') || (!contentType.includes('application/json') && !trimmed.startsWith('{'))) {
+                setApprovedMissions([])
+                return
+            }
+            let data: { success?: boolean; missions?: unknown[]; error?: string }
+            try {
+                data = JSON.parse(text)
+            } catch {
+                setApprovedMissions([])
+                return
+            }
             if (data.success) {
                 setApprovedMissions(data.missions || [])
             } else {
                 throw new Error(data.error || "미션 목록을 불러오는데 실패했습니다.")
             }
         } catch (error: any) {
+            setApprovedMissions([])
+            if (error?.message?.includes('JSON') || (error instanceof SyntaxError)) return
             console.error("미션 불러오기 오류:", error)
             toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
         } finally {

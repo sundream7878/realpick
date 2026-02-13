@@ -36,12 +36,15 @@ function getResendClient(): Resend | null {
 }
 
 interface MissionNotificationPayload {
-  missionId: string;
-  missionTitle: string;
-  category: string;
+  missionId?: string;
+  missionTitle?: string;
+  category?: string;
   showId?: string | null;
-  creatorId?: string; // Optional for deadline type
-  type?: 'new' | 'deadline'; // 'new' is default
+  creatorId?: string;
+  type?: 'new' | 'deadline' | 'batch'; // 'batch' = 정오/저녁 배치
+  /** type === 'batch' 일 때 */
+  slot?: 'noon' | 'evening';
+  missions?: Array<{ missionId: string; missionTitle: string; category?: string; showId?: string }>;
 }
 
 // 카테고리 이름 매핑
@@ -155,6 +158,69 @@ function generateEmailHtml(params: {
   `.trim();
 }
 
+// HTML 이메일 템플릿 생성 (배치: 정오/저녁 N개 미션)
+function generateBatchEmailHtml(params: {
+  slot: 'noon' | 'evening';
+  missions: Array<{ missionTitle: string; category?: string }>;
+  userNickname: string;
+  missionsUrl: string;
+  baseUrl: string;
+}): string {
+  const { slot, missions, userNickname, missionsUrl, baseUrl } = params;
+  const label = slot === 'noon' ? '정오' : '저녁';
+  const listItems = missions
+    .slice(0, 10)
+    .map((m) => `<li style="margin: 6px 0; color: #374151;">${m.missionTitle}</li>`)
+    .join('');
+  const more = missions.length > 10 ? `<li style="color: #9CA3AF;">외 ${missions.length - 10}개</li>` : '';
+
+  return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${label} 알림 - 새 미션 ${missions.length}개</title>
+</head>
+<body style="font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #F9FAFB;">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #F9FAFB; padding: 40px 20px;">
+    <tr>
+      <td align="center">
+        <table width="600" cellpadding="0" cellspacing="0" style="background-color: #FFFFFF; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);">
+          <tr>
+            <td style="background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); padding: 30px; text-align: center;">
+              <h1 style="margin: 0; color: #FFFFFF; font-size: 28px; font-weight: bold;">리얼픽</h1>
+              <p style="margin: 10px 0 0 0; color: #E5E7EB; font-size: 14px;">${label} 알림 · 새 미션 ${missions.length}개가 올라왔어요!</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 40px 30px;">
+              <p style="margin: 0 0 20px 0; color: #374151; font-size: 16px;">안녕하세요, <strong>${userNickname}</strong>님!</p>
+              <p style="margin: 0 0 16px 0; color: #6B7280; font-size: 14px;">이번 ${label}까지 등록된 새 미션입니다.</p>
+              <ul style="margin: 0 0 24px 0; padding-left: 20px;">${listItems}${more}</ul>
+              <table width="100%" cellpadding="0" cellspacing="0">
+                <tr>
+                  <td align="center">
+                    <a href="${missionsUrl}" target="_blank" rel="noopener noreferrer" style="display: inline-block; background: linear-gradient(135deg, #2C2745 0%, #3E757B 100%); color: #FFFFFF; text-decoration: none; padding: 16px 40px; border-radius: 8px; font-size: 16px; font-weight: bold;">미션 목록 보기 →</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="background-color: #F3F4F6; padding: 20px 30px; border-top: 1px solid #E5E7EB;">
+              <p style="margin: 0; color: #9CA3AF; font-size: 12px;">알림 설정: <a href="${baseUrl}/p-profile" style="color: #2563EB;">프로필</a></p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+  `.trim();
+}
+
 // HTML 이메일 템플릿 생성 (마감 알림)
 function generateDeadlineEmailHtml(params: {
   missionTitle: string;
@@ -235,9 +301,50 @@ export async function POST(request: NextRequest) {
     }
 
     const payload: MissionNotificationPayload = await request.json();
-    const { missionId, missionTitle, category, showId, type = 'new' } = payload;
+    const { missionId, missionTitle, category, showId, type = 'new', slot, missions: batchMissions } = payload;
 
-    console.log(`[Mission Notification] Sending ${type} notification for ${missionTitle}`);
+    // 배치 알림 (정오/저녁): 한 번에 N개 미션 리스트로 이메일 1통
+    if (type === 'batch' && slot && batchMissions && batchMissions.length > 0) {
+      const { getNotificationTargetUserIds } = await import('@/lib/firebase/admin-notifications');
+      const userIds = await getNotificationTargetUserIds();
+      let baseUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://real-pick.com';
+      baseUrl = baseUrl.replace(/\/$/, '');
+      const missionsUrl = `${baseUrl}/p-missions`;
+      const fromEmail = formatFromEmail(process.env.RESEND_FROM_EMAIL);
+      const label = slot === 'noon' ? '정오' : '저녁';
+      const subject = `[리얼픽] ${label} 알림 · 새 미션 ${batchMissions.length}개`;
+
+      const users: any[] = [];
+      for (let i = 0; i < userIds.length; i += 30) {
+        const chunk = userIds.slice(i, i + 30);
+        const snap = await adminDb.collection('users').where('__name__', 'in', chunk).get();
+        snap.docs.forEach((doc) => users.push({ id: doc.id, ...doc.data() }));
+      }
+
+      let sent = 0;
+      for (const user of users) {
+        if (!user.email) continue;
+        try {
+          const html = generateBatchEmailHtml({
+            slot,
+            missions: batchMissions.map((m) => ({ missionTitle: m.missionTitle, category: m.category })),
+            userNickname: user.nickname || '사용자',
+            missionsUrl,
+            baseUrl,
+          });
+          await resendClient.emails.send({ from: fromEmail, to: user.email, subject, html });
+          sent++;
+        } catch (e) {
+          console.error(`[Mission Notification] Batch email fail: ${user.email}`, e);
+        }
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      console.log(`[Mission Notification] Batch ${slot} 이메일 발송: ${sent}/${users.length}명`);
+      return NextResponse.json({ success: true, sent, total: users.length });
+    }
+
+    const missionTitleForLog = missionTitle ?? batchMissions?.[0]?.missionTitle ?? '';
+    console.log(`[Mission Notification] Sending ${type} notification for ${missionTitleForLog}`);
 
     let userIdsToNotify: string[] = [];
 
