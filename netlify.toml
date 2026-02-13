@@ -9,6 +9,8 @@
 [build.environment]
   NODE_VERSION = "20"
   NPM_FLAGS = "--production=false"
+  # Next 빌드 메모리 (OOM 방지)
+  NODE_OPTIONS = "--max-old-space-size=4096"
 
 # API 라우트 캐싱 방지
 [[headers]]

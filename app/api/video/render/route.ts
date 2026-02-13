@@ -3,8 +3,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import path from 'path'
 import fs from 'fs'
 import { generateVideoScenario } from '@/lib/video/scenario-generator'
-import { renderVideoFromScenario } from '@/lib/video/canvas-renderer'
-import { renderRemotionShorts } from '@/lib/video/render-remotion-shorts'
 import { downloadVideoFromUrl, isYtDlpAvailable } from '@/lib/video/download-source'
 import { extractSceneSlides } from '@/lib/video/extract-scenes'
 import { generateShortsTTS, getAudioDurationInSeconds } from '@/lib/tts/openai-generator'
@@ -169,9 +167,10 @@ export async function POST(req: NextRequest) {
 
     const outputPath = path.join(process.cwd(), 'temp', `mission-${mission.id}.mp4`)
 
-    // 5. Remotion으로 배경+훅+질문+VS+TTS+BGM 덕킹 렌더
+    // 5. Remotion 또는 Canvas로 렌더 (동적 로드 — Netlify 빌드 시 canvas/remotion 번들 제외)
     let videoPath: string
     try {
+      const { renderRemotionShorts } = await import('@/lib/video/render-remotion-shorts')
       console.log('[Video API] Remotion 영상 렌더링 시작...')
       videoPath = await renderRemotionShorts({
         hookMessage,
@@ -185,6 +184,7 @@ export async function POST(req: NextRequest) {
       })
     } catch (remotionError: any) {
       console.warn('[Video API] Remotion 실패, Canvas 폴백:', remotionError?.message)
+      const { renderVideoFromScenario } = await import('@/lib/video/canvas-renderer')
       videoPath = await renderVideoFromScenario({
         missionId: mission.id,
         scenario,

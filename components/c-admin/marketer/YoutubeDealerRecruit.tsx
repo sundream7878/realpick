@@ -321,6 +321,11 @@ export function YoutubeDealerRecruit() {
         loadDealersFromDB()
     }, [])
 
+    // 컴포넌트 마운트 시 승인 대기 미션 목록 자동 로드
+    useEffect(() => {
+        loadApprovedMissions()
+    }, [])
+
     const updateChannelEmail = (idx: number, email: string) => {
         setChannelList(prev => prev.map((c, i) => i === idx ? { ...c, email } : c))
     }

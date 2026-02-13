@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import admin from 'firebase-admin';
+import cron from 'node-cron';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -327,6 +328,33 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
   });
 });
 
+// 매일 6시(KST) 자동 미션 생성 (로컬 스케줄러) — PC가 한국 시간이면 6시에 실행
+function startDailyAutoMissionSchedule() {
+  const mainAppUrl = process.env.MAIN_APP_URL || 'http://localhost:3002';
+  const botUrl = process.env.MARKETING_BOT_URL || `http://localhost:${PORT}`;
+  cron.schedule('0 6 * * *', async () => {
+    console.log('[6시 자동] 매일 6시 자동 미션 생성 시작...');
+    try {
+      const kwRes = await fetch(`${mainAppUrl.replace(/\/$/, '')}/api/public/active-show-keywords`);
+      const { keywords = [] } = await kwRes.json().catch(() => ({}));
+      if (keywords.length === 0) {
+        console.log('[6시 자동] 활성 프로그램 없음, 스킵');
+        return;
+      }
+      const res = await fetch(`${botUrl.replace(/\/$/, '')}/api/youtube/run-daily-auto-mission`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ keywords, baseUrl: mainAppUrl }),
+      });
+      const data = await res.json().catch(() => ({}));
+      console.log('[6시 자동] 완료:', data.totalCollected ?? 0, '수집 →', data.totalScreened ?? 0, '선정 →', data.totalMissionsCreated ?? 0, '미션');
+    } catch (e) {
+      console.error('[6시 자동] 실패:', e);
+    }
+  });
+  console.log('⏰ 매일 6시(KST) 자동 미션 생성 스케줄 등록됨 (로컬 시간 6시)');
+}
+
 // 서버 시작
 app.listen(PORT, async () => {
   console.log(`\n🚀 마케팅 봇 백엔드 서버 시작`);
@@ -337,6 +365,7 @@ app.listen(PORT, async () => {
   console.log(`  - GET  http://localhost:${PORT}/api/health`);
   console.log(`\n⚠️  주의: 이 서버는 로컬에서만 실행되어야 합니다.\n`);
   await checkFirebase();
+  startDailyAutoMissionSchedule();
 });
 
 export default app;
