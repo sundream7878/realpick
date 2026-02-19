@@ -21,6 +21,7 @@ import { getAllUsers, updateUserRole, searchUsers } from "@/lib/firebase/users"
 import { SHOWS, CATEGORIES, type TShowCategory, getShowById, normalizeShowId } from "@/lib/constants/shows"
 import { getUserId } from "@/lib/auth-utils"
 import { auth, db } from "@/lib/firebase/config"
+import { onAuthStateChanged } from "firebase/auth"
 import { doc, getDoc } from "firebase/firestore"
 import type { TUser } from "@/types/t-vote/vote.types"
 import type { TUserRole } from "@/lib/utils/permissions"
@@ -71,36 +72,35 @@ export default function AdminPage() {
 
 
     useEffect(() => {
-        const checkPermissionAndLoad = async () => {
-            const currentUser = auth.currentUser
-
+        // Firebase Auth 복원이 끝날 때까지 기다린 뒤 권한 검사 (한 번에 들어가지던 현상 방지)
+        const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
             if (!currentUser) {
+                setIsLoading(false)
                 router.push("/")
                 return
             }
 
-            // Check role first
-            const userDoc = await getDoc(doc(db, "users", currentUser.uid))
-            const userData = userDoc.data()
-
-            if (userData?.role !== 'ADMIN') {
-                router.push("/")
-                toast({
-                    title: "접근 거부",
-                    description: "관리자 권한이 없습니다.",
-                    variant: "destructive"
-                })
-                return
-            }
-
-            setIsAdminRole(true)
-            
-            // 관리자 역할이 확인되면 자동으로 unlock
-            setIsUnlocked(true)
-            sessionStorage.setItem("admin_unlocked", "true")
-
-            // Load Admin Data
             try {
+                // Check role first
+                const userDoc = await getDoc(doc(db, "users", currentUser.uid))
+                const userData = userDoc.data()
+
+                if (userData?.role !== 'ADMIN') {
+                    setIsLoading(false)
+                    router.push("/")
+                    toast({
+                        title: "접근 거부",
+                        description: "관리자 권한이 없습니다.",
+                        variant: "destructive"
+                    })
+                    return
+                }
+
+                setIsAdminRole(true)
+                setIsUnlocked(true)
+                sessionStorage.setItem("admin_unlocked", "true")
+
+                // Load Admin Data
                 const [showStatusesResult, showVisibilityResult, customShowsResult] = await Promise.all([
                     getShowStatuses(),
                     getShowVisibility(),
@@ -110,11 +110,9 @@ export default function AdminPage() {
                 if (showStatusesResult.success) {
                     setShowStatuses(showStatusesResult.statuses || {})
                 }
-
                 if (showVisibilityResult.success) {
                     setShowVisibility(showVisibilityResult.visibility || {})
                 }
-
                 if (customShowsResult.success) {
                     setCustomShows(customShowsResult.shows || [])
                 }
@@ -128,9 +126,9 @@ export default function AdminPage() {
             } finally {
                 setIsLoading(false)
             }
-        }
+        })
 
-        checkPermissionAndLoad()
+        return () => unsubscribe()
     }, [router, toast])
 
 
