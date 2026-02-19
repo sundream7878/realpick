@@ -184,8 +184,8 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
     const textTemplate = generateMagicLinkEmailText(link);
 
     // Resend로 실제 이메일 발송!
-    // 원래 잘 되던 기본 발신 주소 사용
-    const fromEmail = "onboarding@resend.dev";
+    // 도메인 인증이 완료되었으므로, 인증된 도메인 주소를 사용합니다.
+    const fromEmail = "noreply@real-pick.com";
 
     console.log("[Magic Link] 이메일 발송 시작:", email);
 
@@ -197,12 +197,22 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
       text: textTemplate,
     });
 
+    // Resend API 에러 체크 (중요: 에러가 있으면 클라이언트에 알림)
+    if (emailResult.error) {
+      console.error("[Magic Link] Resend API 에러:", emailResult.error);
+      res.status(500).json({
+        success: false,
+        error: emailResult.error.message || "이메일 발송 중 오류가 발생했습니다.",
+      });
+      return;
+    }
+
     console.log("[Magic Link] 이메일 발송 완료:", emailResult);
 
     res.status(200).json({
       success: true,
       message: "로그인 링크가 이메일로 발송되었습니다.",
-      emailId: emailResult.id,
+      emailId: emailResult.data ? emailResult.data.id : null,
     });
   } catch (error) {
     console.error("[Magic Link] 오류 발생:", error);
