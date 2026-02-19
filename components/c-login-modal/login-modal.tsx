@@ -308,6 +308,8 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
 
               <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
                 이메일이 보이지 않나요? 스팸 폴더를 확인해주세요.
+                <br />
+                네이버 메일은 도착이 느리거나 스팸 처리될 수 있어, Gmail 등 다른 주소 사용을 권장합니다.
               </p>
             </div>
           )}

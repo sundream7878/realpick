@@ -23,11 +23,11 @@ const actionCodeSettings = {
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   try {
     console.log("🔥 [sendVerificationCode] 커스텀 템플릿으로 이메일 발송 시작:", email)
-    
-    // 현재 도메인으로 리다이렉트 URL 생성
+
+    // 원래 방식대로 현재 접속한 도메인을 기반으로 리다이렉트 URL 생성
     const redirectUrl = typeof window !== "undefined" 
       ? `${window.location.origin}/auth/callback`
-      : "https://realpick.com/auth/callback"
+      : "https://real-pick.com/auth/callback"
     
     console.log("📍 [sendVerificationCode] Redirect URL:", redirectUrl)
     
@@ -71,20 +71,28 @@ export async function handleMagicLinkCallback(): Promise<{
   error?: string
 }> {
   try {
-    if (!isSignInWithEmailLink(auth, window.location.href)) {
-      return { success: false, error: "유효하지 않은 인증 링크입니다." }
+    const href = typeof window !== "undefined" ? window.location.href : ""
+
+    if (!isSignInWithEmailLink(auth, href)) {
+      return {
+        success: false,
+        error: "유효하지 않은 인증 링크입니다. 같은 브라우저에서 로그인 링크를 요청한 뒤, 이메일에 있는 링크를 그 브라우저에서 열어주세요. 이미 사용한 링크는 한 번만 사용할 수 있습니다.",
+      }
     }
 
-    let email = window.localStorage.getItem("emailForSignIn")
+    let email = typeof window !== "undefined" ? window.localStorage.getItem("emailForSignIn") : null
     if (!email) {
-      email = window.prompt("이메일을 다시 입력해주세요 (보안 확인용)")
+      email = typeof window !== "undefined" ? window.prompt("이메일을 다시 입력해주세요 (보안 확인용)") : null
     }
 
     if (!email) {
-      return { success: false, error: "이메일 정보가 누락되었습니다." }
+      return {
+        success: false,
+        error: "이메일 정보가 없습니다. 로그인을 요청한 기기·브라우저에서 이 링크를 열거나, 위에 뜨는 입력창에 가입한 이메일을 입력해주세요.",
+      }
     }
 
-    const result = await signInWithEmailLink(auth, email, window.location.href)
+    const result = await signInWithEmailLink(auth, email, href)
     const user = result.user
 
     if (!user) {
@@ -151,7 +159,15 @@ export async function handleMagicLinkCallback(): Promise<{
     return { success: true, userId, isNewUser, needsSetup }
   } catch (error: any) {
     console.error("Firebase 매직링크 처리 중 오류:", error)
-    return { success: false, error: error.message }
+    const code = error?.code ?? ""
+    const msg = error?.message ?? "알 수 없는 오류"
+    if (code === "auth/invalid-action-code" || code === "auth/expired-action-code") {
+      return { success: false, error: "이 로그인 링크는 이미 사용되었거나 만료되었습니다. 로그인 화면에서 다시 '이메일로 로그인'을 요청해주세요." }
+    }
+    if (code === "auth/invalid-email") {
+      return { success: false, error: "이메일이 올바르지 않습니다. 로그인을 요청할 때 사용한 이메일과 동일한 주소를 입력해주세요." }
+    }
+    return { success: false, error: msg }
   }
 }
 

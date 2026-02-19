@@ -162,7 +162,7 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
     }
 
     // Firebase Admin SDK로 매직링크 생성
-    // redirectUrl이 제공되면 사용, 없으면 기본값 사용
+    // 원래 잘 작동하던 기본 콜백 URL 유지
     const callbackUrl = redirectUrl || "https://realpick.com/auth/callback";
 
     console.log("[Magic Link] Using callback URL:", callbackUrl);
@@ -184,6 +184,7 @@ exports.sendMagicLink = functions.https.onRequest(async (req, res) => {
     const textTemplate = generateMagicLinkEmailText(link);
 
     // Resend로 실제 이메일 발송!
+    // 원래 잘 되던 기본 발신 주소 사용
     const fromEmail = "onboarding@resend.dev";
 
     console.log("[Magic Link] 이메일 발송 시작:", email);
