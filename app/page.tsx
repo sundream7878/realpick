@@ -11,13 +11,13 @@ import { MobileBottomBanner } from "@/components/c-banner-ad/mobile-bottom-banne
 import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import Onboarding from "@/components/c-onboarding/onboarding"
 import LoginModal from "@/components/c-login-modal/login-modal"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getMissions, getMissions2, getAllMissions } from "@/lib/firebase/missions"
 import { getVote1, getAllVotes2, getUserVotesMap } from "@/lib/firebase/votes"
 import { getTopVotersByMission } from "@/lib/firebase/top-voters"
-import { getUserId, isAuthenticated } from "@/lib/auth-utils"
+import { getUserId, isAuthenticated, getAnonNickname, getAnonId } from "@/lib/auth-utils"
 import { getTierFromPoints, getTierFromDbOrPoints } from "@/lib/utils/u-tier-system/tierSystem.util"
 import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -50,7 +50,14 @@ export default function HomePage() {
   const [adminMainMissionId, setAdminMainMissionId] = useState<string | null>(null)
   const [topVoters, setTopVoters] = useState<Array<{ nickname: string; points: number; tier: string }>>([])
   const [redirectAfterLogin, setRedirectAfterLogin] = useState<string | undefined>(undefined)
+  const [hasStarted, setHasStarted] = useState<boolean | null>(null)
   
+  // 온보딩 시작 여부 체크
+  useEffect(() => {
+    const started = localStorage.getItem('rp_onboarding_started') === 'true'
+    setHasStarted(started)
+  }, [])
+
   // 페이지네이션 상태 추가
   const [currentPage, setCurrentPage] = useState(1)
   const MISSIONS_PER_PAGE = 8
@@ -70,21 +77,20 @@ export default function HomePage() {
     
     // 쿼리 파라미터가 없으면
     if (!showParam && !categoryParam) {
-      // 로그인한 경우에만 로맨스 카테고리로 리다이렉트
-      if (isLoggedIn === true) {
+      // 로그인했거나, 이미 온보딩을 완료한 경우 로맨스 카테고리로 리다이렉트
+      if (isLoggedIn === true || hasStarted === true) {
         router.replace('/?category=LOVE')
       }
-      // 로그인 전이거나 체크 중이면 아무것도 하지 않음 (온보딩 표시를 위해)
       return
     }
     
     setSelectedShowId(showParam)
-  }, [searchParams, router, isLoggedIn])
+  }, [searchParams, router, isLoggedIn, hasStarted])
 
   // 로그인 상태 체크
   useEffect(() => {
-    const checkLoginStatus = async () => {
-      const loggedIn = await isAuthenticated()
+    const checkLoginStatus = () => {
+      const loggedIn = isAuthenticated()
       setIsLoggedIn(loggedIn)
     }
     checkLoginStatus()
@@ -291,7 +297,8 @@ export default function HomePage() {
   // 유저 데이터 로드
   useEffect(() => {
     const loadUserData = async () => {
-      if (isAuthenticated()) {
+      const isAuth = await isAuthenticated()
+      if (isAuth) {
         const currentUserId = getUserId()
         if (currentUserId) {
           try {
@@ -306,8 +313,10 @@ export default function HomePage() {
           }
         }
       } else {
-        // 비로그인 상태일 때 기본값
-        setUserNickname("")
+        // 비로그인 상태일 때 익명 별명 및 ID 설정
+        const anonNickname = getAnonNickname()
+        const anonId = getAnonId()
+        setUserNickname(`${anonNickname} (${anonId.slice(0, 8)})`)
         setUserPoints(0)
         setUserTier(getTierFromPoints(0))
       }
@@ -494,14 +503,22 @@ export default function HomePage() {
   }, [mainMission?.id, isMainMissionClosed])
 
   // 메인 미션을 제외한 나머지 리스트
-  const allDisplayMissions = sortedMissions.filter(m => m.id !== mainMission?.id)
+  const allDisplayMissions = useMemo(() => {
+    if (!mainMission) return sortedMissions
+    return sortedMissions.filter(m => 
+      m.id !== mainMission.id && 
+      m.title !== mainMission.title // 제목이 같아도 제외 (중복 방지)
+    )
+  }, [sortedMissions, mainMission])
   
   // 페이지네이션 적용
   const totalPages = Math.ceil(allDisplayMissions.length / MISSIONS_PER_PAGE)
-  const displayMissions = allDisplayMissions.slice(
-    (currentPage - 1) * MISSIONS_PER_PAGE,
-    currentPage * MISSIONS_PER_PAGE
-  )
+  const displayMissions = useMemo(() => {
+    return allDisplayMissions.slice(
+      (currentPage - 1) * MISSIONS_PER_PAGE,
+      currentPage * MISSIONS_PER_PAGE
+    )
+  }, [allDisplayMissions, currentPage])
 
   // 필터나 카테고리 변경 시 페이지 초기화
   useEffect(() => {
@@ -526,8 +543,8 @@ export default function HomePage() {
     return cleanup
   }, [])
 
-  // 로그인 상태 체크 중일 때 로딩 표시
-  if (isLoggedIn === null) {
+  // 로그인 및 온보딩 상태 체크 중일 때 로딩 표시
+  if (isLoggedIn === null || hasStarted === null) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
@@ -538,22 +555,32 @@ export default function HomePage() {
     )
   }
 
-  // 로그인하지 않은 사용자에게 무조건 온보딩 표시
-  if (!isLoggedIn) {
+  // 온보딩 표시 여부 결정
+  // 1. 로그인하지 않았고
+  // 2. 온보딩을 아직 시작하지 않았으며
+  // 3. URL에 show나 category 파라미터가 없을 때만 온보딩 표시
+  const showOnboarding = isLoggedIn === false && hasStarted === false && !searchParams.get('show') && !searchParams.get('category');
+
+  // 로그인하지 않은 사용자에게 온보딩 표시
+  if (showOnboarding) {
     return (
       <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+        <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
           <AppHeader
             selectedShow="나는솔로"
             onShowChange={() => { }}
-            userNickname=""
-            userPoints={0}
-            userTier={getTierFromPoints(0)}
-            onAvatarClick={() => {}}
+            userNickname={userNickname}
+            userPoints={userPoints}
+            userTier={userTier}
+            onAvatarClick={() => {
+              setShowLoginModal(true)
+            }}
             selectedShowId={selectedShowId}
             onShowSelect={(showId) => {
-              // 로그인 전에는 프로그램 선택 시 로그인 모달 표시
-              setShowLoginModal(true)
+              // 헤더에서 프로그램 선택 시 즉시 이동 (URL 파라미터가 생기므로 showOnboarding이 false가 됨)
+              localStorage.setItem('rp_onboarding_started', 'true')
+              setHasStarted(true)
+              router.push(`/?show=${showId}`)
             }}
             activeShowIds={activeShowIds}
             showStatuses={showStatuses}
@@ -563,7 +590,10 @@ export default function HomePage() {
           <main className="flex-1 relative">
             <Onboarding 
               onGetStarted={() => {
-                setShowLoginModal(true)
+                // 시작하기 클릭 시 기본 카테고리로 이동
+                localStorage.setItem('rp_onboarding_started', 'true')
+                setHasStarted(true)
+                router.push('/?category=LOVE')
               }}
             />
           </main>
@@ -576,6 +606,8 @@ export default function HomePage() {
             onLoginSuccess={() => {
               setShowLoginModal(false)
               setIsLoggedIn(true)
+              localStorage.setItem('rp_onboarding_started', 'true')
+              setHasStarted(true)
               router.push('/?category=LOVE')
             }}
           />
@@ -584,43 +616,47 @@ export default function HomePage() {
     )
   }
 
-  // 로그인한 사용자에게 기존 미션 목록 표시
+  // 온보딩 표시하지 않는 경우 (로그인했거나 특정 프로그램/카테고리 선택 시)
   return (
     <div className="min-h-screen bg-gray-50 pb-30 md:pb-0 relative overflow-x-hidden">
       <DesktopWingBanner side="left" />
       <DesktopWingBanner side="right" />
       
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
         {/* 상단 헤더 */}
-        <AppHeader
-          selectedShow="나는솔로" // Legacy prop, can be ignored or removed later
-          onShowChange={() => { }} // Legacy prop
-          userNickname={userNickname}
-          userPoints={userPoints}
-          userTier={userTier}
-          onAvatarClick={() => {
-            const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
-            router.push(profileUrl)
-          }}
-          selectedShowId={selectedShowId}
-          onShowSelect={(showId) => {
-            setSelectedShowId(showId)
-            // URL 업데이트
-            router.push(`/?show=${showId}`)
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}
-          activeShowIds={activeShowIds}
-          showStatuses={showStatuses}
-          missions={missions}
-        />
+          <AppHeader
+            selectedShow="나는솔로" // Legacy prop, can be ignored or removed later
+            onShowChange={() => { }} // Legacy prop
+            userNickname={userNickname}
+            userPoints={userPoints}
+            userTier={userTier}
+            onAvatarClick={() => {
+              if (isLoggedIn === false) {
+                setShowLoginModal(true)
+                return
+              }
+              const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
+              router.push(profileUrl)
+            }}
+            selectedShowId={selectedShowId}
+            onShowSelect={(showId) => {
+              setSelectedShowId(showId)
+              // URL 업데이트
+              router.push(`/?show=${showId}`)
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }}
+            activeShowIds={activeShowIds}
+            showStatuses={showStatuses}
+            missions={missions}
+          />
 
 
         {/* 메인 콘텐츠 */}
-        <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
+        <main className="flex-1 p-4 space-y-4 md:pl-40 pb-32 md:pb-16 min-w-0">
           {/* 메인 미션 배너 */}
           {mainMission && (
             <div
-              className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-5 md:p-6 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer"
+              className="w-full bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 rounded-2xl p-3 md:p-4 mb-6 shadow-xl text-white overflow-hidden relative group cursor-pointer"
               onClick={() => router.push(isMainMissionClosed ? `/p-mission/${mainMission.id}/results` : `/p-mission/${mainMission.id}/vote`)}
             >
               {/* 배경 애니메이션 효과 */}
@@ -630,9 +666,9 @@ export default function HomePage() {
               {/* 반짝이는 효과 (Shimmer) */}
               <div className="absolute inset-0 -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent z-0"></div>
 
-              <div className="relative z-10 flex flex-col md:flex-row items-center gap-8">
+              <div className="relative z-10 flex flex-col md:flex-row items-center gap-3 md:gap-4">
                 {/* 왼쪽: 미션 카드 (원본 크기 유지 & 3D 효과) */}
-                <div className="w-full md:w-1/2 perspective-1000 flex-shrink-0">
+                <div className="w-full md:w-[42%] perspective-1000 flex-shrink-0">
                   <div className="pointer-events-none transform transition-transform duration-500 group-hover:scale-105 group-hover:rotate-y-6">
                     <MissionCard
                       mission={mainMission}
@@ -665,7 +701,7 @@ export default function HomePage() {
                     )}
                   </div>
 
-                  <h1 className="text-xl md:text-2xl font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
+                  <h1 className="text-sm md:text-base lg:text-lg font-black leading-tight break-keep text-white drop-shadow-lg animate-fade-in-up delay-100">
                     {(mainMission.showId === 'nasolo' || mainMission.showId === 'nasolsagye') && mainMission.seasonNumber 
                       ? `[${mainMission.seasonNumber}기] ${mainMission.title}` 
                       : mainMission.title}
@@ -683,7 +719,7 @@ export default function HomePage() {
                             e.stopPropagation()
                             router.push(`/p-mission/${mainMission.id}/vote`)
                           }}
-                          className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-sm px-6 py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
+                          className="bg-white text-gray-900 hover:bg-gray-100 hover:scale-105 font-bold text-xs sm:text-sm px-4 sm:px-6 py-1.5 sm:py-2 rounded-full shadow-[0_0_15px_rgba(255,255,255,0.3)] transition-all duration-300"
                           size="default"
                         >
                           지금 투표 참여하기
@@ -885,6 +921,17 @@ export default function HomePage() {
           onMissionModalOpen={() => setIsMissionModalOpen(true)}
           category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
           selectedShowId={selectedShowId}
+        />
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => {
+            setShowLoginModal(false)
+          }}
+          onLoginSuccess={() => {
+            setShowLoginModal(false)
+            setIsLoggedIn(true)
+          }}
         />
 
         {/* 미션 생성 모달 */}

@@ -6,7 +6,7 @@ export function SeoFooter() {
   
   return (
     <footer className="bg-gray-50 border-t border-gray-100 py-12 px-4 mt-20 hidden md:block">
-      <div className="max-w-7xl mx-auto">
+      <div className="max-w-5xl mx-auto">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div className="col-span-1">
             <h3 className="text-lg font-bold text-gray-900 mb-4">리얼픽 (RealPick)</h3>

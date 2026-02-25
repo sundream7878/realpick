@@ -20,7 +20,7 @@ import { useRouter } from "next/navigation"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/c-ui/dropdown-menu"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/c-ui/dialog"
 import LoginModal from "@/components/c-login-modal/login-modal"
-import { isAuthenticated, getUserId } from "@/lib/auth-utils"
+import { isAuthenticated, getUserId, incrementParticipationCount, getParticipationCount } from "@/lib/auth-utils"
 
 interface MatchVotePageProps {
   mission: TMission
@@ -52,6 +52,7 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   const [connections, setConnections] = useState<Connection[]>([]) // 초기에는 빈 배열
   const [showSubmissionSheet, setShowSubmissionSheet] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [loginModalConfig, setLoginModalConfig] = useState({ title: "", description: "" })
   const [pendingSubmit, setPendingSubmit] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userVote, setUserVote] = useState<Array<{ left: string; right: string }> | null>(null)
@@ -845,6 +846,18 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
           setSubmittedEpisode(null)
         }, 3000)
 
+        // 익명 사용자인 경우 참여 횟수 증가 및 트리거 체크
+        if (!isAuthenticated()) {
+          const count = incrementParticipationCount();
+          if (count >= 5) {
+            setLoginModalConfig({
+              title: "내가 참여한 미션을 보관하고 싶다면?",
+              description: "5번 이상 참여하셨네요! 기록을 안전하게 보관하세요."
+            });
+            setShowLoginModal(true);
+          }
+        }
+
         // 실시간 동기화를 위한 이벤트 발생
         window.dispatchEvent(new CustomEvent('mission-vote-updated', {
           detail: { missionId: mission.id, userId, episodeNo: currentEpisode }
@@ -1496,13 +1509,8 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                       }`}
                     onClick={() => {
                       if (isSubmitted || isSettled || !canSubmit) return
-                      // 로그인 체크
-                      if (!isAuthenticated()) {
-                        setPendingSubmit(true)
-                        setShowLoginModal(true)
-                      } else {
-                        setShowSubmissionSheet(true)
-                      }
+                      // 익명 참여 허용
+                      setShowSubmissionSheet(true)
                     }}
                     disabled={!canSubmit || isSubmitted || isSettled}
                   >
@@ -1543,7 +1551,10 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
         onClose={() => {
           setShowLoginModal(false)
           setPendingSubmit(false)
+          setLoginModalConfig({ title: "", description: "" })
         }}
+        title={loginModalConfig.title}
+        description={loginModalConfig.description}
         onLoginSuccess={() => {
           // 로그인 성공 후 제출 시트 표시
           if (pendingSubmit) {

@@ -5,6 +5,7 @@ import { TComment } from "@/types/t-vote/vote.types"
 import { CommentInput } from "./CommentInput"
 import { CommentList } from "./CommentList"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
+import { getUserId, getAnonNickname, isAuthenticated } from "@/lib/auth-utils"
 
 interface CommentSectionProps {
     missionId: string
@@ -12,28 +13,37 @@ interface CommentSectionProps {
     currentUserId?: string
 }
 
-export function CommentSection({ missionId, missionType, currentUserId }: CommentSectionProps) {
+export function CommentSection({ missionId, missionType, currentUserId: propUserId }: CommentSectionProps) {
     const [comments, setComments] = useState<TComment[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [currentUserInfo, setCurrentUserInfo] = useState<{ nickname: string; tier: string } | null>(null)
     const { toast } = useToast()
 
+    // 실제 사용할 유저 ID (로그인 안된 경우 익명 ID)
+    const currentUserId = propUserId || getUserId() || "anon"
+
     // 사용자 정보 불러오기
     useEffect(() => {
         const fetchUserInfo = async () => {
-            if (currentUserId) {
-                const user = await getUser(currentUserId)
+            if (isAuthenticated() && propUserId) {
+                const user = await getUser(propUserId)
                 if (user) {
                     setCurrentUserInfo({
                         nickname: user.nickname,
                         tier: user.tier
                     })
                 }
+            } else {
+                // 익명 사용자 정보 설정
+                setCurrentUserInfo({
+                    nickname: getAnonNickname(),
+                    tier: "새내기" // 기본 티어
+                })
             }
         }
         fetchUserInfo()
-    }, [currentUserId])
+    }, [propUserId])
 
     // 댓글 목록 불러오기
     const loadComments = async () => {
@@ -57,8 +67,8 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     const handleAddComment = async (content: string) => {
         if (!currentUserId || !currentUserInfo) {
             toast({
-                title: "로그인 필요",
-                description: "댓글을 작성하려면 로그인이 필요합니다.",
+                title: "오류",
+                description: "사용자 정보를 확인할 수 없습니다.",
                 variant: "destructive"
             })
             return
@@ -91,8 +101,8 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
     const handleReply = async (targetId: string, content: string) => {
         if (!currentUserId || !currentUserInfo) {
             toast({
-                title: "로그인 필요",
-                description: "답글을 작성하려면 로그인이 필요합니다.",
+                title: "오류",
+                description: "사용자 정보를 확인할 수 없습니다.",
                 variant: "destructive"
             })
             return
@@ -190,14 +200,7 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
 
     // 좋아요 토글 핸들러
     const handleLike = async (commentId: string) => {
-        if (!currentUserId) {
-            toast({
-                title: "로그인 필요",
-                description: "좋아요를 누르려면 로그인이 필요합니다.",
-                variant: "destructive"
-            })
-            return
-        }
+        if (!currentUserId) return
 
         // 서버 요청
         const result = await toggleCommentLike(commentId, currentUserId)
@@ -264,7 +267,7 @@ export function CommentSection({ missionId, missionType, currentUserId }: Commen
                 <CommentInput
                     onSubmit={handleAddComment}
                     isLoading={isSubmitting}
-                    placeholder={currentUserId ? "내용을 입력해주세요." : "로그인 후 댓글을 남길 수 있습니다."}
+                    placeholder="내용을 입력해주세요."
                 />
             </div>
 

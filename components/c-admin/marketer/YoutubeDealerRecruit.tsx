@@ -484,7 +484,8 @@ export function YoutubeDealerRecruit() {
         
         setIsFixingShowIds(true)
         try {
-            const res = await fetch("/api/admin/ai-missions/fix-show-ids", {
+            const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+            const res = await fetch(`${base}/api/admin/ai-missions/fix-show-ids`, {
                 method: "POST"
             })
             const data = await res.json()
@@ -627,7 +628,7 @@ export function YoutubeDealerRecruit() {
             </TabsList>
 
             <TabsContent value="videos" className="space-y-6">
-                <Card>
+                <Card className="border-purple-200">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>
@@ -778,7 +779,7 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="channels" className="space-y-6">
-                <Card>
+                <Card className="border-blue-200">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>
@@ -1205,7 +1206,7 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="approve">
-                <Card>
+                <Card className="border-purple-200 shadow-md">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>

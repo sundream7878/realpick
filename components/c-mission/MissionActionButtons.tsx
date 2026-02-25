@@ -139,7 +139,7 @@ export function MissionActionButtons({
     <Link href={`/p-mission/${missionId}/vote`} className="w-full flex">
       <Button 
         size="sm" 
-        className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${pickButtonStyle} ${className}` : pickButtonStyle}`}
+        className={`py-1 ${!className.includes('h-') ? 'h-8' : ''} ${className ? `${pickButtonStyle} ${className}` : pickButtonStyle} text-[10px] sm:text-xs md:text-sm`}
       >
         PICK하기
       </Button>

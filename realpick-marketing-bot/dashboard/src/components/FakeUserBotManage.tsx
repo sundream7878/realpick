@@ -150,7 +150,7 @@ export function FakeUserBotManage() {
 
             {/* 1. 봇 생성 탭 */}
             <TabsContent value="create">
-                <Card>
+                <Card className="border-purple-200">
                     <CardHeader>
                         <CardTitle className="text-lg">가짜 유저 봇 생성 (AI)</CardTitle>
                         <CardDescription>실제 유저처럼 행동하는 가짜 유저봇들을 AI 닉네임으로 자동 생성합니다.</CardDescription>
@@ -214,7 +214,7 @@ export function FakeUserBotManage() {
 
             {/* 2. 봇 목록 탭 */}
             <TabsContent value="list">
-                <Card>
+                <Card className="border-green-200">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
                             <CardTitle className="text-lg">봇 목록 조회</CardTitle>
@@ -280,7 +280,7 @@ export function FakeUserBotManage() {
 
             {/* 3. 투표 실행 관리 탭 */}
             <TabsContent value="control">
-                <Card>
+                <Card className="border-blue-200">
                     <CardHeader>
                         <CardTitle className="text-lg">봇 투표 및 행동 관리</CardTitle>
                         <CardDescription>가짜 유저들이 실제로 투표 및 활동하도록 명령합니다.</CardDescription>

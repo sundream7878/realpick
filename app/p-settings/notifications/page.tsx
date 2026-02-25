@@ -8,6 +8,8 @@ import { Button } from "@/components/c-ui/button"
 import { Switch } from "@/components/c-ui/switch"
 import { ArrowLeft, Bell, Mail } from "lucide-react"
 import { CATEGORIES as GLOBAL_CATEGORIES } from "@/lib/constants/shows"
+import LoginModal from "@/components/c-login-modal/login-modal"
+import { isAuthenticated } from "@/lib/auth-utils"
 
 interface NotificationPreferences {
     id?: string
@@ -25,6 +27,7 @@ export default function NotificationSettingsPage() {
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [showLoginModal, setShowLoginModal] = useState(false)
     const [preferences, setPreferences] = useState<NotificationPreferences>({
         emailEnabled: true,
         categories: ['LOVE', 'VICTORY', 'STAR']
@@ -37,7 +40,9 @@ export default function NotificationSettingsPage() {
                 setUserId(user.uid)
                 loadPreferences(user.uid)
             } else {
-                router.push('/')
+                // 로그인되지 않은 경우 로그인 모달 표시
+                setLoading(false)
+                setShowLoginModal(true)
             }
         })
         return () => unsubscribe()
@@ -219,6 +224,16 @@ export default function NotificationSettingsPage() {
                     </div>
                 </main>
             </div>
+
+            <LoginModal
+                isOpen={showLoginModal}
+                onClose={() => {
+                    setShowLoginModal(false)
+                    if (!userId) router.push('/')
+                }}
+                title="알림을 받고 싶다면?"
+                description="로그인하고 관심 있는 프로그램의 새로운 미션 소식을 받아보세요!"
+            />
         </div>
     )
 }

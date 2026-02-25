@@ -650,7 +650,7 @@ export function YoutubeDealerRecruit() {
             </TabsList>
 
             <TabsContent value="videos" className="space-y-6">
-                <Card>
+                <Card className="border-purple-200">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>
@@ -807,7 +807,7 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="channels" className="space-y-6">
-                <Card>
+                <Card className="border-blue-200">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>
@@ -1240,7 +1240,7 @@ export function YoutubeDealerRecruit() {
             </TabsContent>
 
             <TabsContent value="approve">
-                <Card>
+                <Card className="border-purple-200 shadow-md">
                     <CardHeader className="space-y-4">
                         <div className="flex flex-row items-center justify-between">
                             <div>

@@ -4,7 +4,7 @@ import { SHOWS } from "@/lib/constants/shows";
 import type { TShow } from "@/lib/constants/shows";
 
 /**
- * 매일 새벽 6시(KST) 실행: 지난 24시간 영상 수집 → 투표 가치 선정 → 선정된 영상만 미션 생성
+ * 매일 새벽 6시(KST) 실행: 지난 24시간 영상 수집 → 수집된 모든 영상에 대해 미션 생성
  * 마케팅 봇 백엔드 run-daily-auto-mission 호출.
  * 인증: Authorization: Bearer ${CRON_SECRET} 또는 x-vercel-cron: 1
  */
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest) {
     }
 
     console.log(
-      `[daily-auto-mission] 완료: 수집 ${data.totalCollected ?? 0} → 선정 ${data.totalScreened ?? 0} → 미션 ${data.totalMissionsCreated ?? 0}개`
+      `[daily-auto-mission] 완료: 수집 ${data.totalCollected ?? 0} → 미션 ${data.totalMissionsCreated ?? 0}개 생성 완료`
     );
 
     return NextResponse.json({

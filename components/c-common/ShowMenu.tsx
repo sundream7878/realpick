@@ -213,10 +213,10 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={toggleMenu}
                 className={`
-          relative flex items-center gap-1 sm:gap-1.5 md:gap-2 px-1.5 sm:px-2 md:px-3 py-1 sm:py-0.5 md:py-1 rounded-lg font-medium
+          relative flex items-center gap-1 sm:gap-1 md:gap-1.5 px-1 sm:px-1.5 md:px-2 py-1 sm:py-0.5 md:py-1 rounded-lg font-medium
           transition-all duration-200
-          min-w-[50px] sm:min-w-[60px] md:min-w-[75px] lg:min-w-[85px]
-          h-9 sm:h-auto
+          min-w-[45px] sm:min-w-[55px] md:min-w-[65px] lg:min-w-[75px]
+          h-8 sm:h-auto
           cursor-pointer
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
@@ -228,7 +228,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                 <img
                     src={(categoryInfo as any).iconPath}
                     alt={categoryInfo.label}
-                    className="hidden md:block w-6 h-6 md:w-7 md:h-7 lg:w-9 lg:h-9 object-contain flex-shrink-0 cursor-pointer hover:scale-110 transition-transform"
+                    className="hidden md:block w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 object-contain flex-shrink-0 cursor-pointer hover:scale-110 transition-transform"
                     onClick={handleCategoryIconClick}
                     title={`${categoryInfo.description} 전체 미션 보기`}
                 />

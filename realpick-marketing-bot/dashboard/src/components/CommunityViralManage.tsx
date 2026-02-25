@@ -104,7 +104,8 @@ export function CommunityViralManage() {
       console.log("[CommunityViral] 게시글 목록 로딩 시작...")
       // 캐시 방지를 위해 timestamp 추가
       const timestamp = Date.now()
-      const res = await fetch(`/api/admin/marketer/community/crawl?_t=${timestamp}`, {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/community/posts?_t=${timestamp}`, {
         cache: 'no-store'
       })
       const data = await res.json()
@@ -171,7 +172,8 @@ export function CommunityViralManage() {
 
     const pollProgress = async () => {
       try {
-        const res = await fetch(`/api/admin/marketer/community/crawl?progressId=${progressId}`)
+        const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+        const res = await fetch(`${base}/api/community/crawl?progressId=${progressId}`)
         const data = await res.json()
         
         if (data.success && data.progress) {
@@ -229,7 +231,8 @@ export function CommunityViralManage() {
       // 선택된 프로그램의 키워드 생성
       const keywords = selectedShows.map(show => show.displayName).join(',')
       
-      const res = await fetch("/api/admin/marketer/community/crawl", {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/community/crawl`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 
@@ -286,7 +289,8 @@ export function CommunityViralManage() {
       console.log("[CommunityViral] 삭제 시작 - ID:", id)
       console.log("[CommunityViral] 현재 게시글 수:", posts.length)
       
-      const res = await fetch(`/api/admin/marketer/community/crawl?id=${id}`, {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/community/posts/${id}`, {
         method: "DELETE"
       })
       

@@ -20,7 +20,7 @@ import { desanitizeVoteCounts } from "@/lib/utils/sanitize-firestore-key"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import LoginModal from "@/components/c-login-modal/login-modal"
-import { isAuthenticated } from "@/lib/auth-utils"
+import { isAuthenticated, incrementParticipationCount, getParticipationCount } from "@/lib/auth-utils"
 import { CardHeader, CardTitle } from "@/components/c-ui/card"
 
 interface MultiVotePageProps {
@@ -33,6 +33,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
   const [textInput, setTextInput] = useState("")
   const [showSubmissionSheet, setShowSubmissionSheet] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [loginModalConfig, setLoginModalConfig] = useState({ title: "", description: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userVote, setUserVote] = useState<string | string[] | null>(null)
   const [pendingSubmit, setPendingSubmit] = useState(false)
@@ -41,7 +42,7 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
   const { toast } = useToast()
   const router = useRouter()
 
-  // 사용자 ID 가져오기
+  // 사용자 ID 가져오기 (인증 안된 경우 익명 ID 반환)
   const userId = getUserId() || "user123"
 
   // Sync userVote to inputs
@@ -216,6 +217,18 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
       setShowSubmissionSheet(false)
       setSelectedChoice("")
       setTextInput("")
+
+      // 익명 사용자인 경우 참여 횟수 증가 및 트리거 체크
+      if (!isAuthenticated()) {
+        const count = incrementParticipationCount();
+        if (count >= 5) {
+          setLoginModalConfig({
+            title: "내가 참여한 미션을 보관하고 싶다면?",
+            description: "5번 이상 참여하셨네요! 기록을 안전하게 보관하세요."
+          });
+          setShowLoginModal(true);
+        }
+      }
 
       // 실시간 동기화를 위한 이벤트 발생
       window.dispatchEvent(new CustomEvent('mission-vote-updated', {
@@ -452,13 +465,8 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
                   }`}
                 onClick={() => {
                   if (!selectedChoice) return
-                  // 로그인 체크
-                  if (!isAuthenticated()) {
-                    setPendingSubmit(true)
-                    setShowLoginModal(true)
-                  } else {
-                    setShowSubmissionSheet(true)
-                  }
+                  // 익명 참여 허용 (로그인 체크 제거 또는 변경)
+                  setShowSubmissionSheet(true)
                 }}
                 disabled={!selectedChoice}
               >
@@ -597,7 +605,10 @@ export function MultiVotePage({ mission }: MultiVotePageProps) {
         onClose={() => {
           setShowLoginModal(false)
           setPendingSubmit(false)
+          setLoginModalConfig({ title: "", description: "" })
         }}
+        title={loginModalConfig.title}
+        description={loginModalConfig.description}
         onLoginSuccess={() => {
           // 로그인 성공 후 제출 시트 표시
           if (pendingSubmit) {

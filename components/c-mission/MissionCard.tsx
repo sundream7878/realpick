@@ -98,8 +98,8 @@ export function MissionCard({
   const closedOpacity = isClosed ? "opacity-80" : ""
 
   return (
-    <Card className={`bg-gradient-to-br ${theme.bgGradient} ${theme.border} rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 ${closedOpacity} ${className} flex flex-col overflow-hidden relative sm:aspect-[2/1] min-h-[190px] sm:min-h-[170px] p-0`}>
-      <div className="px-3 py-2.5 sm:px-5 sm:py-4 flex flex-col h-full justify-between gap-1.5 sm:gap-2">
+    <Card className={`bg-gradient-to-br ${theme.bgGradient} ${theme.border} rounded-2xl shadow-sm hover:shadow-md transition-all duration-200 ${closedOpacity} ${className} flex flex-col overflow-hidden relative min-h-[150px] sm:min-h-[140px] p-0`}>
+      <div className="px-2.5 py-2 sm:px-4 sm:py-3 flex flex-col h-full justify-between gap-1 sm:gap-1.5">
         
         {/* 1. 상단 영역: 배지 & 날짜 */}
         <div className="flex justify-between items-start sm:items-center gap-1.5 shrink-0">
@@ -126,7 +126,7 @@ export function MissionCard({
         {/* 2. 중앙 영역: 제목과 썸네일 */}
         <div className="flex justify-between items-center gap-2.5 flex-1 py-0.5 sm:py-1">
           <CardTitle 
-            className="text-sm sm:text-lg md:text-xl text-gray-900 font-bold leading-snug sm:leading-tight line-clamp-3 sm:line-clamp-2 flex-1 self-center cursor-pointer hover:text-gray-700 transition-colors"
+            className="text-xs sm:text-base md:text-lg text-gray-900 font-bold leading-snug sm:leading-tight line-clamp-3 sm:line-clamp-2 flex-1 self-center cursor-pointer hover:text-gray-700 transition-colors"
             onClick={() => {
               const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
               router.push(targetPath);
@@ -140,7 +140,7 @@ export function MissionCard({
           <div className="flex flex-col items-end gap-1 shrink-0">
             {displayThumbnailUrl && (
               <div 
-                className="w-20 h-12 sm:w-32 sm:h-20 rounded-lg overflow-hidden border border-gray-100 shadow-sm cursor-pointer"
+                className="w-16 h-10 sm:w-24 sm:h-14 rounded-lg overflow-hidden border border-gray-100 shadow-sm cursor-pointer"
                 onClick={(e) => { 
                   e.stopPropagation(); 
                   const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
@@ -166,10 +166,10 @@ export function MissionCard({
         </div>
 
         {/* 3. 하단 영역: 그래프와 버튼 */}
-        <div className="flex items-end gap-2.5 sm:gap-4 shrink-0 mt-auto pt-0.5 sm:pt-1">
+        <div className="flex items-end gap-1.5 sm:gap-3 shrink-0 mt-auto pt-0.5 sm:pt-1">
           {/* 그래프 영역: 4개 막대 기준 고정 너비 부여하여 버튼 시작점 고정 */}
           <div 
-            className="flex items-end gap-1.5 sm:gap-2 h-10 sm:h-14 w-[90px] sm:w-[120px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
+            className="flex items-end gap-0.5 sm:gap-1 h-7 sm:h-9 w-[50px] sm:w-[65px] shrink-0 cursor-pointer hover:opacity-80 transition-opacity"
             onClick={() => {
               const targetPath = isClosed ? `/p-mission/${mission.id}/results` : `/p-mission/${mission.id}/vote`;
               router.push(targetPath);

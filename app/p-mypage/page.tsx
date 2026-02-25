@@ -45,6 +45,7 @@ export default function MyPage() {
   const [selectedShowId, setSelectedShowId] = useState<string | null>(searchParams.get('show'))
   const [selectedSeason, setSelectedSeason] = useState<string>("전체")
   const [isLoading, setIsLoading] = useState(true)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [createdMissions, setCreatedMissions] = useState<TMission[]>([])
   const [participatedMissions, setParticipatedMissions] = useState<TMission[]>([])
   const [userChoices, setUserChoices] = useState<Record<string, any>>({})
@@ -71,21 +72,31 @@ export default function MyPage() {
 
   // 사용자 정보 로딩
   const loadUserInfo = useCallback(async () => {
-    if (!isAuthenticated() || !userId) {
-      console.warn('[MyPage] 인증되지 않았거나 userId가 없음')
+    const isAuth = isAuthenticated()
+    const currentUserId = getUserId()
+
+    if (!currentUserId) {
+      console.warn('[MyPage] userId가 없음')
       setUserNickname("")
       setUserPoints(0)
       setUserTier(getTierFromPoints(0))
       setUserRole("PICKER")
-      // 인증이 없으면 홈으로 리다이렉트
-      router.push('/')
+      return
+    }
+
+    if (!isAuth) {
+      // 익명 사용자 정보 설정
+      setUserNickname(getAnonNickname())
+      setUserPoints(0)
+      setUserTier(getTierFromPoints(0))
+      setUserRole("PICKER")
       return
     }
 
     try {
-      console.log('[MyPage] 사용자 정보 로딩 시작 - userId:', userId)
+      console.log('[MyPage] 사용자 정보 로딩 시작 - userId:', currentUserId)
       const { getUser } = await import('@/lib/firebase/users')
-      const user = await getUser(userId)
+      const user = await getUser(currentUserId)
       
       console.log('[MyPage] 사용자 정보 결과:', user)
       
@@ -94,18 +105,11 @@ export default function MyPage() {
         setUserPoints(user.points || 0)
         setUserTier(getTierFromPoints(user.points || 0))
         setUserRole(user.role || "PICKER")
-        console.log('[MyPage] 사용자 정보 설정 완료:', {
-          nickname: user.nickname,
-          points: user.points,
-          role: user.role
-        })
-      } else {
-        console.error('[MyPage] 사용자 정보 로딩 실패: 사용자를 찾을 수 없습니다')
       }
     } catch (error) {
       console.error('[MyPage] 사용자 정보 로딩 중 오류:', error)
     }
-  }, [userId])
+  }, [])
 
   useEffect(() => {
     const { setupShowStatusSync } = require('@/lib/utils/u-show-status/showStatusSync.util')
@@ -123,10 +127,10 @@ export default function MyPage() {
   }, [loadUserInfo])
 
   const loadMissions = useCallback(async () => {
-    console.log('[MyPage] loadMissions 시작 - userId:', userId, '/ isAuthenticated:', isAuthenticated())
-    
-    if (!isAuthenticated() || !userId) {
-      console.warn('[MyPage] 인증되지 않았거나 userId가 없음')
+    const isAuth = isAuthenticated()
+    const currentUserId = getUserId()
+
+    if (!currentUserId) {
       setCreatedMissions([])
       setParticipatedMissions([])
       setIsLoading(false)
@@ -135,10 +139,56 @@ export default function MyPage() {
 
     setIsLoading(true)
     try {
+      // 1. 익명 사용자인 경우 localStorage에서 참여 데이터 로드
+      if (!isAuth) {
+        console.log('[MyPage] 익명 사용자 데이터 로드 중...')
+        // 익명 사용자는 생성한 미션이 없음
+        setCreatedMissions([])
+        
+        // localStorage에서 참여한 미션 ID들 찾기
+        const participated: TMission[] = []
+        const votedIds: string[] = []
+        const choices: Record<string, any> = {}
+
+        // 모든 localStorage 키 순회하여 미션 참여 데이터 찾기
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i)
+          if (key?.startsWith('rp_picked_')) {
+            const missionId = key.replace('rp_picked_', '')
+            votedIds.push(missionId)
+            
+            const localVote = localStorage.getItem(key)
+            if (localVote) {
+              try {
+                const parsed = JSON.parse(localVote)
+                choices[missionId] = parsed.choice || parsed
+              } catch {
+                choices[missionId] = localVote
+              }
+            }
+          }
+        }
+
+        if (votedIds.length > 0) {
+          // Firebase에서 미션 상세 정보 가져오기
+          const { getMissionsByIds } = await import('@/lib/firebase/missions')
+          const missionsResult = await getMissionsByIds(votedIds)
+          if (missionsResult.success && missionsResult.missions) {
+            setParticipatedMissions(missionsResult.missions)
+            setUserChoices(choices)
+          }
+        } else {
+          setParticipatedMissions([])
+        }
+        setIsLoading(false)
+        return
+      }
+
+      // 2. 인증된 사용자인 경우 Firebase에서 로드
       console.log('[MyPage] Firebase에서 미션 데이터 가져오는 중...')
       const [createdResult, participatedResult] = await Promise.all([
-        getMissionsByCreator(userId),
-        getMissionsByParticipant(userId),
+        getMissionsByCreator(currentUserId),
+        getMissionsByParticipant(currentUserId),
       ])
       
       console.log('[MyPage] createdResult:', createdResult)
@@ -1092,7 +1142,7 @@ export default function MyPage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-30 md:pb-0">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           onShowChange={() => { }}
@@ -1117,12 +1167,33 @@ export default function MyPage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
           <div className="max-w-7xl mx-auto">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
               <Heart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-pink-600 fill-pink-600" />
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">마이페이지</h1>
             </div>
+
+            {!isAuthenticated() && (
+              <Card className="mb-6 border-pink-200 bg-pink-50/50 shadow-sm">
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1 text-center sm:text-left">
+                      <h3 className="text-base sm:text-lg font-bold text-pink-900">내 픽을 안전하게 보관하고 싶다면?</h3>
+                      <p className="text-xs sm:text-sm text-pink-700">
+                        지금은 브라우저에만 저장되어 있어요. 로그인하면 어디서든 내 참여 기록을 확인할 수 있습니다!
+                      </p>
+                    </div>
+                    <Button 
+                      onClick={() => setShowLoginModal(true)}
+                      className="bg-pink-600 hover:bg-pink-700 text-white font-bold px-6 shrink-0"
+                    >
+                      기록 보관하기
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
 
             <Tabs defaultValue="participated" className="w-full">
               <div className="flex flex-col gap-4 mb-6">
@@ -1510,6 +1581,13 @@ export default function MyPage() {
           onClose={() => setIsMissionModalOpen(false)}
           initialShowId={selectedShowId}
           category={categoryParam as any || (selectedShowId ? getShowById(selectedShowId)?.category : undefined)}
+        />
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          title="내 픽을 안전하게 보관하고 싶다면?"
+          description="로그인하면 기기를 변경해도 내 참여 기록을 계속 확인할 수 있습니다!"
         />
       </div>
     </div>

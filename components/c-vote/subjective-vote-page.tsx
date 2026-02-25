@@ -8,7 +8,7 @@ import { Badge } from "@/components/c-ui/badge"
 import { Clock, Users } from "lucide-react"
 import { submitVote1, getVote1 } from "@/lib/firebase/votes"
 import { getMissionById as getMission } from "@/lib/firebase/missions"
-import { getUserId } from "@/lib/auth-utils"
+import { getUserId, isAuthenticated, incrementParticipationCount, getParticipationCount } from "@/lib/auth-utils"
 import { getTimeRemaining, isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
 import type { TMission } from "@/types/t-vote/vote.types"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
@@ -16,7 +16,6 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 import LoginModal from "@/components/c-login-modal/login-modal"
-import { isAuthenticated } from "@/lib/auth-utils"
 import { CardHeader, CardTitle } from "@/components/c-ui/card"
 
 interface SubjectiveVotePageProps {
@@ -27,6 +26,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
   const [subjectiveAnswer, setSubjectiveAnswer] = useState<string>("")
   const [showSubmissionSheet, setShowSubmissionSheet] = useState(false)
   const [showLoginModal, setShowLoginModal] = useState(false)
+  const [loginModalConfig, setLoginModalConfig] = useState({ title: "", description: "" })
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [userVote, setUserVote] = useState<string | null>(null)
   const [pendingSubmit, setPendingSubmit] = useState(false)
@@ -35,7 +35,7 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
   const { toast } = useToast()
   const router = useRouter()
 
-  // 사용자 ID 가져오기
+  // 사용자 ID 가져오기 (인증 안된 경우 익명 ID 반환)
   const userId = getUserId() || "user123"
 
   useEffect(() => {
@@ -124,6 +124,18 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
       localStorage.setItem(`rp_picked_${mission.id}`, subjectiveAnswer.trim())
       setShowSubmissionSheet(false)
       setSubjectiveAnswer("")
+
+      // 익명 사용자인 경우 참여 횟수 증가 및 트리거 체크
+      if (!isAuthenticated()) {
+        const count = incrementParticipationCount();
+        if (count >= 5) {
+          setLoginModalConfig({
+            title: "내가 참여한 미션을 보관하고 싶다면?",
+            description: "5번 이상 참여하셨네요! 기록을 안전하게 보관하세요."
+          });
+          setShowLoginModal(true);
+        }
+      }
 
       toast({
         title: "제출 완료!",
@@ -244,13 +256,8 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
                   }`}
                 onClick={() => {
                   if (!subjectiveAnswer.trim()) return
-                  // 로그인 체크
-                  if (!isAuthenticated()) {
-                    setPendingSubmit(true)
-                    setShowLoginModal(true)
-                  } else {
-                    setShowSubmissionSheet(true)
-                  }
+                  // 익명 참여 허용
+                  setShowSubmissionSheet(true)
                 }}
                 disabled={!subjectiveAnswer.trim()}
               >
@@ -317,7 +324,10 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
         onClose={() => {
           setShowLoginModal(false)
           setPendingSubmit(false)
+          setLoginModalConfig({ title: "", description: "" })
         }}
+        title={loginModalConfig.title}
+        description={loginModalConfig.description}
         onLoginSuccess={() => {
           // 로그인 성공 후 제출 시트 표시
           if (pendingSubmit) {

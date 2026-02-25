@@ -199,22 +199,47 @@ router.post('/analyze', async (req, res) => {
     if (result.success && result.missions && result.missions.length > 0) {
       const mission = result.missions[0];
       
-      // showId 추출 (간단한 키워드 매칭)
+      // showId 추출 (정밀 키워드 매칭)
       const extractShowId = (text: string): string => {
         const t = text.toLowerCase();
-        if (t.includes('나는솔로') || t.includes('나솔')) return 'nasolo';
-        if (t.includes('최강야구')) return 'choegang-yagu-2025';
-        if (t.includes('나솔사계')) return 'nasolsagye';
-        if (t.includes('돌싱글즈')) return 'dolsingles6';
-        if (t.includes('환승연애')) return 'hwanseung4';
+        if (t.includes('합숙맞선') || t.includes('합숙 맞선')) return 'habsuk-matseon';
+        if (t.includes('쇼미더머니') || t.includes('show me the money') || t.includes('smtm') || t.includes('쇼미')) return 'show-me-the-money-12';
+        if (t.includes('골때녀') || t.includes('골때리는 그녀') || t.includes('goal girls') || t.includes('골 때리는')) return 'goal-girls-8';
+        if (t.includes('나솔사계') || t.includes('나는 솔로 그 후')) return 'nasolsagye';
+        if (t.includes('나는솔로') || t.includes('나는 솔로') || t.includes('i am solo') || t.includes('나솔')) return 'nasolo';
+        if (t.includes('환승연애') || t.includes('환연')) return 'hwanseung4';
+        if (t.includes('돌싱글즈') || t.includes('돌싱')) return 'dolsingles6';
         if (t.includes('솔로지옥')) return 'solojihuk5';
+        if (t.includes('끝사랑')) return 'kkeut-sarang';
+        if (t.includes('연애남매')) return 'yeonae-nammae';
+        if (t.includes('최강야구') || t.includes('최강 몬스터즈') || t.includes('최강몬스터즈')) return 'choegang-yagu-2025';
+        if (t.includes('강철부대')) return 'steel-troops-w';
+        if (t.includes('피의게임') || t.includes('피의 게임')) return 'blood-game3';
+        if (t.includes('대학전쟁')) return 'univ-war2';
         if (t.includes('흑백요리사')) return 'culinary-class-wars2';
-        if (t.includes('골때녀') || t.includes('골 때리는')) return 'goal-girls-8';
+        if (t.includes('뭉쳐야찬다') || t.includes('뭉쳐야 찬다')) return 'kick-together3';
+        if (t.includes('무쇠소녀단')) return 'iron-girls';
+        if (t.includes('노엑싯게임룸') || t.includes('노엑싯')) return 'no-exit-gameroom';
+        if (t.includes('미스터트롯') || t.includes('미스터 트롯')) return 'mr-trot3';
+        if (t.includes('미스트롯')) return 'mistrot4';
+        if (t.includes('현역가왕')) return 'active-king2';
+        if (t.includes('프로젝트7') || t.includes('project 7')) return 'project7';
+        if (t.includes('유니버스리그') || t.includes('유니버스 리그')) return 'universe-league';
+        if (t.includes('싱어게인')) return 'sing-again';
+        if (t.includes('랩퍼블릭') || t.includes('랩:퍼블릭')) return 'rap-public';
         return 'nasolo';
       };
 
       const finalShowId = extractShowId(keyword || title);
-      const finalCategory = finalShowId.includes('yagu') ? 'SPORTS' : 'LOVE';
+      
+      // 카테고리 매핑 로직
+      const showIdToCategory: Record<string, string> = {
+        'nasolo': 'LOVE', 'nasolsagye': 'LOVE', 'dolsingles6': 'LOVE', 'solojihuk5': 'LOVE', 'hwanseung4': 'LOVE', 'kkeut-sarang': 'LOVE', 'yeonae-nammae': 'LOVE', 'habsuk-matseon': 'LOVE',
+        'choegang-yagu-2025': 'VICTORY', 'goal-girls-8': 'VICTORY', 'steel-troops-w': 'VICTORY', 'blood-game3': 'VICTORY', 'univ-war2': 'VICTORY', 'culinary-class-wars2': 'VICTORY', 'kick-together3': 'VICTORY', 'iron-girls': 'VICTORY', 'no-exit-gameroom': 'VICTORY',
+        'mr-trot3': 'STAR', 'mistrot4': 'STAR', 'active-king2': 'STAR', 'project7': 'STAR', 'universe-league': 'STAR', 'show-me-the-money-12': 'STAR', 'sing-again': 'STAR', 'rap-public': 'STAR'
+      };
+      
+      const finalCategory = showIdToCategory[finalShowId] || 'LOVE';
 
       const missionRef = db.collection('t_marketing_ai_missions').doc();
       const missionData = {
@@ -263,7 +288,7 @@ router.post('/analyze', async (req, res) => {
 });
 
 /**
- * 매일 새벽 6시 자동 실행: 지난 24시간 영상 수집 → 투표 가치 선정 → 선정된 영상만 미션 생성
+ * 매일 새벽 6시 자동 실행: 지난 24시간 영상 수집 → 수집된 모든 영상에 대해 미션 생성
  * body: { keywords: string[], baseUrl: string } (baseUrl = 메인 앱 URL, 스크리닝 API 호출용)
  * 인증: Authorization: Bearer ${CRON_SECRET}
  */
@@ -298,14 +323,18 @@ router.post('/run-daily-auto-mission', async (req, res) => {
     }> = [];
 
     // 1. 키워드별로 지난 24시간 영상 수집 (Python 크롤만, DB 저장 없이 수집만)
-    for (const kw of keywords) {
+    console.log(`[run-daily-auto-mission] 1단계: 유튜브 크롤링 시작 (키워드: ${keywords.length}개)`);
+    for (let i = 0; i < keywords.length; i++) {
+      const kw = keywords[i];
       try {
+        console.log(`[run-daily-auto-mission] (${i + 1}/${keywords.length}) '${kw}' 크롤링 중...`);
         const result = (await runMarketerBridge('crawl-youtube', {
           keywords: kw,
           'max-results': MAX_RESULTS,
           hours_back: HOURS_BACK,
         })) as any;
         if (result?.success && Array.isArray(result.videos)) {
+          console.log(`[run-daily-auto-mission] '${kw}' 결과: ${result.videos.length}개 발견`);
           for (const v of result.videos) {
             if (v?.video_id && !seenIds.has(v.video_id)) {
               seenIds.add(v.video_id);
@@ -327,6 +356,8 @@ router.post('/run-daily-auto-mission', async (req, res) => {
       }
     }
 
+    console.log(`[run-daily-auto-mission] 총 ${allVideos.length}개 유니크 영상 수집됨`);
+
     if (allVideos.length === 0) {
       return res.json({
         success: true,
@@ -337,34 +368,16 @@ router.post('/run-daily-auto-mission', async (req, res) => {
       });
     }
 
-    // 2. 메인 앱 스크리닝 API: 투표할 만한 가치가 있는지 판별
-    const base = baseUrl.replace(/\/$/, '');
-    const screened: typeof allVideos = [];
-    for (const video of allVideos) {
-      try {
-        const screenRes = await fetch(`${base}/api/ai/screen-video`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: video.title,
-            description: (video.description || '').slice(0, 1000),
-          }),
-        });
-        const screenData = await screenRes.json();
-        if (screenData.voteWorthy === true) {
-          screened.push(video);
-        }
-      } catch (e) {
-        console.warn(`[run-daily-auto-mission] 스크리닝 실패 (${video.video_id}):`, e);
-      }
-      await new Promise((r) => setTimeout(r, 200));
-    }
-
-    // 3. 선정된 영상만 미션 생성 (기존 analyze + DB 저장)
+    // 2. 수집된 모든 영상에 대해 즉시 미션 생성 (스크리닝 없이 전수 생성)
+    console.log(`[run-daily-auto-mission] 2단계: 미션 생성 시작 (대상: ${allVideos.length}개 영상)`);
     let missionsCreated = 0;
     const backendUrl = process.env.MARKETING_BOT_URL || 'http://localhost:3001';
-    for (const video of screened) {
+    
+    for (let i = 0; i < allVideos.length; i++) {
+      const video = allVideos[i];
       try {
+        console.log(`[run-daily-auto-mission] (${i + 1}/${allVideos.length}) 미션 생성 중: ${video.title.slice(0, 30)}...`);
+        
         const analyzeRes = await fetch(`${backendUrl}/api/youtube/analyze`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -377,22 +390,29 @@ router.post('/run-daily-auto-mission', async (req, res) => {
             keyword: video.keyword,
           }),
         });
+        
         const data = await analyzeRes.json();
-        if (data.success && data.missions?.length) missionsCreated++;
+        if (data.success && data.missions?.length) {
+          console.log(`[run-daily-auto-mission] 🚀 미션 생성 완료!`);
+          missionsCreated++;
+        } else {
+          console.log(`[run-daily-auto-mission] ⚠️ 미션 생성 실패: ${data.error || '알 수 없는 이유'}`);
+        }
+        
+        // AI 분석 부하를 줄이기 위해 간격 유지
         await new Promise((r) => setTimeout(r, 2500));
       } catch (e) {
-        console.warn(`[run-daily-auto-mission] 미션 생성 실패 (${video.video_id}):`, e);
+        console.warn(`[run-daily-auto-mission] 미션 생성 중 오류 (${video.video_id}):`, e);
       }
     }
 
     console.log(
-      `[run-daily-auto-mission] 완료: 수집 ${allVideos.length} → 선정 ${screened.length} → 미션 ${missionsCreated}개`
+      `[run-daily-auto-mission] 완료: 총 ${allVideos.length}개 영상 수집 → ${missionsCreated}개 미션 생성`
     );
 
     return res.json({
       success: true,
       totalCollected: allVideos.length,
-      totalScreened: screened.length,
       totalMissionsCreated: missionsCreated,
     });
   } catch (error: any) {

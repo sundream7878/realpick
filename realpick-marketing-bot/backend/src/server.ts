@@ -282,6 +282,135 @@ app.get('/api/admin/ai-missions/list', async (_req, res) => {
   }
 });
 
+// 영상 제목, 채널명, 설명에서 프로그램 키워드 추출 (백엔드용)
+function extractShowKeyword(title: string, channelName?: string, description?: string): string | undefined {
+  const text = `${title} ${channelName || ''} ${description || ''}`.toLowerCase();
+  
+  // 실제 시스템 ID와 매칭되도록 수정
+  const keywords = [
+    { patterns: ['합숙맞선', '합숙 맞선'], result: 'habsuk-matseon' },
+    { patterns: ['쇼미더머니', 'show me the money', 'smtm', '쇼미'], result: 'show-me-the-money-12' },
+    { patterns: ['골때녀', '골때리는 그녀', '골때리는그녀', 'goal girls', '골때리는 그녀들', 'fc탑걸', '발라드림', '액셔니스타', '구척장신', '개벤져스', '월드클라쓰'], result: 'goal-girls-8' },
+    { patterns: ['나솔사계', '나는 솔로 그 후', '사랑은 계속된다'], result: 'nasolsagye' },
+    { patterns: ['나는솔로', '나는 솔로', 'i am solo', '나솔'], result: 'nasolo' },
+    { patterns: ['환승연애', '환연'], result: 'hwanseung4' },
+    { patterns: ['돌싱글즈', '돌싱'], result: 'dolsingles6' },
+    { patterns: ['솔로지옥'], result: 'solojihuk5' },
+    { patterns: ['끝사랑'], result: 'kkeut-sarang' },
+    { patterns: ['연애남매'], result: 'yeonae-nammae' },
+    { patterns: ['최강야구', '최강 몬스터즈', '최강몬스터즈'], result: 'choegang-yagu-2025' },
+    { patterns: ['강철부대'], result: 'steel-troops-w' },
+    { patterns: ['피의게임', '피의 게임'], result: 'blood-game3' },
+    { patterns: ['대학전쟁'], result: 'univ-war2' },
+    { patterns: ['흑백요리사'], result: 'culinary-class-wars2' },
+    { patterns: ['뭉쳐야찬다', '뭉쳐야 찬다'], result: 'kick-together3' },
+    { patterns: ['무쇠소녀단'], result: 'iron-girls' },
+    { patterns: ['노엑싯게임룸', '노엑싯'], result: 'no-exit-gameroom' },
+    { patterns: ['미스터트롯', '미스터 트롯'], result: 'mr-trot3' },
+    { patterns: ['미스트롯'], result: 'mistrot4' },
+    { patterns: ['현역가왕'], result: 'active-king2' },
+    { patterns: ['프로젝트7', 'project 7'], result: 'project7' },
+    { patterns: ['유니버스리그', '유니버스 리그'], result: 'universe-league' },
+    { patterns: ['싱어게인'], result: 'sing-again' },
+    { patterns: ['랩퍼블릭', '랩:퍼블릭'], result: 'rap-public' },
+  ];
+  
+  for (const { patterns, result } of keywords) {
+    for (const pattern of patterns) {
+      if (text.includes(pattern)) return result;
+    }
+  }
+  return undefined;
+}
+
+// showId 일괄 수정 API (마케팅 봇 백엔드용)
+app.post('/api/admin/ai-missions/fix-show-ids', async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection('t_marketing_ai_missions')
+      .where('status', '==', 'PENDING')
+      .get();
+    
+    if (snapshot.empty) {
+      return res.json({ success: true, message: "수정할 미션이 없습니다.", updated: 0 });
+    }
+    
+    let updatedCount = 0;
+    const updates = [];
+    
+    // lib/constants/shows.ts의 로직을 백엔드에서 직접 구현하거나 
+    // 백엔드 프로젝트 내에 해당 상수를 복사해서 사용해야 함
+    // 여기서는 정확한 카테고리 매핑 로직 사용
+    const showIdToCategory: Record<string, string> = {
+      // LOVE (로맨스)
+      'nasolo': 'LOVE', 
+      'nasolsagye': 'LOVE', 
+      'dolsingles6': 'LOVE', 
+      'solojihuk5': 'LOVE', 
+      'hwanseung4': 'LOVE',
+      'kkeut-sarang': 'LOVE',
+      'yeonae-nammae': 'LOVE',
+      'habsuk-matseon': 'LOVE',
+      
+      // VICTORY (서바이벌)
+      'choegang-yagu-2025': 'VICTORY', 
+      'goal-girls-8': 'VICTORY', 
+      'steel-troops-w': 'VICTORY', 
+      'blood-game3': 'VICTORY',
+      'univ-war2': 'VICTORY',
+      'culinary-class-wars2': 'VICTORY',
+      'kick-together3': 'VICTORY',
+      'iron-girls': 'VICTORY',
+      'no-exit-gameroom': 'VICTORY',
+      
+      // STAR (오디션)
+      'mr-trot3': 'STAR', 
+      'mistrot4': 'STAR', 
+      'active-king2': 'STAR', 
+      'project7': 'STAR', 
+      'universe-league': 'STAR',
+      'show-me-the-money-12': 'STAR',
+      'sing-again': 'STAR',
+      'rap-public': 'STAR'
+    };
+
+    for (const doc of snapshot.docs) {
+      const mission = doc.data();
+      const videoTitle = mission.sourceVideo?.title || mission.title || '';
+      const channelName = mission.sourceVideo?.channelName || '';
+      const description = mission.sourceVideo?.description || mission.description || '';
+      
+      const newShowId = extractShowKeyword(videoTitle, channelName, description);
+      
+      if (newShowId) {
+        const newCategory = showIdToCategory[newShowId] || 'LOVE';
+        
+        // showId가 바뀌었거나, showId는 같은데 카테고리가 잘못된 경우 모두 업데이트
+        if (newShowId !== mission.showId || newCategory !== mission.category) {
+          updates.push({ id: doc.id, showId: newShowId, category: newCategory });
+        }
+      }
+    }
+    
+    const batch = db.batch();
+    for (const update of updates) {
+      batch.update(db.collection('t_marketing_ai_missions').doc(update.id), {
+        showId: update.showId,
+        category: update.category,
+        updatedAt: new Date().toISOString()
+      });
+      updatedCount++;
+    }
+    
+    if (updatedCount > 0) await batch.commit();
+    
+    res.json({ success: true, message: `총 ${updatedCount}개의 미션 정보를 수정했습니다.`, updated: updatedCount });
+  } catch (err: any) {
+    console.error('[fix-show-ids]', err);
+    res.status(500).json({ success: false, error: err.message });
+  }
+});
+
 // 라우트 (동적 import)
 const loadRoutes = async () => {
   const youtubeRouter = (await import('./routes/youtube.js')).default;
@@ -330,29 +459,52 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
 
 // 매일 6시(KST) 자동 미션 생성 (로컬 스케줄러) — PC가 한국 시간이면 6시에 실행
 function startDailyAutoMissionSchedule() {
-  const mainAppUrl = process.env.MAIN_APP_URL || 'http://localhost:3002';
+  const mainAppUrl = process.env.MAIN_APP_URL || 'http://localhost:3000';
   const botUrl = process.env.MARKETING_BOT_URL || `http://localhost:${PORT}`;
+  
+  // 매일 새벽 6시에 실행되도록 설정합니다.
   cron.schedule('0 6 * * *', async () => {
-    console.log('[6시 자동] 매일 6시 자동 미션 생성 시작...');
+    console.log('[자동 실행] 새벽 6시 자동 미션 생성 시작...');
     try {
-      const kwRes = await fetch(`${mainAppUrl.replace(/\/$/, '')}/api/public/active-show-keywords`);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 60000); // 1분 타임아웃
+
+      const kwRes = await fetch(`${mainAppUrl.replace(/\/$/, '')}/api/public/active-show-keywords`, {
+        signal: controller.signal
+      });
+      clearTimeout(timeoutId);
+
       const { keywords = [] } = await kwRes.json().catch(() => ({}));
       if (keywords.length === 0) {
         console.log('[6시 자동] 활성 프로그램 없음, 스킵');
         return;
       }
+      
+      console.log(`[6시 자동] 키워드 수집 완료: ${keywords.join(', ')}`);
+
+      // run-daily-auto-mission 호출 (작업이 오래 걸릴 수 있으므로 타임아웃을 10분으로 설정)
+      const botController = new AbortController();
+      const botTimeoutId = setTimeout(() => botController.abort(), 600000); // 10분
+
       const res = await fetch(`${botUrl.replace(/\/$/, '')}/api/youtube/run-daily-auto-mission`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ keywords, baseUrl: mainAppUrl }),
+        signal: botController.signal
       });
+      clearTimeout(botTimeoutId);
+      
       const data = await res.json().catch(() => ({}));
-      console.log('[6시 자동] 완료:', data.totalCollected ?? 0, '수집 →', data.totalScreened ?? 0, '선정 →', data.totalMissionsCreated ?? 0, '미션');
-    } catch (e) {
-      console.error('[6시 자동] 실패:', e);
+      console.log('[6시 자동] 완료:', data.totalCollected ?? 0, '개 영상 수집 →', data.totalMissionsCreated ?? 0, '개 미션 생성 완료');
+    } catch (e: any) {
+      if (e.name === 'AbortError') {
+        console.error('[6시 자동] 실패: 작업 시간 초과 (10분 초과)');
+      } else {
+        console.error('[6시 자동] 실패:', e);
+      }
     }
   });
-  console.log('⏰ 매일 6시(KST) 자동 미션 생성 스케줄 등록됨 (로컬 시간 6시)');
+  console.log('⏰ 매일 새벽 6시(KST) 자동 미션 생성 스케줄 등록됨');
 }
 
 // 서버 시작

@@ -36,12 +36,12 @@ export function UserInfo({
   }
 
   return (
-    <div className={`flex items-center gap-1.5 sm:gap-2 md:gap-3 lg:gap-4 flex-shrink-0 ${className}`}>
+    <div className={`flex items-center gap-1 sm:gap-1.5 md:gap-2 lg:gap-3 flex-shrink-0 ${className}`}>
       {showFullInfo && (
-        <div className="hidden md:flex items-center gap-2 text-sm lg:text-base whitespace-nowrap">
+        <div className="hidden md:flex items-center gap-1.5 text-xs lg:text-sm whitespace-nowrap">
           {/* 1. 포인트 */}
           <span
-            className={`font-medium text-gray-900 flex items-center gap-0.5 ${onPointsClick ? "cursor-pointer hover:bg-amber-50 rounded-lg px-1.5 py-0.5 -mx-1.5 transition-colors" : ""}`}
+            className={`font-medium text-gray-900 flex items-center gap-0.5 ${onPointsClick ? "cursor-pointer hover:bg-amber-50 rounded-lg px-1 py-0.5 -mx-1 transition-colors" : ""}`}
             onClick={onPointsClick}
           >
             {formatPoints(points)}
@@ -52,7 +52,7 @@ export function UserInfo({
           
           {/* 2. 닉네임 */}
           <span 
-            className="font-medium text-gray-900 cursor-pointer hover:opacity-80 transition-opacity"
+            className="font-medium text-gray-900 cursor-pointer hover:opacity-80 transition-opacity max-w-[80px] lg:max-w-[120px] truncate"
             onClick={handleProfileClick}
           >
             <span className="underline">{nickname}</span>
@@ -61,7 +61,7 @@ export function UserInfo({
           {/* 3. 프로필사진 + 등급 (relative positioning) */}
           <div className="relative cursor-pointer" onClick={handleProfileClick}>
             <Avatar
-              className="w-8 h-8 sm:w-9 sm:h-9 md:w-10 md:h-10 lg:w-11 lg:h-11 rounded-full bg-gray-200 hover:opacity-80 transition-opacity flex-shrink-0 border border-gray-100"
+              className="w-7 h-7 sm:w-8 sm:h-8 md:w-9 md:h-9 lg:w-10 lg:h-10 rounded-full bg-gray-200 hover:opacity-80 transition-opacity flex-shrink-0 border border-gray-100"
             >
               <AvatarImage src={tier?.characterImage || "/placeholder.svg"} alt={nickname || tier?.name || "User"} />
               <AvatarFallback>{(nickname || tier?.name || "U")[0]}</AvatarFallback>
@@ -69,7 +69,7 @@ export function UserInfo({
             
             {/* 4. 등급명 (프로필 사진 오른쪽 하단) */}
             <span 
-              className="absolute -bottom-0.5 -right-0.5 text-[8px] lg:text-[9px] text-pink-600 font-semibold bg-white px-1 py-0.5 rounded-full border border-pink-200 shadow-sm whitespace-nowrap leading-none"
+              className="absolute -bottom-0.5 -right-0.5 text-[7px] lg:text-[8px] text-pink-600 font-semibold bg-white px-1 py-0.5 rounded-full border border-pink-200 shadow-sm whitespace-nowrap leading-none"
               onClick={handleProfileClick}
             >
               {tier?.name}

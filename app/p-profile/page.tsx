@@ -9,10 +9,11 @@ import { Switch } from "@/components/c-ui/switch"
 import { Edit2, LogOut, UserX, Bell, Mail, Clock } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { PointHistoryModal } from "@/components/c-common/PointHistoryModal"
+import LoginModal from "@/components/c-login-modal/login-modal"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
-import { isAuthenticated, getUserId } from "@/lib/auth-utils"
+import { isAuthenticated, getUserId, getAnonNickname } from "@/lib/auth-utils"
 import { logout } from "@/lib/auth-api"
 import { useToast } from "@/hooks/h-toast/useToast.hook"
 import { getTierFromPoints, getTierFromDbOrPoints, TIERS } from "@/lib/utils/u-tier-system/tierSystem.util"
@@ -37,6 +38,7 @@ export default function ProfilePage() {
   const [userPoints, setUserPoints] = useState(0)
   const [userTier, setUserTier] = useState<TTierInfo>(getTierFromPoints(0))
   const [isLoading, setIsLoading] = useState(true)
+  const [showLoginModal, setShowLoginModal] = useState(false)
   const [isEditing, setIsEditing] = useState(false)
   const [editedNickname, setEditedNickname] = useState("")
   const [isSaving, setIsSaving] = useState(false)
@@ -56,9 +58,20 @@ export default function ProfilePage() {
   useEffect(() => {
     const loadUserData = async () => {
       setIsLoading(true)
+      const isAuth = isAuthenticated()
       const userId = getUserId()
       
       if (!userId) {
+        setIsLoading(false)
+        return
+      }
+
+      if (!isAuth) {
+        // 익명 사용자 기본 정보 설정
+        setUserNickname(getAnonNickname())
+        setUserEmail("익명 사용자 (로그인 필요)")
+        setUserPoints(0)
+        setUserTier(getTierFromPoints(0))
         setIsLoading(false)
         return
       }
@@ -119,6 +132,10 @@ export default function ProfilePage() {
   }
 
   const handleSave = async () => {
+    if (!isAuthenticated()) {
+      setShowLoginModal(true)
+      return
+    }
     if (!editedNickname.trim()) {
       toast({
         title: "저장 실패",
@@ -222,6 +239,10 @@ export default function ProfilePage() {
   }
 
   const handleSaveNotification = async () => {
+    if (!isAuthenticated()) {
+      setShowLoginModal(true)
+      return
+    }
     setIsSavingNotification(true)
     try {
       const currentUserId = getUserId()
@@ -276,7 +297,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           onShowChange={() => { }}
@@ -301,7 +322,7 @@ export default function ProfilePage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
           <div className="max-w-7xl mx-auto">
             <div className="flex flex-col-reverse lg:flex-row gap-8">
               <div className="flex-1 space-y-6">
@@ -632,6 +653,13 @@ export default function ProfilePage() {
           isOpen={showPointHistoryModal}
           onClose={() => setShowPointHistoryModal(false)}
           totalPoints={userPoints}
+        />
+
+        <LoginModal
+          isOpen={showLoginModal}
+          onClose={() => setShowLoginModal(false)}
+          title="알림 및 설정을 저장하고 싶다면?"
+          description="로그인하면 나만의 맞춤 설정과 알림을 안전하게 보관할 수 있습니다!"
         />
       </div>
     </div>

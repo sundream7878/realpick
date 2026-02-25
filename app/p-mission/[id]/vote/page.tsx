@@ -365,7 +365,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         <AppHeader
           selectedShow={(showInfo?.name as any) || "나는솔로"}
           selectedShowId={selectedShowId}
@@ -392,7 +392,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
           <div className="max-w-4xl mx-auto">
             {/* 뒤로가기 버튼 */}
             <div className="mb-6">

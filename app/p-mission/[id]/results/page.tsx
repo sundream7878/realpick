@@ -589,7 +589,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
         initialShowId={selectedShowId}
         category={getShowById(selectedShowId)?.category}
       />
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
         {showCharacterPopup && userVote && (
           <ResultCharacterPopup
             isSuccess={isSuccess}
@@ -627,7 +627,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             showStatuses={showStatuses}
           />
 
-          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
+          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Button

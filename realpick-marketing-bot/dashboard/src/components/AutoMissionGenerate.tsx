@@ -324,8 +324,8 @@ export function AutoMissionGenerate() {
                         <strong>지난 24시간</strong>
                         <span>동안 올라온 영상을 수집하고,</span>
                         <span className="inline-flex items-center gap-1">
-                            <Filter className="w-4 h-4" />
-                            <strong>2명 중 1명이라도 투표할 만한 가치가 있는 영상</strong>만 선정한 뒤, 선정된 영상으로만 미션을 생성합니다.
+                            <Sparkles className="w-4 h-4 text-purple-500" />
+                            <strong>수집된 모든 영상에 대해 자동으로 미션을 생성</strong>합니다.
                         </span>
                     </CardDescription>
                 </CardHeader>
@@ -344,12 +344,12 @@ export function AutoMissionGenerate() {
                                 실행 중…
                             </>
                         ) : (
-                            "지금 6시 로직 테스트"
+                            "지금 6시 로직 실행"
                         )}
                     </Button>
                     {dailyTestResult && (
                         <span className="text-sm text-emerald-700">
-                            수집 {dailyTestResult.totalCollected} → 선정 {dailyTestResult.totalScreened} → 미션 {dailyTestResult.totalMissionsCreated}개
+                            수집 {dailyTestResult.totalCollected} → 미션 {dailyTestResult.totalMissionsCreated}개 생성 완료
                         </span>
                     )}
                 </CardContent>

@@ -10,12 +10,12 @@ interface DesktopWingBannerProps {
 export function DesktopWingBanner({ side, className = "" }: DesktopWingBannerProps) {
   const isLeft = side === "left"
   
-  // 가이드에 따른 위치 계산: 중앙 컨텐츠(max-w-7xl = 1280px) 양옆 여백 활용
-  // 1280px / 2 = 640px (중앙에서 끝까지 거리)
-  // 중앙에서 640px + 20px(여백) 떨어진 위치에 배치
+  // 가이드에 따른 위치 계산: 중앙 컨텐츠(max-w-5xl = 1024px) 양옆 여백 활용
+  // 1024px / 2 = 512px (중앙에서 끝까지 거리)
+  // 중앙에서 512px + 10px(여백) 떨어진 위치에 배치
   const positionStyle = isLeft 
-    ? { right: "calc(50% + 660px)" } 
-    : { left: "calc(50% + 660px)" }
+    ? { right: "calc(50% + 522px)" } 
+    : { left: "calc(50% + 522px)" }
 
   return (
     <div 

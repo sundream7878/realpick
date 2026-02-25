@@ -13,11 +13,13 @@ interface LoginModalProps {
   onClose: () => void
   onLoginSuccess?: () => void
   redirectUrl?: string // 로그인 후 리다이렉트할 URL
+  title?: string
+  description?: string
 }
 
 type LoginStep = "email" | "code"
 
-export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUrl }: LoginModalProps) {
+export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUrl, title, description }: LoginModalProps) {
   const [step, setStep] = useState<LoginStep>("email")
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
@@ -192,13 +194,22 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
               </DialogTitle>
             </div>
             <DialogDescription className="text-gray-700 text-sm sm:text-base">
-              {step === "email" ? "로그인하고 분석을 시작하세요" : "이메일을 확인해주세요"}
+              {step === "email" 
+                ? (description || "기록을 보존하고 알림을 받으려면 이메일을 입력하세요") 
+                : "이메일을 확인해주세요"}
             </DialogDescription>
           </DialogHeader>
 
           {step === "email" ? (
             /* 이메일 입력 단계 */
             <form onSubmit={handleEmailSubmit} className="space-y-6">
+              {title && (
+                <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 mb-4">
+                  <p className="text-purple-700 text-sm font-semibold text-center">
+                    {title}
+                  </p>
+                </div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email" className="text-gray-700">
                   이메일 주소

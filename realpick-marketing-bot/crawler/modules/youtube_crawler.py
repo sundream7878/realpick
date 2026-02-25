@@ -345,7 +345,7 @@ class YouTubeCrawler:
                     
                     # 키워드 관련성 확인 (제목, 설명 기반)
                     if not self.is_relevant_video(video_info, keyword):
-                        print(f"[YouTube Crawler] 키워드와 관련 없는 영상 필터링: {video_info['title'][:50]}...", file=sys.stderr)
+                        print(f"[YouTube Crawler] 키워드 불일치 필터링: {video_info['title'][:50]}... (키워드: {keyword})", file=sys.stderr)
                         continue
                     
                     # 자막이 있는 경우 자막 내용도 확인
@@ -357,7 +357,7 @@ class YouTubeCrawler:
                                 program_keywords_list = self.program_keywords.get(keyword, [keyword])
                                 # 자막에 키워드가 포함되어 있는지 확인
                                 if not any(kw.lower() in transcript_lower for kw in program_keywords_list):
-                                    print(f"[YouTube Crawler] 자막에 키워드가 없는 영상 필터링: {video_info['title'][:50]}...", file=sys.stderr)
+                                    print(f"[YouTube Crawler] 자막 내 키워드 부재 필터링: {video_info['title'][:50]}...", file=sys.stderr)
                                     continue
                         except Exception as e:
                             # 자막 확인 실패해도 계속 진행 (제목/설명 기반으로 이미 필터링됨)
