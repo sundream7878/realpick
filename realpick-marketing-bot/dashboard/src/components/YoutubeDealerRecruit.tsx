@@ -271,7 +271,19 @@ export function YoutubeDealerRecruit() {
             }
             const data = JSON.parse(text)
             if (data.success) {
-                setApprovedMissions(data.missions || [])
+                const rawMissions = data.missions || []
+                // 1. 생성 순서(과거 -> 현재)로 정렬하여 고유 번호 부여
+                const indexedMissions = rawMissions
+                    .sort((a: any, b: any) => {
+                        const dateA = new Date(a.createdAt || 0).getTime()
+                        const dateB = new Date(b.createdAt || 0).getTime()
+                        return dateA - dateB
+                    })
+                    .map((m: any, idx: number) => ({ 
+                        ...m, 
+                        displayIndex: idx + 1 // 생성된 순서대로 1, 2, 3... 부여
+                    }))
+                setApprovedMissions(indexedMissions)
             }
         } catch (error: any) {
             console.error("미션 불러오기 오류:", error)
@@ -512,11 +524,11 @@ export function YoutubeDealerRecruit() {
             const sortedMissions = [...filteredMissions]
 
             // 미션 데이터를 텍스트 형식으로 가공
-            const missionsText = sortedMissions.map((m, i) => {
+            const missionsText = sortedMissions.map((m) => {
                 const cat = getMissionCategory(m)
                 const catName = cat === 'LOVE' ? '로맨스' : cat === 'VICTORY' ? '서바이벌' : '오디션'
                 const options = m.options?.map((opt: string, j: number) => `${j + 1}. ${opt}`).join(', ') || '없음'
-                return `[미션 ${i + 1}]
+                return `[미션 ${m.displayIndex}]
 카테고리: ${catName}
 프로그램: ${getShowById(normalizeShowId(m.showId) || '')?.displayName || m.showId}
 제목: ${m.title}
@@ -1441,7 +1453,7 @@ ${missionsText}
                                                 <div className="flex-1 space-y-2 min-w-0">
                                                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                                                         <Badge variant="outline" className="text-sm px-3 py-1 bg-indigo-600 text-white border-none font-bold">
-                                                            미션 {idx + 1}
+                                                            미션 {mission.displayIndex}
                                                         </Badge>
                                                         <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-yellow-50 border-yellow-300 text-yellow-700">
                                                             승인 대기
