@@ -369,16 +369,35 @@ export function YoutubeDealerRecruit() {
         return 'LOVE'
     }
     
-    // 10. 필터링된 미션 목록
+    // 10. 필터링된 미션 목록 (정렬 로직 추가)
     const filteredMissions = useMemo(() => {
         let filtered = [...approvedMissions]
         
-        // 카테고리 필터
+        // 1. 카테고리 순서대로 정렬 (로맨스 -> 서바이벌 -> 오디션)
+        // 프롬프트 생성 로직과 동일하게 맞춤
+        filtered.sort((a, b) => {
+            const catA = getMissionCategory(a)
+            const catB = getMissionCategory(b)
+            const order: Record<string, number> = { 'LOVE': 1, 'VICTORY': 2, 'STAR': 3 }
+            
+            const sortResult = (order[catA] || 99) - (order[catB] || 99)
+            
+            // 카테고리가 같으면 최신순 정렬
+            if (sortResult === 0) {
+                const dateA = new Date(a.createdAt || 0).getTime()
+                const dateB = new Date(b.createdAt || 0).getTime()
+                return dateB - dateA
+            }
+            
+            return sortResult
+        })
+
+        // 2. 카테고리 필터 적용
         if (missionCategoryFilter !== "ALL") {
             filtered = filtered.filter(m => getMissionCategory(m) === missionCategoryFilter)
         }
         
-        // 프로그램 필터
+        // 3. 프로그램 필터 적용
         if (missionShowFilter !== "ALL") {
             filtered = filtered.filter(m => {
                 const normalizedShowId = normalizeShowId(m.showId)
@@ -489,13 +508,8 @@ export function YoutubeDealerRecruit() {
 
         setIsAiVerifying(true)
         try {
-            // 미션 데이터를 카테고리 순서대로 정렬 (로맨스 -> 서바이벌 -> 오디션)
-            const sortedMissions = [...approvedMissions].sort((a, b) => {
-                const catA = getMissionCategory(a)
-                const catB = getMissionCategory(b)
-                const order: Record<string, number> = { 'LOVE': 1, 'VICTORY': 2, 'STAR': 3 }
-                return (order[catA] || 99) - (order[catB] || 99)
-            })
+            // 필터링된 현재 목록 그대로 사용 (이미 카테고리별 정렬되어 있음)
+            const sortedMissions = [...filteredMissions]
 
             // 미션 데이터를 텍스트 형식으로 가공
             const missionsText = sortedMissions.map((m, i) => {
@@ -1418,14 +1432,17 @@ ${missionsText}
                         ) : (
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                                 <div className="text-sm text-gray-500 pb-2">
-                                    총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시
+                                    총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시 (정렬: 로맨스 → 서바이벌 → 오디션)
                                 </div>
-                                {filteredMissions.map((mission) => (
+                                {filteredMissions.map((mission, idx) => (
                                     <Card key={mission.id} className="border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/20">
                                         <CardContent className="p-4">
                                             <div className="flex items-start justify-between gap-4">
                                                 <div className="flex-1 space-y-2 min-w-0">
                                                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
+                                                        <Badge variant="outline" className="text-sm px-3 py-1 bg-indigo-600 text-white border-none font-bold">
+                                                            미션 {idx + 1}
+                                                        </Badge>
                                                         <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-yellow-50 border-yellow-300 text-yellow-700">
                                                             승인 대기
                                                         </Badge>
