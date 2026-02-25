@@ -1320,16 +1320,6 @@ ${missionsText}
                                     {isAiVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
                                     미션 AI 검증
                                 </Button>
-                                <Button 
-                                    onClick={loadApprovedMissions} 
-                                    disabled={isLoadingMissions}
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 h-10 px-5 text-base font-bold bg-white border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl"
-                                >
-                                    {isLoadingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
-                                    새로고침
-                                </Button>
                                 {approvedMissions.length > 0 && (
                                     <>
                                         <Button 
