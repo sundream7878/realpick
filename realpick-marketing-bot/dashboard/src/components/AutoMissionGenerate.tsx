@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
-import { Zap, RefreshCw, Loader2, Play, CheckCircle, Video, Sparkles, Terminal, ClipboardList, ChevronDown, X, Clock, Filter } from "lucide-react"
+import { Zap, RefreshCw, Loader2, Play, CheckCircle, Video, Sparkles, Terminal, ClipboardList, ChevronDown, X, Clock, Filter, BrainCircuit } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useToast } from "../hooks/useToast"
 import { Badge } from "./ui/badge"

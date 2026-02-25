@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send, Video, Filter } from "lucide-react"
+import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send, Video, Filter, BrainCircuit } from "lucide-react"
 import { Input } from "./ui/input"
 import { useToast } from "../hooks/useToast"
 import { Badge } from "./ui/badge"
@@ -87,6 +87,7 @@ export function YoutubeDealerRecruit() {
     
     // showId 일괄 수정 상태
     const [isFixingShowIds, setIsFixingShowIds] = useState(false)
+    const [isAiVerifying, setIsAiVerifying] = useState(false)
 
     // 1. 크롤링 핸들러
     const handleCrawl = async () => {
@@ -548,6 +549,64 @@ export function YoutubeDealerRecruit() {
             })
         } finally {
             setIsFixingShowIds(false)
+        }
+    }
+
+    // 16. 미션 AI 검증 (Gemini 프롬프트 생성 및 이동)
+    const handleAiVerify = async () => {
+        if (approvedMissions.length === 0) {
+            toast({ title: "검증할 미션 없음", description: "승인 대기 중인 미션이 없습니다.", variant: "destructive" })
+            return
+        }
+
+        setIsAiVerifying(true)
+        try {
+            // 미션 데이터를 텍스트 형식으로 가공
+            const missionsText = approvedMissions.map((m, i) => {
+                const options = m.options?.map((opt: string, j: number) => `${j + 1}. ${opt}`).join(', ') || '없음'
+                return `[미션 ${i + 1}]
+제목: ${m.title}
+설명: ${m.description || '없음'}
+선택지: ${options}
+유형: ${m.kind === 'PREDICT' ? '예측픽' : '공감픽'}
+출처영상: ${m.sourceVideo?.title || '알 수 없음'}`
+            }).join('\n\n')
+
+            const prompt = `당신은 예능 콘텐츠 분석 전문가이자 트렌드 세터입니다. 
+아래는 현재 AI가 자동으로 생성한 리얼픽(RealPick) 서비스의 미션 초안들입니다.
+
+리얼픽은 '나는솔로', '돌싱글즈', '최강야구' 등 인기 예능의 시청자들이 참여하는 투표 플랫폼입니다.
+유저들이 정말 흥미를 느끼고 적극적으로 참여하고 싶어할 만한 미션인지 분석해주세요.
+
+[검증 대상 미션 목록]
+${missionsText}
+
+[요청 사항]
+1. 각 미션이 현재 예능 트렌드와 시청자들의 관심사에 부합하는지 분석해주세요.
+2. 유저들이 가장 재미있어할 만한 '베스트 미션' 3개를 뽑아주세요.
+3. 기존 미션들을 더 흥미롭게 만들기 위한 수정 제안(제목, 선택지 등)을 해주세요.
+4. 현재 목록에 없지만, 유저들이 열광할 만한 새로운 미션 아이디어를 3개 더 제안해주세요.
+
+분석 결과를 한국어로 친절하고 전문적으로 답변해주세요.`
+
+            // 클립보드에 복사
+            await navigator.clipboard.writeText(prompt)
+            
+            toast({ 
+                title: "프롬프트 생성 완료", 
+                description: "분석용 프롬프트가 클립보드에 복사되었습니다. Gemini 창으로 이동합니다.",
+            })
+
+            // Gemini 페이지 오픈 (새 탭)
+            setTimeout(() => {
+                window.open("https://gemini.google.com/app", "_blank")
+            }, 1000)
+
+        } catch (error: any) {
+            console.error("AI 검증 준비 실패:", error)
+            toast({ title: "오류 발생", description: "프롬프트 생성 중 오류가 발생했습니다.", variant: "destructive" })
+        } finally {
+            setIsAiVerifying(false)
         }
     }
 
@@ -1248,6 +1307,16 @@ export function YoutubeDealerRecruit() {
                                 <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
                             </div>
                             <div className="flex gap-2">
+                                <Button 
+                                    onClick={handleAiVerify} 
+                                    disabled={isAiVerifying || approvedMissions.length === 0}
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 h-10 px-5 text-base font-bold bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-indigo-600 hover:from-blue-100 hover:to-indigo-100 rounded-xl shadow-sm"
+                                >
+                                    {isAiVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
+                                    미션 AI 검증
+                                </Button>
                                 <Button 
                                     onClick={loadApprovedMissions} 
                                     disabled={isLoadingMissions}
