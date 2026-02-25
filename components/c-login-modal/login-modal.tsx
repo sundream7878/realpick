@@ -21,6 +21,7 @@ type LoginStep = "email" | "code"
 
 export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUrl, title, description }: LoginModalProps) {
   const [step, setStep] = useState<LoginStep>("email")
+  const [isEmailFormVisible, setIsEmailFormVisible] = useState(false)
   const [email, setEmail] = useState("")
   const [code, setCode] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -48,6 +49,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
   useEffect(() => {
     if (!isOpen) {
       setStep("email")
+      setIsEmailFormVisible(false)
       setEmail("")
       setCode("")
       setIsLoading(false)
@@ -195,14 +197,14 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
             </div>
             <DialogDescription className="text-gray-700 text-sm sm:text-base">
               {step === "email" 
-                ? (description || "기록을 보존하고 알림을 받으려면 이메일을 입력하세요") 
+                ? (description || "로그인하시면 실시간 알림을 받아보실 수 있습니다") 
                 : "이메일을 확인해주세요"}
             </DialogDescription>
           </DialogHeader>
 
           {step === "email" ? (
             /* 이메일 입력 단계 */
-            <form onSubmit={handleEmailSubmit} className="space-y-6">
+            <div className="space-y-6">
               {title && (
                 <div className="bg-purple-50 p-3 rounded-lg border border-purple-100 mb-4">
                   <p className="text-purple-700 text-sm font-semibold text-center">
@@ -210,69 +212,98 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
                   </p>
                 </div>
               )}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-gray-700">
-                  이메일 주소
-                </Label>
-                <div className="relative">
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="example@email.com"
-                    value={email}
-                    onChange={(e) => handleEmailChange(e.target.value)}
-                    onFocus={() => {
-                      if (emailSuggestions.length > 0) {
-                        setShowSuggestions(true)
-                      }
-                    }}
-                    onBlur={() => {
-                      // 약간의 지연을 두어 클릭 이벤트가 먼저 실행되도록
-                      setTimeout(() => setShowSuggestions(false), 200)
-                    }}
-                    required
-                    className="h-12 border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B]"
-                  />
-                  {showSuggestions && emailSuggestions.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
-                      {emailSuggestions
-                        .filter((suggestedEmail) =>
-                          email ? suggestedEmail.toLowerCase().includes(email.toLowerCase()) : true
-                        )
-                        .map((suggestedEmail, index) => (
-                          <button
-                            key={index}
-                            type="button"
-                            onClick={() => handleEmailSuggestionClick(suggestedEmail)}
-                            className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0"
-                          >
-                            {suggestedEmail}
-                          </button>
-                        ))}
-                    </div>
-                  )}
+
+              {!isEmailFormVisible ? (
+                <div className="space-y-4">
+                  <Button
+                    onClick={() => setIsEmailFormVisible(true)}
+                    className="w-full h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:opacity-90 text-white font-bold text-base shadow-lg"
+                  >
+                    로그인하기
+                  </Button>
+                  <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
+                    로그인하시면 이용약관 및 개인정보처리방침에 동의하게 됩니다.
+                  </p>
                 </div>
-              </div>
-
-              <Button
-                type="submit"
-                disabled={isLoading || !email || !email.includes("@")}
-                className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
-              >
-                {isLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    전송 중...
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="email" className="text-gray-700">
+                      이메일 주소
+                    </Label>
+                    <div className="relative">
+                      <Input
+                        id="email"
+                        type="email"
+                        placeholder="example@email.com"
+                        value={email}
+                        onChange={(e) => handleEmailChange(e.target.value)}
+                        onFocus={() => {
+                          if (emailSuggestions.length > 0) {
+                            setShowSuggestions(true)
+                          }
+                        }}
+                        onBlur={() => {
+                          // 약간의 지연을 두어 클릭 이벤트가 먼저 실행되도록
+                          setTimeout(() => setShowSuggestions(false), 200)
+                        }}
+                        required
+                        className="h-12 border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B]"
+                        autoFocus
+                      />
+                      {showSuggestions && emailSuggestions.length > 0 && (
+                        <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {emailSuggestions
+                            .filter((suggestedEmail) =>
+                              email ? suggestedEmail.toLowerCase().includes(email.toLowerCase()) : true
+                            )
+                            .map((suggestedEmail, index) => (
+                              <button
+                                key={index}
+                                type="button"
+                                onClick={() => handleEmailSuggestionClick(suggestedEmail)}
+                                className="w-full text-left px-4 py-2 hover:bg-gray-50 text-sm text-gray-700 border-b border-gray-100 last:border-b-0"
+                              >
+                                {suggestedEmail}
+                              </button>
+                            ))}
+                        </div>
+                      )}
+                    </div>
                   </div>
-                ) : (
-                  "인증 코드 받기"
-                )}
-              </Button>
 
-              <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
-                로그인하시면 이용약관 및 개인정보처리방침에 동의하게 됩니다.
-              </p>
-            </form>
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !email || !email.includes("@")}
+                    className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
+                  >
+                    {isLoading ? (
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        전송 중...
+                      </div>
+                    ) : (
+                      "인증 코드 받기"
+                    )}
+                  </Button>
+
+                  <div className="flex flex-col gap-3">
+                    <Button
+                      type="button"
+                      onClick={() => setIsEmailFormVisible(false)}
+                      variant="ghost"
+                      className="w-full text-gray-500 hover:text-gray-700 text-sm"
+                    >
+                      뒤로 가기
+                    </Button>
+                  </div>
+
+                  <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
+                    로그인하시면 이용약관 및 개인정보처리방침에 동의하게 됩니다.
+                  </p>
+                </form>
+              )}
+            </div>
           ) : (
             /* 인증 코드 입력 단계 */
             <form onSubmit={handleCodeVerify} className="space-y-6">

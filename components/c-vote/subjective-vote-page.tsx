@@ -127,11 +127,12 @@ export function SubjectiveVotePage({ mission }: SubjectiveVotePageProps) {
 
       // 익명 사용자인 경우 참여 횟수 증가 및 트리거 체크
       if (!isAuthenticated()) {
-        const count = incrementParticipationCount();
-        if (count >= 5) {
+        incrementParticipationCount();
+        const { shouldShowLoginTrigger } = await import("@/lib/auth-utils");
+        if (shouldShowLoginTrigger()) {
           setLoginModalConfig({
-            title: "내가 참여한 미션을 보관하고 싶다면?",
-            description: "5번 이상 참여하셨네요! 기록을 안전하게 보관하세요."
+            title: "리얼픽의 더 많은 혜택을 만나보세요!",
+            description: "벌써 5번이나 픽에 참여하셨네요! 로그인하시면 실시간 결과 알림을 받아보실 수 있습니다."
           });
           setShowLoginModal(true);
         }

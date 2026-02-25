@@ -1588,8 +1588,8 @@ export default function MyPage() {
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
-          title="내 픽을 안전하게 보관하시겠어요?"
-          description="로그인하시면 기기를 변경해도 언제 어디서나 내 참여 기록을 계속 확인하실 수 있습니다."
+          title="내 픽을 계속 확인하고 싶으신가요?"
+          description="로그인하시면 실시간 알림을 받아보실 수 있습니다."
         />
       </div>
     </div>

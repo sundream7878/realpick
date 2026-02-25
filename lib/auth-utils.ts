@@ -45,6 +45,16 @@ export function getParticipationCount(): number {
 }
 
 /**
+ * 로그인 유도 모달을 보여줘야 하는지 확인 (5회 참여마다)
+ */
+export function shouldShowLoginTrigger(): boolean {
+  if (typeof window === "undefined") return false;
+  if (isAuthenticated()) return false;
+  const count = getParticipationCount();
+  return count > 0 && count % 5 === 0;
+}
+
+/**
  * 익명 별명 생성 (20개 동물 하드코딩)
  */
 export function getAnonNickname(): string {

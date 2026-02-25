@@ -678,7 +678,7 @@ export default function ProfilePage() {
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
           title="알림 및 설정을 저장하고 싶다면?"
-          description="로그인하면 나만의 맞춤 설정과 알림을 안전하게 보관할 수 있습니다!"
+          description="로그인하시면 실시간 알림을 받아보실 수 있습니다."
         />
       </div>
     </div>

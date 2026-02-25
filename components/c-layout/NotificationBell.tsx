@@ -68,7 +68,7 @@ export function NotificationBell() {
                 isOpen={showLoginModal}
                 onClose={() => setShowLoginModal(false)}
                 title="알림을 확인하시겠어요?"
-                description="로그인하시면 나에게 온 소중한 알림들을 모두 확인하실 수 있습니다."
+                description="로그인하시면 실시간 알림을 받아보실 수 있습니다."
             />
         </div>
     )
