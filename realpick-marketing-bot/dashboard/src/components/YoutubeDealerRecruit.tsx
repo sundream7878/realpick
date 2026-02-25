@@ -381,35 +381,23 @@ export function YoutubeDealerRecruit() {
         return 'LOVE'
     }
     
-    // 10. 필터링된 미션 목록 (정렬 로직 추가)
+    // 10. 필터링된 미션 목록 (정렬 로직 수정: 최신 생성순)
     const filteredMissions = useMemo(() => {
         let filtered = [...approvedMissions]
         
-        // 1. 카테고리 순서대로 정렬 (로맨스 -> 서바이벌 -> 오디션)
-        // 프롬프트 생성 로직과 동일하게 맞춤
+        // 생성일시 기준 내림차순 정렬 (가장 최근 생성된 미션이 맨 위로)
         filtered.sort((a, b) => {
-            const catA = getMissionCategory(a)
-            const catB = getMissionCategory(b)
-            const order: Record<string, number> = { 'LOVE': 1, 'VICTORY': 2, 'STAR': 3 }
-            
-            const sortResult = (order[catA] || 99) - (order[catB] || 99)
-            
-            // 카테고리가 같으면 최신순 정렬
-            if (sortResult === 0) {
-                const dateA = new Date(a.createdAt || 0).getTime()
-                const dateB = new Date(b.createdAt || 0).getTime()
-                return dateB - dateA
-            }
-            
-            return sortResult
+            const dateA = new Date(a.createdAt || 0).getTime()
+            const dateB = new Date(b.createdAt || 0).getTime()
+            return dateB - dateA
         })
 
-        // 2. 카테고리 필터 적용
+        // 카테고리 필터 적용
         if (missionCategoryFilter !== "ALL") {
             filtered = filtered.filter(m => getMissionCategory(m) === missionCategoryFilter)
         }
         
-        // 3. 프로그램 필터 적용
+        // 프로그램 필터 적용
         if (missionShowFilter !== "ALL") {
             filtered = filtered.filter(m => {
                 const normalizedShowId = normalizeShowId(m.showId)
@@ -1444,7 +1432,7 @@ ${missionsText}
                         ) : (
                             <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
                                 <div className="text-sm text-gray-500 pb-2">
-                                    총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시 (정렬: 로맨스 → 서바이벌 → 오디션)
+                                    총 {approvedMissions.length}개 미션 중 {filteredMissions.length}개 표시 (정렬: 최신 생성순)
                                 </div>
                                 {filteredMissions.map((mission, idx) => (
                                     <Card key={mission.id} className="border-purple-200 hover:border-purple-300 transition-colors bg-purple-50/20">
