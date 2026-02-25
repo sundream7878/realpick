@@ -1,18 +1,29 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, lazy, Suspense } from 'react'
 import { Card, CardContent } from './components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './components/ui/tabs'
-import { LayoutDashboard, Users, Zap, Sparkles, Coffee, Video } from 'lucide-react'
-import { AutoMissionGenerate } from './components/AutoMissionGenerate'
-import { YoutubeDealerRecruit } from './components/YoutubeDealerRecruit'
-import { CommunityViralManage } from './components/CommunityViralManage'
-import { NaverCafeCrawl } from './components/NaverCafeCrawl'
-import { SnsViralManage } from './components/SnsViralManage'
-import { FakeUserBotManage } from './components/FakeUserBotManage'
-import { Badge } from './components/ui/badge'
+import { LayoutDashboard, Users, Zap, Sparkles, Coffee, Video, Loader2 } from 'lucide-react'
+import { Badge } from './ui/badge'
+
+// 지연 로딩 (Lazy Loading) 적용
+const AutoMissionGenerate = lazy(() => import('./components/AutoMissionGenerate').then(m => ({ default: m.AutoMissionGenerate })))
+const YoutubeDealerRecruit = lazy(() => import('./components/YoutubeDealerRecruit').then(m => ({ default: m.YoutubeDealerRecruit })))
+const CommunityViralManage = lazy(() => import('./components/CommunityViralManage').then(m => ({ default: m.CommunityViralManage })))
+const NaverCafeCrawl = lazy(() => import('./components/NaverCafeCrawl').then(m => ({ default: m.NaverCafeCrawl })))
+const SnsViralManage = lazy(() => import('./components/SnsViralManage').then(m => ({ default: m.SnsViralManage })))
+const FakeUserBotManage = lazy(() => import('./components/FakeUserBotManage').then(m => ({ default: m.FakeUserBotManage })))
+
+// 로딩 컴포넌트
+const TabLoading = () => (
+  <div className="flex flex-col items-center justify-center py-20 space-y-4">
+    <Loader2 className="w-10 h-10 text-purple-600 animate-spin" />
+    <p className="text-gray-500 font-bold">페이지를 불러오는 중입니다...</p>
+  </div>
+)
 
 function App() {
   const [authenticated, setAuthenticated] = useState(false)
   const [password, setPassword] = useState('')
+  const [activeTab, setActiveTab] = useState('auto')
 
   useEffect(() => {
     const stored = sessionStorage.getItem('marketer_auth')
@@ -73,7 +84,7 @@ function App() {
 
             {/* 프로그램 관리, 유저 관리 탭 제거됨 */}
             <div className="mt-8">
-              <Tabs defaultValue="auto" className="space-y-10">
+              <Tabs defaultValue="auto" value={activeTab} onValueChange={setActiveTab} className="space-y-10">
                 {/* 서브 탭 */}
                 <div className="bg-white/70 backdrop-blur-sm p-2 rounded-2xl inline-flex border border-purple-100 shadow-sm">
                   <TabsList className="bg-transparent gap-1.5 h-auto">
@@ -96,38 +107,50 @@ function App() {
                 </div>
 
                 <div className="mt-10">
-                  <TabsContent value="auto" className="animate-in fade-in duration-300">
-                    <AutoMissionGenerate />
-                  </TabsContent>
-                  <TabsContent value="youtube" className="animate-in fade-in duration-300">
-                    <YoutubeDealerRecruit />
-                  </TabsContent>
-                  <TabsContent value="sns" className="animate-in fade-in duration-300">
-                    <SnsViralManage />
-                  </TabsContent>
-                  <TabsContent value="bots" className="animate-in fade-in duration-300">
-                    <FakeUserBotManage />
-                  </TabsContent>
-                  <TabsContent value="community" className="animate-in fade-in duration-300">
-                    <div className="space-y-10">
-                      <Tabs defaultValue="general" className="w-full">
-                        <TabsList className="bg-gray-100 p-1.5 rounded-xl mb-10 border border-gray-200 inline-flex">
-                          <TabsTrigger value="general" className="rounded-lg font-extrabold py-4 px-12 data-[state=active]:bg-white text-base">
-                            게시판형 커뮤니티
-                          </TabsTrigger>
-                          <TabsTrigger value="naver-cafe" className="rounded-lg font-extrabold py-4 px-12 data-[state=active]:bg-white text-base">
-                            네이버 카페
-                          </TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="general" className="animate-in fade-in duration-300">
-                          <CommunityViralManage />
-                        </TabsContent>
-                        <TabsContent value="naver-cafe" className="animate-in fade-in duration-300">
-                          <NaverCafeCrawl />
-                        </TabsContent>
-                      </Tabs>
-                    </div>
-                  </TabsContent>
+                  <Suspense fallback={<TabLoading />}>
+                    {activeTab === 'auto' && (
+                      <TabsContent value="auto" className="animate-in fade-in duration-300">
+                        <AutoMissionGenerate />
+                      </TabsContent>
+                    )}
+                    {activeTab === 'youtube' && (
+                      <TabsContent value="youtube" className="animate-in fade-in duration-300">
+                        <YoutubeDealerRecruit />
+                      </TabsContent>
+                    )}
+                    {activeTab === 'sns' && (
+                      <TabsContent value="sns" className="animate-in fade-in duration-300">
+                        <SnsViralManage />
+                      </TabsContent>
+                    )}
+                    {activeTab === 'bots' && (
+                      <TabsContent value="bots" className="animate-in fade-in duration-300">
+                        <FakeUserBotManage />
+                      </TabsContent>
+                    )}
+                    {activeTab === 'community' && (
+                      <TabsContent value="community" className="animate-in fade-in duration-300">
+                        <div className="space-y-10">
+                          <Tabs defaultValue="general" className="w-full">
+                            <TabsList className="bg-gray-100 p-1.5 rounded-xl mb-10 border border-gray-200 inline-flex">
+                              <TabsTrigger value="general" className="rounded-lg font-extrabold py-4 px-12 data-[state=active]:bg-white text-base">
+                                게시판형 커뮤니티
+                              </TabsTrigger>
+                              <TabsTrigger value="naver-cafe" className="rounded-lg font-extrabold py-4 px-12 data-[state=active]:bg-white text-base">
+                                네이버 카페
+                              </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="general" className="animate-in fade-in duration-300">
+                              <CommunityViralManage />
+                            </TabsContent>
+                            <TabsContent value="naver-cafe" className="animate-in fade-in duration-300">
+                              <NaverCafeCrawl />
+                            </TabsContent>
+                          </Tabs>
+                        </div>
+                      </TabsContent>
+                    )}
+                  </Suspense>
                 </div>
               </Tabs>
             </div>
