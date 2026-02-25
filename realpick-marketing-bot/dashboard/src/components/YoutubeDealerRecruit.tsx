@@ -558,10 +558,9 @@ ${missionsText}
 | :--- | :--- | :--- | :--- | :--- |
 (※ 미션 번호는 위 목록의 [미션 N] 번호를 기재해주세요.)
 
-**리포트 3: A등급 미션 집중 요약 (프로그램별)**
-- [프로그램명 1]: 미션 N, 미션 M...
-- [프로그램명 2]: 미션 X...
-(※ A등급에 해당하는 미션 번호들만 프로그램별로 나열해주세요.)
+**리포트 3: A등급 미션 번호 목록**
+미션 N, 미션 M, 미션 X...
+(※ A등급에 해당하는 모든 미션 번호들만 콤마로 구분하여 일렬로 나열해주세요. 이 내용을 복사하여 바로 '번호 승인' 칸에 붙여넣을 수 있게 하기 위함입니다.)
 
 분석 결과를 한국어로 친절하고 전문적으로 답변해주세요.`
 
@@ -1381,64 +1380,75 @@ ${missionsText}
             <TabsContent value="approve">
                 <Card className="border-purple-200 shadow-md">
                     <CardHeader className="space-y-4">
-                        <div className="flex flex-row items-center justify-between">
-                            <div>
-                                <CardTitle className="text-2xl font-extrabold">미션 승인 관리 (AI 자동 생성)</CardTitle>
-                                <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
-                            </div>
-                            <div className="flex gap-2">
-                                <div className="flex items-center bg-white border border-green-200 rounded-xl px-2 gap-2 shadow-sm">
-                                    <span className="text-xs font-bold text-green-700 whitespace-nowrap">번호 승인:</span>
-                                    <Input 
-                                        type="text" 
-                                        placeholder="1, 2, 3" 
-                                        value={missionNumberInput}
-                                        onChange={(e) => setMissionNumberInput(e.target.value)}
-                                        onKeyDown={(e) => e.key === 'Enter' && handleApproveByNumber()}
-                                        className="w-24 h-8 text-center font-bold border-none focus-visible:ring-0"
-                                    />
-                                    <Button 
-                                        onClick={handleApproveByNumber}
-                                        disabled={isApprovingByNumber || !missionNumberInput.trim()}
-                                        size="sm"
-                                        className="h-7 bg-green-600 hover:bg-green-700 text-xs font-bold rounded-lg px-3"
-                                    >
-                                        {isApprovingByNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : "일괄 승인"}
-                                    </Button>
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-row items-center justify-between">
+                                <div>
+                                    <CardTitle className="text-2xl font-extrabold">미션 승인 관리 (AI 자동 생성)</CardTitle>
+                                    <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
                                 </div>
+                                <div className="flex gap-2">
+                                    <Button 
+                                        onClick={handleAiVerify} 
+                                        disabled={isAiVerifying || approvedMissions.length === 0}
+                                        variant="outline"
+                                        size="sm"
+                                        className="gap-2 h-10 px-5 text-base font-bold bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-indigo-600 hover:from-blue-100 hover:to-indigo-100 rounded-xl shadow-sm"
+                                    >
+                                        {isAiVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
+                                        미션 AI 검증
+                                    </Button>
+                                    {approvedMissions.length > 0 && (
+                                        <>
+                                            <Button 
+                                                onClick={handleFixShowIds} 
+                                                disabled={isFixingShowIds}
+                                                variant="outline"
+                                                size="sm"
+                                                className="gap-2 bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 h-10 px-5 text-base font-bold rounded-xl"
+                                            >
+                                                {isFixingShowIds ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                                                showId 일괄 수정
+                                            </Button>
+                                            <Button 
+                                                onClick={handleClearAllMissions} 
+                                                disabled={isClearingMissions}
+                                                size="sm"
+                                                className="gap-2 h-10 px-5 text-base font-bold bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl"
+                                            >
+                                                {isClearingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                                전체 삭제
+                                            </Button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* 번호 승인 입력창 - 아래 줄로 이동 및 확장 */}
+                            <div className="flex items-center bg-green-50/50 border border-green-200 rounded-2xl p-3 gap-4 shadow-sm">
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <Check className="w-5 h-5 text-green-600" />
+                                    <span className="text-sm font-bold text-green-800 whitespace-nowrap">미션 번호 일괄 승인:</span>
+                                </div>
+                                <Input 
+                                    type="text" 
+                                    placeholder="분석 리포트의 번호들을 복사해서 붙여넣으세요 (예: 1, 3, 5, 8)" 
+                                    value={missionNumberInput}
+                                    onChange={(e) => setMissionNumberInput(e.target.value)}
+                                    onKeyDown={(e) => e.key === 'Enter' && handleApproveByNumber()}
+                                    className="flex-1 h-10 font-bold border-green-100 focus:border-green-300 focus-visible:ring-green-200 bg-white"
+                                />
                                 <Button 
-                                    onClick={handleAiVerify} 
-                                    disabled={isAiVerifying || approvedMissions.length === 0}
-                                    variant="outline"
-                                    size="sm"
-                                    className="gap-2 h-10 px-5 text-base font-bold bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200 text-indigo-600 hover:from-blue-100 hover:to-indigo-100 rounded-xl shadow-sm"
+                                    onClick={handleApproveByNumber}
+                                    disabled={isApprovingByNumber || !missionNumberInput.trim()}
+                                    className="h-10 bg-green-600 hover:bg-green-700 text-base font-bold rounded-xl px-8 shadow-md transition-all active:scale-95"
                                 >
-                                    {isAiVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
-                                    미션 AI 검증
+                                    {isApprovingByNumber ? (
+                                        <>
+                                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                            승인 중...
+                                        </>
+                                    ) : "한꺼번에 승인하기"}
                                 </Button>
-                                {approvedMissions.length > 0 && (
-                                    <>
-                                        <Button 
-                                            onClick={handleFixShowIds} 
-                                            disabled={isFixingShowIds}
-                                            variant="outline"
-                                            size="sm"
-                                            className="gap-2 bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 h-10 px-5 text-base font-bold rounded-xl"
-                                        >
-                                            {isFixingShowIds ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-                                            showId 일괄 수정
-                                        </Button>
-                                        <Button 
-                                            onClick={handleClearAllMissions} 
-                                            disabled={isClearingMissions}
-                                            size="sm"
-                                            className="gap-2 h-10 px-5 text-base font-bold bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl"
-                                        >
-                                            {isClearingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                                            전체 삭제
-                                        </Button>
-                                    </>
-                                )}
                             </div>
                         </div>
                         
