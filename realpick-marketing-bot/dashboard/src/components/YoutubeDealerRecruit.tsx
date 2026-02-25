@@ -88,6 +88,8 @@ export function YoutubeDealerRecruit() {
     // showId 일괄 수정 상태
     const [isFixingShowIds, setIsFixingShowIds] = useState(false)
     const [isAiVerifying, setIsAiVerifying] = useState(false)
+    const [missionNumberInput, setMissionNumberInput] = useState("")
+    const [isApprovingByNumber, setIsApprovingByNumber] = useState(false)
 
     // 1. 크롤링 핸들러
     const handleCrawl = async () => {
@@ -582,6 +584,74 @@ ${missionsText}
         } finally {
             setIsAiVerifying(false)
         }
+    }
+
+    // 17. 미션 승인 및 게시 공통 로직
+    const approveMission = async (mission: any) => {
+        try {
+            const deadline = mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+            
+            // showId 정규화 및 category 결정
+            const normalizedShow = normalizeShowId(mission.showId) || "nasolo"
+            const missionCategory = getMissionCategory(mission)
+            
+            const res = await fetch("/api/missions/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    title: mission.title,
+                    description: mission.description,
+                    options: mission.options,
+                    kind: mission.kind === 'PREDICT' ? 'prediction' : 'majority',
+                    form: mission.form || 'multi',
+                    deadline: deadline,
+                    showId: normalizedShow,
+                    category: missionCategory,
+                    isAIMission: true,
+                    aiMissionId: mission.id,
+                    channelName: mission.sourceVideo?.channelName || 'AI',
+                    referenceUrl: mission.sourceVideo?.url || null,
+                    thumbnailUrl: mission.sourceVideo?.thumbnailUrl || null
+                })
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast({ title: `미션 ${mission.displayIndex} 승인 완료`, description: "미션이 정식 게시되었습니다." })
+                loadApprovedMissions()
+                return true
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast({ title: "승인 실패", description: error.message, variant: "destructive" })
+            return false
+        }
+    }
+
+    // 18. 번호로 미션 바로 승인
+    const handleApproveByNumber = async () => {
+        const num = parseInt(missionNumberInput)
+        if (isNaN(num)) {
+            toast({ title: "입력 오류", description: "올바른 미션 번호를 입력해주세요.", variant: "destructive" })
+            return
+        }
+
+        const mission = approvedMissions.find(m => m.displayIndex === num)
+        if (!mission) {
+            toast({ title: "미션 없음", description: `해당 번호(${num})의 미션을 찾을 수 없습니다.`, variant: "destructive" })
+            return
+        }
+
+        if (!confirm(`미션 ${num}번 [${mission.title}]을(를) 바로 승인하시겠습니까?`)) {
+            return
+        }
+
+        setIsApprovingByNumber(true)
+        const success = await approveMission(mission)
+        if (success) {
+            setMissionNumberInput("")
+        }
+        setIsApprovingByNumber(false)
     }
 
     // 7. 미션 삭제 핸들러
@@ -1281,6 +1351,25 @@ ${missionsText}
                                 <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
                             </div>
                             <div className="flex gap-2">
+                                <div className="flex items-center bg-white border border-green-200 rounded-xl px-2 gap-2 shadow-sm">
+                                    <span className="text-xs font-bold text-green-700 whitespace-nowrap">번호 승인:</span>
+                                    <Input 
+                                        type="number" 
+                                        placeholder="0" 
+                                        value={missionNumberInput}
+                                        onChange={(e) => setMissionNumberInput(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && handleApproveByNumber()}
+                                        className="w-16 h-8 text-center font-bold border-none focus-visible:ring-0"
+                                    />
+                                    <Button 
+                                        onClick={handleApproveByNumber}
+                                        disabled={isApprovingByNumber || !missionNumberInput}
+                                        size="sm"
+                                        className="h-7 bg-green-600 hover:bg-green-700 text-xs font-bold rounded-lg px-3"
+                                    >
+                                        {isApprovingByNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : "승인"}
+                                    </Button>
+                                </div>
                                 <Button 
                                     onClick={handleAiVerify} 
                                     disabled={isAiVerifying || approvedMissions.length === 0}
@@ -1668,44 +1757,9 @@ ${missionsText}
                                                         variant="default" 
                                                         size="sm" 
                                                         className="h-8 px-2 bg-green-600 hover:bg-green-700 whitespace-nowrap"
-                                                        onClick={async () => {
+                                                        onClick={() => {
                                                             if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
-                                                                try {
-                                                                    const deadline = mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
-                                                                    
-                                                                    // showId 정규화 및 category 결정
-                                                                    const normalizedShow = normalizeShowId(mission.showId) || "nasolo"
-                                                                    const missionCategory = getMissionCategory(mission)
-                                                                    
-                                                                    const res = await fetch("/api/missions/create", {
-                                                                        method: "POST",
-                                                                        headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({
-                                                                            title: mission.title,
-                                                                            description: mission.description,
-                                                                            options: mission.options,
-                                                                            kind: mission.kind === 'PREDICT' ? 'prediction' : 'majority',
-                                                                            form: mission.form || 'multi',
-                                                                            deadline: deadline,
-                                                                            showId: normalizedShow,
-                                                                            category: missionCategory,
-                                                                            isAIMission: true,
-                                                                            aiMissionId: mission.id,
-                                                                            channelName: mission.sourceVideo?.channelName || 'AI',
-                                                                            referenceUrl: mission.sourceVideo?.url || null,
-                                                                            thumbnailUrl: mission.sourceVideo?.thumbnailUrl || null
-                                                                        })
-                                                                    })
-                                                                    const data = await res.json()
-                                                                    if (data.success) {
-                                                                        toast({ title: "승인 완료", description: "미션이 정식 게시되었습니다." })
-                                                                        loadApprovedMissions()
-                                                                    } else {
-                                                                        throw new Error(data.error)
-                                                                    }
-                                                                } catch (error: any) {
-                                                                    toast({ title: "승인 실패", description: error.message, variant: "destructive" })
-                                                                }
+                                                                approveMission(mission)
                                                             }
                                                         }}
                                                     >
