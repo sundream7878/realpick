@@ -631,10 +631,7 @@ export default function HomePage() {
             userPoints={userPoints}
             userTier={userTier}
             onAvatarClick={() => {
-              if (isLoggedIn === false) {
-                setShowLoginModal(true)
-                return
-              }
+              // 로그인 여부와 관계없이 프로필 페이지로 이동
               const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
               router.push(profileUrl)
             }}

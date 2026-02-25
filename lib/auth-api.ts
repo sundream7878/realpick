@@ -7,6 +7,7 @@ import {
   sendSignInLinkToEmail, 
   isSignInWithEmailLink, 
   signInWithEmailLink,
+  signInWithCustomToken,
   signOut as firebaseSignOut
 } from "firebase/auth"
 import { getUser, getUserByEmail, createUser, linkUserToFirebaseUid } from "@/lib/firebase/users"
@@ -18,44 +19,31 @@ const actionCodeSettings = {
 }
 
 /**
- * 링크 전송 (이메일 매직링크) - 커스텀 템플릿 사용
+ * 링크 전송 (이메일 인증 코드)
  */
 export async function sendVerificationCode(email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    console.log("🔥 [sendVerificationCode] 커스텀 템플릿으로 이메일 발송 시작:", email)
+    console.log("🔥 [sendVerificationCode] 인증 코드 발송 시작:", email)
 
-    // 원래 방식대로 현재 접속한 도메인을 기반으로 리다이렉트 URL 생성
-    const redirectUrl = typeof window !== "undefined" 
-      ? `${window.location.origin}/auth/callback`
-      : "https://real-pick.com/auth/callback"
-    
-    console.log("📍 [sendVerificationCode] Redirect URL:", redirectUrl)
-    
-    // 우리가 만든 Cloud Function 호출 (커스텀 템플릿으로 이메일 발송)
-    const response = await fetch("https://sendmagiclink-b2atbwi42a-uc.a.run.app", {
+    const response = await fetch("/api/auth/send-otp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, redirectUrl }),
+      body: JSON.stringify({ email }),
     })
 
     const data = await response.json()
-    console.log("✅ [sendVerificationCode] 이메일 발송 응답:", data)
+    console.log("✅ [sendVerificationCode] 인증 코드 발송 응답:", data)
 
     if (!data.success) {
-      throw new Error(data.error || "이메일 발송에 실패했습니다.")
+      throw new Error(data.error || "인증 코드 발송에 실패했습니다.")
     }
 
-    // 이메일을 로컬 스토리지에 저장 (나중에 검증할 때 필요)
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("emailForSignIn", email)
-    }
-
-    console.log("🎉 [sendVerificationCode] 커스텀 템플릿 이메일 발송 완료!")
+    console.log("🎉 [sendVerificationCode] 인증 코드 발송 완료!")
     return { success: true }
   } catch (error: any) {
-    console.error("Firebase 매직링크 전송 실패:", error)
+    console.error("인증 코드 전송 실패:", error)
     return { success: false, error: error.message }
   }
 }
@@ -172,17 +160,49 @@ export async function handleMagicLinkCallback(): Promise<{
 }
 
 /**
- * OTP 코드 검증 (Firebase에서는 매직링크를 사용하므로 이 함수는 사용되지 않거나 에러 처리)
+ * OTP 코드 검증
  */
 export async function verifyOtpCode(
   email: string,
   code: string
 ): Promise<{ success: boolean; userId?: string; needsSetup?: boolean; isNewUser?: boolean; error?: string }> {
-  // Firebase standard email auth doesn't support 6-digit OTP codes.
-  // We recommend using the Magic Link flow.
-  return { 
-    success: false, 
-    error: "Firebase로 이전되어 6자리 코드 대신 이메일 링크 인증을 사용합니다. 이메일 링크를 확인해주세요." 
+  try {
+    const response = await fetch("/api/auth/verify-otp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ email, code }),
+    })
+
+    const data = await response.json()
+    console.log("✅ [verifyOtpCode] 인증 코드 검증 응답:", data)
+
+    if (!data.success) {
+      throw new Error(data.error || "인증 코드 검증에 실패했습니다.")
+    }
+
+    const { customToken, userId, isNewUser, needsSetup, nickname } = data
+
+    // Firebase Custom Token으로 로그인
+    const result = await signInWithCustomToken(auth, customToken)
+    const user = result.user
+
+    if (!user) {
+      throw new Error("인증 실패")
+    }
+
+    // 로그인 정보 저장
+    const idToken = await user.getIdToken()
+    setAuthToken(idToken)
+    setUserId(userId)
+    localStorage.setItem("rp_user_email", email)
+    localStorage.setItem("rp_user_nickname", nickname || email.split("@")[0])
+
+    return { success: true, userId, isNewUser, needsSetup }
+  } catch (error: any) {
+    console.error("인증 코드 검증 실패:", error)
+    return { success: false, error: error.message }
   }
 }
 

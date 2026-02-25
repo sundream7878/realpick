@@ -265,7 +265,7 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
                     전송 중...
                   </div>
                 ) : (
-                  "로그인 링크 받기"
+                  "인증 코드 받기"
                 )}
               </Button>
 
@@ -274,55 +274,85 @@ export default function LoginModal({ isOpen, onClose, onLoginSuccess, redirectUr
               </p>
             </form>
           ) : (
-            /* 매직링크 안내 단계 */
-            <div className="space-y-6">
+            /* 인증 코드 입력 단계 */
+            <form onSubmit={handleCodeVerify} className="space-y-6">
               <div className="flex flex-col items-center justify-center space-y-4 py-2">
                 <div className="w-16 h-16 bg-[#3E757B]/10 rounded-full flex items-center justify-center">
                   <Mail className="w-8 h-8 text-[#3E757B]" />
                 </div>
                 <div className="text-center space-y-2">
-                  <h3 className="text-lg font-semibold text-gray-900">이메일을 확인해주세요</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">인증 코드를 입력해주세요</h3>
                   <p className="text-sm text-gray-600">
-                    <span className="font-medium text-gray-900">{email}</span>로 로그인 링크를 전송했습니다.
-                  </p>
-                  <p className="text-sm text-[#3E757B] font-medium">
-                    이메일의 링크를 클릭하면 로그인이 완료됩니다.
+                    <span className="font-medium text-gray-900">{email}</span>로 전송된<br />6자리 코드를 입력해주세요.
                   </p>
                 </div>
               </div>
 
               <div className="space-y-4">
+                <div className="flex justify-center">
+                  <Input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    placeholder="000000"
+                    value={code}
+                    onChange={(e) => {
+                      const val = e.target.value.replace(/[^0-9]/g, "");
+                      if (val.length <= 6) setCode(val);
+                    }}
+                    className="h-14 text-center text-2xl font-bold tracking-[0.5em] border-gray-200 focus:border-[#3E757B] focus:ring-[#3E757B] w-full max-w-[240px]"
+                    autoFocus
+                  />
+                </div>
+
                 <Button
-                  type="button"
-                  onClick={() => {
-                    setStep("email")
-                    setEmail("")
-                    setCode("")
-                  }}
-                  variant="outline"
-                  className="w-full h-11 sm:h-12 border-gray-300 text-gray-700 hover:bg-gray-50 text-sm sm:text-base"
+                  type="submit"
+                  disabled={isVerifying || code.length !== 6}
+                  className="w-full h-11 sm:h-12 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:from-[#2C2745]/90 hover:to-[#3E757B]/90 text-white font-medium text-sm sm:text-base"
                 >
-                  이메일 변경
+                  {isVerifying ? (
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      인증 중...
+                    </div>
+                  ) : (
+                    "인증 완료"
+                  )}
                 </Button>
 
-                <div className="text-center">
-                  <button
+                <div className="flex flex-col gap-3">
+                  <Button
                     type="button"
-                    onClick={handleResendCode}
-                    disabled={isResending}
-                    className="text-sm text-[#3E757B] hover:text-[#2C2745] disabled:text-gray-400"
+                    onClick={() => {
+                      setStep("email")
+                      setCode("")
+                    }}
+                    variant="ghost"
+                    className="w-full text-gray-500 hover:text-gray-700 text-sm"
                   >
-                    {isResending ? "재전송 중..." : "링크 재전송"}
-                  </button>
+                    이메일 주소 변경
+                  </Button>
+
+                  <div className="text-center">
+                    <button
+                      type="button"
+                      onClick={handleResendCode}
+                      disabled={isResending}
+                      className="text-sm text-[#3E757B] hover:text-[#2C2745] disabled:text-gray-400 font-medium"
+                    >
+                      {isResending ? "재전송 중..." : "인증 코드 재전송"}
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <p className="text-[10px] sm:text-xs text-gray-500 text-center leading-relaxed">
                 이메일이 보이지 않나요? 스팸 폴더를 확인해주세요.
                 <br />
-                네이버 메일은 도착이 느리거나 스팸 처리될 수 있어, Gmail 등 다른 주소 사용을 권장합니다.
+                네이버 메일은 도착이 느리거나 스팸 처리될 수 있습니다.
               </p>
-            </div>
+            </form>
           )}
         </div>
       </DialogContent>

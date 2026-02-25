@@ -19,6 +19,7 @@ import { AppHeader } from "@/components/c-layout/AppHeader"
 import { MissionCard } from "@/components/c-mission/MissionCard"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
+import LoginModal from "@/components/c-login-modal/login-modal"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/firebase/missions"
@@ -1150,6 +1151,7 @@ export default function MyPage() {
           userPoints={userPoints}
           userTier={userTier}
           onAvatarClick={() => {
+            // 로그인 여부와 관계없이 프로필 페이지로 이동
             const profileUrl = selectedShowId ? `/p-profile?show=${selectedShowId}` : "/p-profile"
             router.push(profileUrl)
           }}
@@ -1179,16 +1181,16 @@ export default function MyPage() {
                 <CardContent className="p-4 sm:p-6">
                   <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
                     <div className="space-y-1 text-center sm:text-left">
-                      <h3 className="text-base sm:text-lg font-bold text-pink-900">내 픽을 안전하게 보관하고 싶다면?</h3>
+                      <h3 className="text-base sm:text-lg font-bold text-pink-900">내 픽을 계속 확인하고 싶으신가요?</h3>
                       <p className="text-xs sm:text-sm text-pink-700">
-                        지금은 브라우저에만 저장되어 있어요. 로그인하면 어디서든 내 참여 기록을 확인할 수 있습니다!
+                        로그인하시면 다른 브라우저나 기기에서도 내가 참여한 미션들을 언제든지 확인하실 수 있습니다.
                       </p>
                     </div>
                     <Button 
                       onClick={() => setShowLoginModal(true)}
                       className="bg-pink-600 hover:bg-pink-700 text-white font-bold px-6 shrink-0"
                     >
-                      기록 보관하기
+                      로그인하기
                     </Button>
                   </div>
                 </CardContent>
@@ -1586,8 +1588,8 @@ export default function MyPage() {
         <LoginModal
           isOpen={showLoginModal}
           onClose={() => setShowLoginModal(false)}
-          title="내 픽을 안전하게 보관하고 싶다면?"
-          description="로그인하면 기기를 변경해도 내 참여 기록을 계속 확인할 수 있습니다!"
+          title="내 픽을 안전하게 보관하시겠어요?"
+          description="로그인하시면 기기를 변경해도 언제 어디서나 내 참여 기록을 계속 확인하실 수 있습니다."
         />
       </div>
     </div>

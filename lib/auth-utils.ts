@@ -86,4 +86,16 @@ export function clearUserId(): void {
   localStorage.removeItem("rp_user_id")
 }
 
+export function setAuthToken(token: string): void {
+  if (typeof window === "undefined") return
+  localStorage.setItem("rp_auth_token", token)
+  window.dispatchEvent(new Event("auth-change"))
+}
+
+export function clearAuthToken(): void {
+  if (typeof window === "undefined") return
+  localStorage.removeItem("rp_auth_token")
+  window.dispatchEvent(new Event("auth-change"))
+}
+
 

@@ -225,11 +225,12 @@ export function SidebarNavigation({
   }
 
   const handleMyPageClick = (e: React.MouseEvent) => {
-    if (!isAuthenticated()) {
-      e.preventDefault()
-      setPendingAction("mypage")
-      setShowLoginModal(true)
-    }
+    // 로그인 없이도 마이페이지 확인 가능하도록 수정
+    // if (!isAuthenticated()) {
+    //   e.preventDefault()
+    //   setPendingAction("mypage")
+    //   setShowLoginModal(true)
+    // }
   }
 
   const handleLoginSuccess = () => {
@@ -243,41 +244,41 @@ export function SidebarNavigation({
   }
 
   return (
-    <aside className={`w-35 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-16 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
-      <div className="p-4">
-        <nav className="space-y-2">
+    <aside className={`w-35 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-20 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
+      <div className="p-1 mt-4">
+        <nav className="space-y-4">
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all font-bold ${sidebarTextColor} ${sidebarHoverStyle} flex items-center`}
+              className={`w-full justify-start gap-2 transition-all font-bold ${sidebarTextColor} ${sidebarHoverStyle} flex items-center pl-1`}
               onClick={handleMissionClick}
               style={{
                 color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
               }}
             >
-              <Plus className={`w-5 h-5 ${iconColor}`} style={{
+              <Plus className={`w-4 h-4 ${iconColor}`} style={{
                 color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
               }} />
-              <span>미션 게시하기</span>
+              <span className="text-xs">미션 게시하기</span>
             </Button>
           )}
 
           <Link href={myPageUrl} onClick={handleMyPageClick}>
             <Button
               variant="ghost"
-              className={`w-full justify-start gap-3 transition-all font-bold ${
+              className={`w-full justify-start gap-2 transition-all font-bold ${
                 activeNavItem === "mypage" 
                   ? sidebarActiveStyle 
                   : `${sidebarTextColor} ${sidebarHoverStyle}`
-              } flex items-center`}
+              } flex items-center pl-1`}
               style={activeNavItem !== "mypage" ? {
                 color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
               } : undefined}
             >
-              <User className={`w-5 h-5`} style={activeNavItem !== "mypage" ? {
+              <User className={`w-4 h-4`} style={activeNavItem !== "mypage" ? {
                 color: category === 'LOVE' ? '#db2777' : category === 'VICTORY' ? '#2563eb' : category === 'STAR' ? '#ca8a04' : undefined
               } : undefined} />
-              <span>마이페이지</span>
+              <span className="text-xs">마이페이지</span>
             </Button>
           </Link>
 
@@ -285,14 +286,14 @@ export function SidebarNavigation({
             <Link href={dealerLoungeUrl}>
               <Button
                 variant="ghost"
-                className={`w-full justify-start gap-3 transition-all font-bold ${
+                className={`w-full justify-start gap-2 transition-all font-bold ${
                   activeNavItem === "dealer" 
                     ? "bg-purple-100 text-purple-900" 
                     : "text-purple-700 hover:bg-purple-100 hover:text-purple-900"
-                } !flex !items-center`}
+                } !flex !items-center pl-1`}
               >
-                <User className={`w-5 h-5 ${activeNavItem === "dealer" ? "text-purple-900" : "text-purple-600"}`} />
-                <span className={activeNavItem === "dealer" ? "text-purple-900" : "text-purple-700"}>딜러 라운지</span>
+                <User className={`w-4 h-4 ${activeNavItem === "dealer" ? "text-purple-900" : "text-purple-600"}`} />
+                <span className={`text-xs ${activeNavItem === "dealer" ? "text-purple-900" : "text-purple-700"}`}>딜러 라운지</span>
               </Button>
             </Link>
           )}
@@ -301,14 +302,14 @@ export function SidebarNavigation({
             <Link href={adminUrl}>
               <Button
                 variant="ghost"
-                className={`w-full justify-start gap-3 transition-all font-bold ${
+                className={`w-full justify-start gap-2 transition-all font-bold ${
                   activeNavItem === "admin" 
                     ? "bg-red-100 text-red-900" 
                     : "text-red-700 hover:bg-red-100 hover:text-red-900"
-                } !flex !items-center`}
+                } !flex !items-center pl-1`}
               >
-                <Shield className={`w-5 h-5 ${activeNavItem === "admin" ? "text-red-900" : "text-red-600"}`} />
-                <span className={activeNavItem === "admin" ? "text-red-900" : "text-red-700"}>관리자 페이지</span>
+                <Shield className={`w-4 h-4 ${activeNavItem === "admin" ? "text-red-900" : "text-red-600"}`} />
+                <span className={`text-xs ${activeNavItem === "admin" ? "text-red-900" : "text-red-700"}`}>관리자 페이지</span>
               </Button>
             </Link>
           )}

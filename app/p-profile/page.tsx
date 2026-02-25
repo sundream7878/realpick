@@ -446,7 +446,26 @@ export default function ProfilePage() {
 
                       <div className="space-y-2">
                         <h2 className="text-2xl font-bold text-gray-800">{userNickname}</h2>
-                        <p className="text-gray-600">{userEmail}</p>
+                        {!isAuthenticated() ? (
+                          <div className="mt-2 p-4 rounded-xl bg-[#3E757B]/5 border border-[#3E757B]/20 text-left">
+                            <div className="flex items-center gap-2 mb-2">
+                              <Mail className="w-4 h-4 text-[#3E757B]" />
+                              <span className="font-bold text-[#2C2745] text-sm">이메일을 등록해봐요! 😊</span>
+                            </div>
+                            <p className="text-xs text-gray-700 leading-relaxed">
+                              로그인하시면 분석 기록 보존, 알림 수신, 기기 변경 시 데이터 유지 등 다양한 혜택을 누리실 수 있습니다.
+                            </p>
+                            <Button 
+                              size="sm" 
+                              onClick={() => setShowLoginModal(true)}
+                              className="w-full mt-3 bg-gradient-to-r from-[#2C2745] to-[#3E757B] hover:opacity-90 text-white text-xs font-bold h-8 border-none"
+                            >
+                              로그인하고 혜택 받기
+                            </Button>
+                          </div>
+                        ) : (
+                          <p className="text-gray-600">{userEmail}</p>
+                        )}
                         <div className="flex items-center justify-center gap-4 mt-4">
                           <div 
                             className="bg-gradient-to-r from-purple-100 to-pink-100 px-5 py-2.5 rounded-full cursor-pointer hover:shadow-md transition-all active:scale-95"

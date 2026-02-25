@@ -232,6 +232,31 @@ app.get('/api/admin/dealers/videos-list', async (_req, res) => {
   }
 });
 
+// 미션 생성 API (메인 Next.js 서버로 프록시)
+app.post('/api/missions/create', async (req, res) => {
+  const targetBase = process.env.MAIN_APP_URL || 'http://localhost:3000';
+  const targetUrl = `${targetBase}/api/missions/create`;
+  try {
+    console.log('[Proxy] /api/missions/create ->', targetUrl);
+    const upstream = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(req.body || {}),
+    });
+
+    const data = await upstream.json();
+    res.status(upstream.status).json(data);
+  } catch (err: any) {
+    console.error('[Proxy /api/missions/create] 실패:', err);
+    res.status(500).json({
+      success: false,
+      error: err?.message || '미션 생성 프록시 실패',
+    });
+  }
+});
+
 // SNS 바이럴 영상 렌더 요청을 메인 Next.js 서버로 프록시
 app.post('/api/video/render', async (req, res) => {
   const targetBase = process.env.VITE_API_URL || 'http://localhost:3002';
