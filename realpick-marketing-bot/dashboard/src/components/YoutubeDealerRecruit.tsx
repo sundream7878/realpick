@@ -628,29 +628,65 @@ ${missionsText}
         }
     }
 
-    // 18. 번호로 미션 바로 승인
+    // 18. 번호로 미션 바로 승인 (복수 번호 지원: 콤마 구분)
     const handleApproveByNumber = async () => {
-        const num = parseInt(missionNumberInput)
-        if (isNaN(num)) {
-            toast({ title: "입력 오류", description: "올바른 미션 번호를 입력해주세요.", variant: "destructive" })
+        if (!missionNumberInput.trim()) return
+
+        // 콤마로 분리, 공백 제거, 숫자 필터링
+        const numbers = missionNumberInput
+            .split(',')
+            .map(s => parseInt(s.trim()))
+            .filter(n => !isNaN(n)) // NaN 제외
+
+        if (numbers.length === 0) {
+            toast({ title: "입력 오류", description: "올바른 미션 번호를 입력해주세요. (예: 1, 3, 5)", variant: "destructive" })
             return
         }
 
-        const mission = approvedMissions.find(m => m.displayIndex === num)
-        if (!mission) {
-            toast({ title: "미션 없음", description: `해당 번호(${num})의 미션을 찾을 수 없습니다.`, variant: "destructive" })
+        // 유효한 미션들 찾기
+        const targets = numbers.map(num => {
+            return {
+                num,
+                mission: approvedMissions.find(m => m.displayIndex === num)
+            }
+        })
+
+        const validMissions = targets.filter(t => t.mission).map(t => t.mission)
+        const invalidNums = targets.filter(t => !t.mission).map(t => t.num)
+
+        if (validMissions.length === 0) {
+            toast({ title: "미션 없음", description: `입력하신 번호(${numbers.join(', ')})에 해당하는 미션을 찾을 수 없습니다.`, variant: "destructive" })
             return
         }
 
-        if (!confirm(`미션 ${num}번 [${mission.title}]을(를) 바로 승인하시겠습니까?`)) {
+        const confirmMsg = validMissions.length === 1 
+            ? `미션 ${validMissions[0].displayIndex}번 [${validMissions[0].title}]을(를) 바로 승인하시겠습니까?`
+            : `총 ${validMissions.length}개의 미션(${validMissions.map(m => m.displayIndex).join(', ')}번)을 한꺼번에 승인하시겠습니까?`
+
+        if (!confirm(confirmMsg)) {
             return
         }
 
         setIsApprovingByNumber(true)
-        const success = await approveMission(mission)
-        if (success) {
-            setMissionNumberInput("")
+        
+        let successCount = 0
+        for (const mission of validMissions) {
+            const success = await approveMission(mission)
+            if (success) successCount++
         }
+
+        if (successCount > 0) {
+            setMissionNumberInput("")
+            if (invalidNums.length > 0) {
+                toast({ 
+                    title: "일부 승인 완료", 
+                    description: `${successCount}개 승인 완료. (찾을 수 없는 번호: ${invalidNums.join(', ')})` 
+                })
+            } else {
+                toast({ title: "일괄 승인 완료", description: `${successCount}개의 미션이 모두 게시되었습니다.` })
+            }
+        }
+        
         setIsApprovingByNumber(false)
     }
 
@@ -1354,20 +1390,20 @@ ${missionsText}
                                 <div className="flex items-center bg-white border border-green-200 rounded-xl px-2 gap-2 shadow-sm">
                                     <span className="text-xs font-bold text-green-700 whitespace-nowrap">번호 승인:</span>
                                     <Input 
-                                        type="number" 
-                                        placeholder="0" 
+                                        type="text" 
+                                        placeholder="1, 2, 3" 
                                         value={missionNumberInput}
                                         onChange={(e) => setMissionNumberInput(e.target.value)}
                                         onKeyDown={(e) => e.key === 'Enter' && handleApproveByNumber()}
-                                        className="w-16 h-8 text-center font-bold border-none focus-visible:ring-0"
+                                        className="w-24 h-8 text-center font-bold border-none focus-visible:ring-0"
                                     />
                                     <Button 
                                         onClick={handleApproveByNumber}
-                                        disabled={isApprovingByNumber || !missionNumberInput}
+                                        disabled={isApprovingByNumber || !missionNumberInput.trim()}
                                         size="sm"
                                         className="h-7 bg-green-600 hover:bg-green-700 text-xs font-bold rounded-lg px-3"
                                     >
-                                        {isApprovingByNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : "승인"}
+                                        {isApprovingByNumber ? <Loader2 className="w-3 h-3 animate-spin" /> : "일괄 승인"}
                                     </Button>
                                 </div>
                                 <Button 
