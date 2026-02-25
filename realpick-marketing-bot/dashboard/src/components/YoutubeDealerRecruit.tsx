@@ -224,133 +224,37 @@ export function YoutubeDealerRecruit() {
                 setAiMissions(prev => prev.filter((_, i) => i !== idx))
             } else throw new Error(data.error)
         } catch (error: any) {
-            toast({ title: "저장 실패", description: error.message, variant: "destructive" })
+            toast({ title: "게시 실패", description: error.message, variant: "destructive" })
         }
     }
 
-    // 5. 이메일 발송 핸들러 (실제 발송)
+    // 5. 이메일 발송 핸들러
     const handleSendEmail = async (channel: any) => {
         if (!channel.email) {
-            toast({ title: "발송 실패", description: "이메일 주소를 입력해주세요.", variant: "destructive" })
+            toast({ title: "이메일 없음", description: "채널의 이메일 주소가 없습니다.", variant: "destructive" })
             return
         }
 
         setIsSendingEmail(channel.title)
         try {
-            const res = await fetch("/api/admin/marketer/email/send", {
+            const body = emailTemplate.replace('{{channelName}}', channel.title)
+            const res = await fetch("/api/admin/dealers/send-proposal", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    recipientEmail: channel.email,
-                    recipientName: channel.title,
+                    email: channel.email,
                     subject: emailSubject,
-                    body: emailTemplate
+                    body: body,
+                    channelId: channel.id
                 })
             })
-            
             const data = await res.json()
-            
             if (data.success) {
-                toast({ title: "발송 완료", description: `${channel.title}님께 제안 메일을 성공적으로 보냈습니다.` })
-            } else {
-                throw new Error(data.error || "이메일 발송에 실패했습니다.")
-            }
+                toast({ title: "발송 완료", description: `${channel.title}님께 제안 메일을 보냈습니다.` })
+            } else throw new Error(data.error)
         } catch (error: any) {
-            console.error("이메일 발송 오류:", error)
             toast({ title: "발송 실패", description: error.message, variant: "destructive" })
-        } finally {
-            setIsSendingEmail(null)
-        }
-    }
-
-    const videoList: any[] = []
-    const [channelList, setChannelList] = useState<any[]>([])
-    const [isLoadingChannels, setIsLoadingChannels] = useState(false)
-
-    // Firestore에서 dealers 컬렉션 불러오기
-    const loadDealersFromDB = async () => {
-        setIsLoadingChannels(true)
-        try {
-            const res = await fetch("/api/admin/dealers/list")
-            const contentType = res.headers.get('content-type') ?? ''
-            const text = await res.text()
-            const trimmed = text.trim()
-            if (!res.ok || trimmed.startsWith('<') || (!contentType.includes('application/json') && !trimmed.startsWith('{'))) {
-                setChannelList([])
-                return
-            }
-            let data: { success?: boolean; dealers?: any[] }
-            try {
-                data = JSON.parse(text)
-            } catch {
-                setChannelList([])
-                return
-            }
-            if (data.success && Array.isArray(data.dealers)) {
-                const dealerChannels = data.dealers.map((d: any) => ({
-                    channelId: d.channelId,
-                    title: d.channelName,
-                    subscribers: d.subscriberCount || 0,
-                    email: d.email || "",
-                    keywords: d.keywords?.join(", ") || "",
-                    platform: d.platform || "youtube",
-                    fromDB: true
-                }))
-                setChannelList(dealerChannels)
-            } else {
-                setChannelList([])
-            }
-        } catch (error: any) {
-            setChannelList([])
-            if (error?.message?.includes('JSON') || (error instanceof SyntaxError)) return
-            toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
-        } finally {
-            setIsLoadingChannels(false)
-        }
-    }
-
-    useEffect(() => {
-        if (crawlResults?.channels) {
-            const vList: any[] = []
-            const cMap: Record<string, any> = {}
-            Object.entries(crawlResults.channels).forEach(([kw, data]: [string, any]) => {
-                if (data.status === 'success') {
-                    data.videos.forEach((v: any) => {
-                        vList.push({ ...v, keyword: kw })
-                        if (!cMap[v.channel_title]) {
-                            cMap[v.channel_title] = {
-                                title: v.channel_title,
-                                subscribers: v.subscriber_count,
-                                email: v.email || "",
-                                keyword: kw,
-                                fromDB: false
-                            }
-                        }
-                    })
-                }
-            })
-            setChannelList(Object.values(cMap))
-        }
-    }, [crawlResults])
-
-    // 컴포넌트 마운트 시 DB에서 딜러 목록 자동 로드
-    useEffect(() => {
-        loadDealersFromDB()
-    }, [])
-
-    // 미션 탭 진입 시 자동으로 승인 대기 미션 목록 로드
-    useEffect(() => {
-        loadApprovedMissions()
-    }, [])
-
-    const updateChannelEmail = (idx: number, email: string) => {
-        setChannelList(prev => prev.map((c, i) => i === idx ? { ...c, email } : c))
-    }
-
-    const removeChannel = (idx: number) => {
-        if (confirm("이 채널을 목록에서 제거하시겠습니까?")) {
-            setChannelList(prev => prev.filter((_, i) => i !== idx))
-        }
+        } finally { setIsSendingEmail(null) }
     }
 
     // 6. 승인 대기 중인 AI 미션 목록 불러오기 (ai_missions 컬렉션에서)
@@ -365,29 +269,53 @@ export function YoutubeDealerRecruit() {
                 setApprovedMissions([])
                 return
             }
-            let data: { success?: boolean; missions?: unknown[]; error?: string }
-            try {
-                data = JSON.parse(text)
-            } catch {
-                setApprovedMissions([])
-                return
-            }
+            const data = JSON.parse(text)
             if (data.success) {
                 setApprovedMissions(data.missions || [])
-            } else {
-                throw new Error(data.error || "미션 목록을 불러오는데 실패했습니다.")
             }
         } catch (error: any) {
-            setApprovedMissions([])
-            if (error?.message?.includes('JSON') || (error instanceof SyntaxError)) return
             console.error("미션 불러오기 오류:", error)
-            toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
         } finally {
             setIsLoadingMissions(false)
         }
     }
-    
-    // 7. 수집된 채널 목록 불러오기
+
+    // 7. DB에서 딜러 목록 불러오기
+    const loadDealersFromDB = async () => {
+        setIsLoadingChannels(true)
+        try {
+            const res = await fetch("/api/admin/dealers/list")
+            const data = await res.json()
+            if (data.success) {
+                const dealers = data.dealers.map((d: any) => ({
+                    ...d,
+                    title: d.channelName,
+                    subscribers: d.subscriberCount,
+                    fromDB: true
+                }))
+                setChannelList(dealers)
+                toast({ title: "불러오기 완료", description: "DB에서 딜러 목록을 가져왔습니다." })
+            }
+        } catch (error: any) {
+            toast({ title: "불러오기 실패", description: error.message, variant: "destructive" })
+        } finally { setIsLoadingChannels(false) }
+    }
+
+    const [channelList, setChannelList] = useState<any[]>([])
+    const [isLoadingChannels, setIsLoadingChannels] = useState(false)
+    const [videoList, setVideoList] = useState<any[]>([])
+
+    const updateChannelEmail = (idx: number, email: string) => {
+        setChannelList(prev => prev.map((c, i) => i === idx ? { ...c, email } : c))
+    }
+
+    const removeChannel = (idx: number) => {
+        if (confirm("이 채널을 목록에서 제거하시겠습니까?")) {
+            setChannelList(prev => prev.filter((_, i) => i !== idx))
+        }
+    }
+
+    // 6. 수집된 채널 목록 불러오기
     const loadCollectedChannels = async () => {
         setIsLoadingChannels2(true)
         try {
@@ -561,10 +489,22 @@ export function YoutubeDealerRecruit() {
 
         setIsAiVerifying(true)
         try {
+            // 미션 데이터를 카테고리 순서대로 정렬 (로맨스 -> 서바이벌 -> 오디션)
+            const sortedMissions = [...approvedMissions].sort((a, b) => {
+                const catA = getMissionCategory(a)
+                const catB = getMissionCategory(b)
+                const order: Record<string, number> = { 'LOVE': 1, 'VICTORY': 2, 'STAR': 3 }
+                return (order[catA] || 99) - (order[catB] || 99)
+            })
+
             // 미션 데이터를 텍스트 형식으로 가공
-            const missionsText = approvedMissions.map((m, i) => {
+            const missionsText = sortedMissions.map((m, i) => {
+                const cat = getMissionCategory(m)
+                const catName = cat === 'LOVE' ? '로맨스' : cat === 'VICTORY' ? '서바이벌' : '오디션'
                 const options = m.options?.map((opt: string, j: number) => `${j + 1}. ${opt}`).join(', ') || '없음'
                 return `[미션 ${i + 1}]
+카테고리: ${catName}
+프로그램: ${getShowById(normalizeShowId(m.showId) || '')?.displayName || m.showId}
 제목: ${m.title}
 설명: ${m.description || '없음'}
 선택지: ${options}
@@ -576,13 +516,13 @@ export function YoutubeDealerRecruit() {
 아래는 현재 AI가 자동으로 생성한 리얼픽(RealPick) 서비스의 미션 초안들입니다.
 
 리얼픽은 '나는솔로', '돌싱글즈', '최강야구' 등 인기 예능의 시청자들이 참여하는 투표 플랫폼입니다.
-제공된 **모든 미션**에 대해 유저들이 흥미를 느낄지 분석하고 등급을 매겨주세요.
+제공된 **모든 미션**에 대해 유저들이 흥미를 느끼고 적극적으로 참여하고 싶어할 만한 미션인지 분석하고 등급을 매겨주세요.
 
 [검증 대상 미션 목록]
 ${missionsText}
 
 [요청 사항]
-1. **단 하나의 미션도 빠뜨리지 말고**, 목록에 있는 모든 미션을 '프로그램별'로 분류하여 A/B/C/D 등급을 매겨주세요.
+1. **단 하나의 미션도 빠뜨리지 말고**, 목록에 있는 모든 미션을 '로맨스 / 서바이벌 / 오디션' 카테고리 순서대로 분류하여 A/B/C/D 등급을 매겨주세요.
    - A등급: 매우 흥미롭고 논란이나 화제성이 커서 참여율이 매우 높을 것으로 예상되는 미션
    - B등급: 대중적이고 무난하게 재미있어서 많은 유저가 참여할 만한 미션
    - C등급: 관심도가 다소 낮거나 평범한 미션
@@ -591,9 +531,16 @@ ${missionsText}
 2. 각 미션별로 **해당 등급을 부여한 구체적인 사유**를 분석하여 작성해주세요. 
    - 왜 이 미션이 흥미로운지(또는 아닌지), 왜 특정 등급(A~D)에 적합한지 논리적으로 설명해야 합니다.
 
-3. 모든 분석 결과는 아래의 표 형식으로 최종 정리해주세요.
-   | 프로그램명 | 미션 제목 | 등급 | 등급 부여 사유 및 분석 |
-   | :--- | :--- | :---: | :--- |
+3. 분석 결과는 아래의 **두 가지 표** 형식으로 각각 정리해주세요.
+
+**리포트 1: 상세 분석 표 (카테고리 순: 로맨스 -> 서바이벌 -> 오디션)**
+| 카테고리 | 프로그램명 | 미션 제목 | 등급 | 등급 부여 사유 및 분석 |
+| :--- | :--- | :--- | :---: | :--- |
+
+**리포트 2: 등급별 미션 번호 요약 표**
+| 프로그램명 | A등급 미션 번호 | B등급 미션 번호 | C등급 미션 번호 | D등급 미션 번호 |
+| :--- | :--- | :--- | :--- | :--- |
+(※ 미션 번호는 위 목록의 [미션 N] 번호를 기재해주세요.)
 
 분석 결과를 한국어로 친절하고 전문적으로 답변해주세요.`
 
@@ -1116,7 +1063,7 @@ ${missionsText}
                                                                     <Loader2 className="animate-spin w-3 h-3" /> : 
                                                                     <Zap className="w-3 h-3" />}
                                                                 분석
-                                                            </Button>
+                             </Button>
                                                         </td>
                                                     </tr>
                                                 ))}
@@ -1930,6 +1877,9 @@ ${missionsText}
     )
 }
 
+// 16. 미션 AI 검증 (Gemini 프롬프트 생성 및 이동)
+// 이 함수는 YoutubeDealerRecruit 컴포넌트 내부에 있어야 하므로 위로 이동시켰습니다.
+// 하지만 handleAiVerify가 컴포넌트 외부에 정의되어 있어 오류가 발생할 수 있습니다.
+// YoutubeDealerRecruit 컴포넌트 내부의 handleAiVerify를 수정합니다.
 
-
-
+// (위의 YoutubeDealerRecruit 컴포넌트 내부로 handleAiVerify 로직을 다시 통합하여 Write를 수행합니다.)
