@@ -13,19 +13,19 @@ import { Badge } from "@/components/c-ui/badge"
 export function FakeUserBotManage() {
     const [isRunning, setIsRunning] = useState(false)
     const [numUsers, setNumUsers] = useState("5")
-    const [loveVoters, setLoveVoters] = useState("10") // 로맨스 카테고리 투표 봇 수
-    const [victoryVoters, setVictoryVoters] = useState("10") // 서바이벌 카테고리 투표 봇 수
-    const [starVoters, setStarVoters] = useState("10") // 오디션 카테고리 투표 봇 수
+    const [loveVoters, setLoveVoters] = useState("10") // 로맨스 카테고리 봇 투표 수
+    const [victoryVoters, setVictoryVoters] = useState("10") // 서바이벌 카테고리 봇 투표 수
+    const [starVoters, setStarVoters] = useState("10") // 오디션 카테고리 봇 투표 수
     const [botRole, setBotRole] = useState("PICKER")
     const [botList, setBotList] = useState<any[]>([])
     const [voteDetails, setVoteDetails] = useState<any[]>([])
-    const [recentlyCreated, setRecentlyCreated] = useState<any[]>([]) // 방금 생성된 유저 목록
+    const [recentlyCreated, setRecentlyCreated] = useState<any[]>([]) // 최근 생성된 봇 목록
     const { toast } = useToast()
 
-    // 1. 가짜 유저 생성 (AI 닉네임)
+    // 1. 봇 생성 함수 (AI 닉네임)
     const handleCreateBots = async () => {
         setIsRunning(true)
-        setRecentlyCreated([]) // 이전 목록 초기화
+        setRecentlyCreated([]) // 기존 목록 초기화
         try {
             const res = await fetch("/api/admin/marketer/bots/create", {
                 method: "POST",
@@ -34,34 +34,38 @@ export function FakeUserBotManage() {
             })
             const data = await res.json()
             if (data.success) {
-                // 생성된 유저 목록 저장
+                // 생성된 봇 목록 저장
                 if (data.users && data.users.length > 0) {
                     setRecentlyCreated(data.users)
                 }
                 toast({ 
-                    title: "봇 생성 성공", 
-                    description: `${data.count}명의 새로운 AI 봇이 생성되었습니다.` 
-                })
-                fetchBots(false) // 전체 목록 갱신 (토스트 없이)
-            } else throw new Error(data.error)
+                    title: "봇 생성 완료", 
+                    description: `${data.count}명의 가짜 AI 유저가 생성되었습니다.` 
+                });
+                fetchBots(false); // 목록 새로 고침 (토스트 없이)
+            } else {
+                throw new Error(data.error);
+            }
         } catch (error: any) {
-            toast({ title: "생성 실패", description: error.message, variant: "destructive" })
-        } finally { setIsRunning(false) }
+            toast({ title: "생성 실패", description: error.message, variant: "destructive" });
+        } finally { 
+            setIsRunning(false);
+        }
     }
 
-    // 2. 랜덤 투표 가동 (카테고리별)
+    // 2. 봇 투표 실행 (카테고리별)
     const handleRunVotes = async () => {
         setIsRunning(true)
-        setVoteDetails([]) // 이전 로그 초기화
+        setVoteDetails([]) // 기존 로그 초기화
         
-        const startTime = Date.now() // 시작 시간 기록
+        const startTime = Date.now() // 실행 시작 시간
         const loveCount = parseInt(loveVoters) || 0
         const victoryCount = parseInt(victoryVoters) || 0
         const starCount = parseInt(starVoters) || 0
         const totalVoters = loveCount + victoryCount + starCount
 
         if (totalVoters === 0) {
-            toast({ title: "인원 설정 필요", description: "최소 한 카테고리 이상 투표 인원을 설정해주세요.", variant: "destructive" })
+            toast({ title: "투표 수 오류", description: "최소 한 카테고리의 투표 수를 입력해주세요.", variant: "destructive" })
             setIsRunning(false)
             return
         }
@@ -88,8 +92,8 @@ export function FakeUserBotManage() {
             if (data.success) {
                 setVoteDetails(data.details || [])
                 toast({ 
-                    title: "활동 완료", 
-                    description: `총 ${data.count}개의 투표가 ${elapsed}초에 처리되었습니다.` 
+                    title: "투표 완료", 
+                    description: `총 ${data.count}명이 투표를 ${elapsed}초만에 완료했습니다.` 
                 })
             } else {
                 throw new Error(data.error || "알 수 없는 오류")
@@ -114,15 +118,15 @@ export function FakeUserBotManage() {
                 setBotList(data.bots || [])
                 if (showToast) {
                     toast({ 
-                        title: "목록 갱신", 
-                        description: `${data.count}명의 봇을 불러왔습니다.` 
+                        title: "조회 완료", 
+                        description: `${data.count}개의 봇을 찾았습니다.` 
                     })
                 }
             } else {
                 throw new Error(data.error)
             }
         } catch (e: any) { 
-            console.error("봇 목록 로드 실패:", e)
+            console.error("봇 목록 조회 실패:", e)
             if (showToast) {
                 toast({ 
                     title: "불러오기 실패", 
@@ -140,26 +144,26 @@ export function FakeUserBotManage() {
     return (
         <Tabs defaultValue="create" className="space-y-4">
             <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="create">가짜 유저 생성</TabsTrigger>
-                <TabsTrigger value="list">봇 목록 관리</TabsTrigger>
-                <TabsTrigger value="control">가상 활동 제어</TabsTrigger>
+                <TabsTrigger value="create">봇 생성 관리</TabsTrigger>
+                <TabsTrigger value="list">봇 목록 조회</TabsTrigger>
+                <TabsTrigger value="control">투표 실행 관리</TabsTrigger>
             </TabsList>
 
-            {/* 1. 유저 생성 탭 */}
+            {/* 1. 봇 생성 탭 */}
             <TabsContent value="create">
-                <Card>
+                <Card className="border-purple-200">
                     <CardHeader>
-                        <CardTitle className="text-lg">가짜 유저 생성 (AI)</CardTitle>
-                        <CardDescription>한국 예능 팬들의 성향을 가진 자연스러운 AI 닉네임 유저를 생성합니다.</CardDescription>
+                        <CardTitle className="text-lg">가짜 유저 봇 생성 (AI)</CardTitle>
+                        <CardDescription>실제 유저처럼 행동하는 가짜 유저봇들을 AI 닉네임으로 자동 생성합니다.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">생성 인원</label>
+                                <label className="text-sm font-medium">생성 개수</label>
                                 <Input type="number" value={numUsers} onChange={(e) => setNumUsers(e.target.value)} />
                             </div>
                             <div className="space-y-2">
-                                <label className="text-sm font-medium">역할 설정</label>
+                                <label className="text-sm font-medium">봇 역할</label>
                                 <Select value={botRole} onValueChange={setBotRole}>
                                     <SelectTrigger>
                                         <SelectValue />
@@ -178,15 +182,15 @@ export function FakeUserBotManage() {
                             size="default"
                         >
                             {isRunning ? <Loader2 className="animate-spin w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                            유저 등록
+                            봇 생성
                         </Button>
 
-                        {/* 방금 생성된 유저 목록 */}
+                        {/* 최근 생성된 봇 목록 표시 */}
                         {recentlyCreated.length > 0 && (
                             <div className="mt-6 space-y-2">
                                 <div className="flex items-center gap-2">
                                     <ShieldCheck className="w-4 h-4 text-green-600" />
-                                    <h4 className="text-sm font-bold text-green-700">방금 생성된 유저 ({recentlyCreated.length}명)</h4>
+                                    <h4 className="text-sm font-bold text-green-700">방금 생성된 봇 ({recentlyCreated.length}명)</h4>
                                 </div>
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3 max-h-[200px] overflow-y-auto">
                                     <div className="space-y-1">
@@ -211,11 +215,11 @@ export function FakeUserBotManage() {
 
             {/* 2. 봇 목록 탭 */}
             <TabsContent value="list">
-                <Card>
+                <Card className="border-green-200">
                     <CardHeader className="flex flex-row items-center justify-between">
                         <div>
-                            <CardTitle className="text-lg">봇 목록 관리</CardTitle>
-                            <CardDescription>현재 시스템에서 운영 중인 가짜 유저 목록입니다. (총 {botList.length}명)</CardDescription>
+                            <CardTitle className="text-lg">봇 목록 조회</CardTitle>
+                            <CardDescription>현재 시스템에 등록된 모든 가짜 유저봇들입니다. (총 {botList.length}명)</CardDescription>
                         </div>
                         <Button 
                             variant="outline" 
@@ -224,7 +228,7 @@ export function FakeUserBotManage() {
                             disabled={isLoadingBots}
                         >
                             {isLoadingBots ? <Loader2 className="animate-spin w-3 h-3 mr-1" /> : <RefreshCw className="w-3 h-3 mr-1" />}
-                            갱신
+                            새로고침
                         </Button>
                     </CardHeader>
                     <CardContent className="p-0">
@@ -264,7 +268,7 @@ export function FakeUserBotManage() {
                                     ) : (
                                         <tr>
                                             <td colSpan={3} className="p-10 text-center text-gray-400">
-                                                등록된 봇이 없습니다. 먼저 가짜 유저를 생성해주세요.
+                                                등록된 봇이 없습니다. 봇을 먼저 생성해주세요.
                                             </td>
                                         </tr>
                                     )}
@@ -275,19 +279,19 @@ export function FakeUserBotManage() {
                 </Card>
             </TabsContent>
 
-            {/* 3. 가상 활동 제어 탭 */}
+            {/* 3. 투표 실행 관리 탭 */}
             <TabsContent value="control">
-                <Card>
+                <Card className="border-blue-200">
                     <CardHeader>
-                        <CardTitle className="text-lg">가상 활동 및 투표 제어</CardTitle>
-                        <CardDescription>봇들을 가동하여 미션에 랜덤 투표를 수행하게 합니다.</CardDescription>
+                        <CardTitle className="text-lg">봇 투표 및 행동 관리</CardTitle>
+                        <CardDescription>가짜 유저들이 실제로 투표 및 활동하도록 명령합니다.</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6">
                         <div className="space-y-4">
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium flex items-center gap-2">
-                                        ❤️ 로맨스
+                                        로맨스 투표자
                                     </label>
                                     <Input 
                                         type="number" 
@@ -300,7 +304,7 @@ export function FakeUserBotManage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium flex items-center gap-2">
-                                        🏆 서바이벌
+                                        서바이벌 투표자
                                     </label>
                                     <Input 
                                         type="number" 
@@ -313,7 +317,7 @@ export function FakeUserBotManage() {
                                 </div>
                                 <div className="space-y-2">
                                     <label className="text-sm font-medium flex items-center gap-2">
-                                        🌟 오디션
+                                        오디션 투표자
                                     </label>
                                     <Input 
                                         type="number" 
@@ -329,7 +333,7 @@ export function FakeUserBotManage() {
                             <div className="flex items-center justify-between p-4 bg-blue-50 rounded-lg border border-blue-200">
                                 <div>
                                     <p className="text-sm font-medium text-blue-900">총 투표 예정 인원</p>
-                                    <p className="text-xs text-blue-600 mt-1">각 카테고리의 진행중인 미션에 랜덤 투표</p>
+                                    <p className="text-xs text-blue-600 mt-1">각 카테고리의 합산값이 실제로 투표 진행</p>
                                 </div>
                                 <div className="text-2xl font-bold text-blue-600">
                                     {parseInt(loveVoters || "0") + parseInt(victoryVoters || "0") + parseInt(starVoters || "0")}명
@@ -344,11 +348,11 @@ export function FakeUserBotManage() {
                                     size="default"
                                 >
                                     {isRunning ? <Loader2 className="animate-spin w-4 h-4" /> : <Play className="w-4 h-4" />}
-                                    투표 엔진 가동
+                                    봇 투표 시작
                                 </Button>
                                 <Button 
                                     variant="outline" 
-                                    size="icon"
+                                    size="icon" 
                                     className="text-red-500 border-red-100 hover:bg-red-50"
                                     disabled
                                 >
@@ -363,7 +367,7 @@ export function FakeUserBotManage() {
                                 <div className="bg-gray-900 rounded-lg p-4 font-mono text-xs text-green-400 space-y-1 max-h-[300px] overflow-y-auto">
                                     {voteDetails.map((v, i) => (
                                         <div key={i}>
-                                            <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> {v.bot}님이 "{v.mission}" 미션에 "{v.option}" 선택
+                                            <span className="text-gray-500">[{new Date().toLocaleTimeString()}]</span> {v.bot}님이 "{v.mission}" 미션에 "{v.option}" 투표
                                         </div>
                                     ))}
                                 </div>

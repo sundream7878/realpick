@@ -490,7 +490,7 @@ export default function AdminPage() {
             <DesktopWingBanner side="left" />
             <DesktopWingBanner side="right" />
             
-            <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
+            <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
                 <AppHeader
                     selectedShow="나는솔로"
                     onShowChange={() => { }}
@@ -513,7 +513,7 @@ export default function AdminPage() {
                     }}
                 />
                 <SidebarNavigation />
-                <main className="flex-1 p-4 space-y-4 md:pl-72 pb-32 md:pb-16">
+                <main className="flex-1 p-4 space-y-4 md:ml-40 pb-32 md:pb-16">
                 <div className="mb-8">
                     <h1 className="text-3xl font-bold text-gray-900">관리자 페이지</h1>
                 </div>
