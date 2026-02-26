@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { collection, query, where, orderBy, limit, onSnapshot, Timestamp } from "firebase/firestore"
-import { db } from "@/lib/firebase/notifications"
+import { db } from "@/lib/firebase/config"
 import { getUserId } from "@/lib/auth-utils"
 import { getNotifications, markNotificationAsRead, markAllNotificationsAsRead, deleteOldNotifications, type TNotification } from "@/lib/firebase/notifications"
 
