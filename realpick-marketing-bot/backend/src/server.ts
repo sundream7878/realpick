@@ -437,6 +437,36 @@ app.post('/api/admin/ai-missions/fix-show-ids', async (req, res) => {
   }
 });
 
+// 미션 전체 삭제 API (t_marketing_ai_missions 컬렉션 비우기)
+app.post('/api/admin/ai-missions/clear', async (req, res) => {
+  try {
+    const db = admin.firestore();
+    const snapshot = await db.collection('t_marketing_ai_missions')
+      .where('status', '==', 'PENDING')
+      .get();
+
+    if (snapshot.empty) {
+      return res.json({ success: true, message: "삭제할 대기 중인 미션이 없습니다.", deleted: 0 });
+    }
+
+    const batch = db.batch();
+    snapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    await batch.commit();
+
+    res.json({ 
+      success: true, 
+      message: `총 ${snapshot.size}개의 대기 중인 미션을 삭제했습니다.`,
+      deleted: snapshot.size 
+    });
+  } catch (err: any) {
+    console.error('[AI 미션 전체 삭제]', err);
+    res.status(500).json({ success: false, error: err?.message || '삭제 실패' });
+  }
+});
+
 // 라우트 (동적 import)
 const loadRoutes = async () => {
   const youtubeRouter = (await import('./routes/youtube.js')).default;
