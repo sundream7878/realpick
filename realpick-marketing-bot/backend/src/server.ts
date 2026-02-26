@@ -572,7 +572,7 @@ app.listen(PORT, async () => {
   console.log(`  - GET  http://localhost:${PORT}/`);
   console.log(`  - GET  http://localhost:${PORT}/api/health`);
   console.log(`\n⚠️  주의: 이 서버는 로컬에서만 실행되어야 합니다.\n`);
-  // 2분 뒤에 테스트 실행 (지난 5시간 영상 수집)
+  // 2분 뒤에 테스트 실행 (지난 5시간 영상 수집) - 테스트 재시작용 주석
   setTimeout(async () => {
     console.log('[테스트 실행] 2분 경과, 자동 미션 생성 시작 (지난 5시간 영상 대상)...');
     try {
