@@ -1028,11 +1028,11 @@ export default function MyPage() {
                 </div>
               </div>
 
-              <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div className="grid grid-cols-2 gap-3">
                 <Button
                   type="button"
                   variant="secondary"
-                  className="gap-2"
+                  className="gap-2 h-11"
                   onClick={() => handleAddMatchPair(mission.id)}
                   disabled={!selection.left || !selection.right || !canSubmit}
                 >
@@ -1041,7 +1041,7 @@ export default function MyPage() {
                 </Button>
 
                 <Button
-                  className="bg-purple-700 hover:bg-purple-800 text-white"
+                  className="bg-purple-700 hover:bg-purple-800 text-white h-11"
                   disabled={!canSubmit || currentPairs.length === 0 || submittingMissionId === mission.id}
                   onClick={() => handleMatchAnswerSubmit(mission.id)}
                 >
@@ -1054,16 +1054,14 @@ export default function MyPage() {
               </div>
               
               {mission.status === "open" && (
-                <div className="flex justify-end pt-2">
-                  <Button
-                    variant="outline"
-                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
-                    disabled={submittingMissionId === mission.id}
-                    onClick={() => handleFinalizeMatchMission(mission.id)}
-                  >
-                    미션 최종 마감
-                  </Button>
-                </div>
+                <Button
+                  variant="outline"
+                  className="w-full h-11 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                  disabled={submittingMissionId === mission.id}
+                  onClick={() => handleFinalizeMatchMission(mission.id)}
+                >
+                  미션 최종 마감
+                </Button>
               )}
               
               {!isClosedForDealer && (
