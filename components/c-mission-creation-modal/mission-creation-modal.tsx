@@ -592,15 +592,31 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
         return
       }
 
-      const result = await createMission(missionData as any, user.uid)
+    const result = await createMission(missionData as any, user.uid)
 
-      if (!result.success) {
-        throw new Error(result.error || "미션 게시에 실패했습니다")
-      }
+    if (!result.success) {
+      throw new Error(result.error || "미션 게시에 실패했습니다")
+    }
 
-      console.log("미션 게시 성공:", result.missionId)
+    console.log("미션 게시 성공:", result.missionId)
 
-      // 🔔 새 미션 생성 이벤트 발생 (실시간 알림용)
+    // 🔔 알림 생성 (즉시 발송)
+    try {
+      const { createGlobalNotification } = await import("@/lib/firebase/admin-notifications")
+      await createGlobalNotification({
+        missionId: result.missionId!,
+        missionTitle: missionData.title,
+        category: missionData.category || "LOVE",
+        showId: missionData.showId || "nasolo",
+        creatorId: user.uid,
+        creatorNickname: creatorNickname
+      })
+      console.log('[Notification] 새 미션 알림 생성 완료')
+    } catch (notifError) {
+      console.error('[Notification] 알림 생성 중 오류:', notifError)
+    }
+
+    // 🔔 새 미션 생성 이벤트 발생 (로컬 UI 업데이트용)
       if (result.missionId) {
         window.dispatchEvent(new CustomEvent('new-mission-created', {
           detail: { missionId: result.missionId }

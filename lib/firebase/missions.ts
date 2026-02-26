@@ -116,7 +116,24 @@ export async function createMission(missionData: CreateMissionData, userId: stri
 
     const docRef = await addDoc(collection(db, collectionName), missionPayload);
 
-    // 알림은 매일 정오(12시)·저녁(19시) 배치로만 발송 (즉시 이메일 없음)
+    // 🔔 알림 생성 (즉시 발송)
+    try {
+      // 클라이언트 사이드에서 실행되므로 fetch를 통해 API 호출
+      await fetch('/api/admin/notifications/mission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missionId: docRef.id,
+          missionTitle: missionPayload.title,
+          category: missionPayload.category || "LOVE",
+          showId: missionPayload.showId || "nasolo",
+          creatorNickname: missionPayload.creatorNickname
+        })
+      });
+      console.log('[Firebase] 새 미션 알림 발송 완료');
+    } catch (notifError) {
+      console.error('[Firebase] 알림 발송 실패:', notifError);
+    }
 
     return { success: true, missionId: docRef.id };
   } catch (error: any) {

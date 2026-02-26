@@ -51,6 +51,22 @@ export async function POST(request: NextRequest) {
     // 모든 미션은 missions1에 저장 (AI 미션 여부는 isAIMission 필드로 구분)
     const docRef = await adminDb.collection("missions1").add(missionData);
 
+    // 🔔 알림 생성 (즉시 발송)
+    try {
+      const { createGlobalNotification } = require("@/lib/firebase/admin-notifications");
+      await createGlobalNotification({
+        missionId: docRef.id,
+        missionTitle: title,
+        category: category || 'LOVE',
+        showId: showId || 'nasolo',
+        creatorId: "AI_SYSTEM",
+        creatorNickname: finalCreatorNickname
+      });
+      console.log(`[Mission Create API] 알림 생성 완료: ${docRef.id}`);
+    } catch (notifError) {
+      console.error("[Mission Create API] 알림 생성 실패:", notifError);
+    }
+
     // AI 미션 원본 상태 업데이트 (t_marketing_ai_missions 컬렉션)
     if (isAIMission && aiMissionId) {
       try {
