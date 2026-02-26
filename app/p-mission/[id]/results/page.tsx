@@ -111,6 +111,11 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   const userId = getUserId()
   const [loading, setLoading] = useState(true)
   const router = useRouter()
+  
+  const [aggregatedResults, setAggregatedResults] = useState<Record<string, number>>({})
+  const [totalParticipants, setTotalParticipants] = useState<number>(0)
+  const [loadingResults, setLoadingResults] = useState(false)
+
   // Show Statuses, Visibility, Custom Shows Fetching & Sync
   const [showStatuses, setShowStatuses] = useState<Record<string, string>>({})
   const [showVisibility, setShowVisibility] = useState<Record<string, boolean>>({})
@@ -497,6 +502,26 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
     fetchMission()
   }, [params.id])
 
+  // 🔄 실시간 결과 로드 (커플매칭용)
+  useEffect(() => {
+    const loadMatchResults = async () => {
+      if (mission?.form === "match" && mission.status !== "settled") {
+        setLoadingResults(true)
+        try {
+          const { getAggregatedVotes2 } = await import("@/lib/firebase/votes")
+          const { pairCounts, totalParticipants } = await getAggregatedVotes2(mission.id)
+          setAggregatedResults(pairCounts)
+          setTotalParticipants(totalParticipants)
+        } catch (error) {
+          console.error("Failed to load match results:", error)
+        } finally {
+          setLoadingResults(false)
+        }
+      }
+    }
+    loadMatchResults()
+  }, [mission?.id, mission?.form, mission?.status])
+
   if (loading || !mission) {
     return (
       <div className="min-h-screen bg-gray-50 flex">
@@ -627,7 +652,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
             showStatuses={showStatuses}
           />
 
-          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
+          <main className="flex-1 px-4 lg:px-8 py-6 md:ml-40 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Button
@@ -726,7 +751,7 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                         <span>실시간 집계</span>
                       </div>
                     )}
-                    {!isMissionClosed && mission.deadline && (
+                    {!isMissionClosed && mission.deadline && mission.form !== "match" && (
                       <div className="flex items-center gap-1 text-sm text-gray-600">
                         <Clock className="w-4 h-4" />
                         <span>{getTimeRemaining(mission.deadline)}</span>
@@ -804,8 +829,10 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {mission.finalAnswer.map((pair: { left: string; right: string }, index: number) => {
                           const pairStr = `${pair.left}-${pair.right}`
-                          // 유저가 마지막 회차(8회차)에 이 커플을 선택했는지 확인
-                          const userFinalPick = userVote?.predictions?.[mission.episodes || 8]?.find(
+                          // 유저가 마지막 회차에 이 커플을 선택했는지 확인
+                          const episodeNos = Object.keys(userVote?.predictions || {}).map(Number).sort((a, b) => b - a)
+                          const latestEp = episodeNos[0] || 8
+                          const userFinalPick = userVote?.predictions?.[latestEp]?.find(
                             (p: any) => p.left === pair.left && p.right === pair.right
                           )
                           const isCorrectlyPicked = !!userFinalPick
@@ -835,6 +862,66 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                           )
                         })}
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+
+                {/* 커플 매칭 실시간 결과 표시 (마감 전) */}
+                {mission.form === "match" && !mission.finalAnswer && (
+                  <Card className="border-2 border-purple-100 bg-purple-50/30">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-purple-900">
+                        <TrendingUp className="w-5 h-5 text-purple-600" />
+                        실시간 커플 매칭 현황
+                      </CardTitle>
+                      <p className="text-sm text-purple-700">현재까지 사용자들의 투표 결과입니다.</p>
+                    </CardHeader>
+                    <CardContent>
+                      {loadingResults ? (
+                        <div className="py-8 text-center">
+                          <div className="w-8 h-8 border-2 border-purple-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+                          <p className="text-gray-600">결과를 불러오는 중...</p>
+                        </div>
+                      ) : Object.keys(aggregatedResults).length > 0 ? (
+                        <div className="space-y-3">
+                          {Object.entries(aggregatedResults)
+                            .sort(([, a], [, b]) => b - a)
+                            .slice(0, 10) // 상위 10개만 표시
+                            .map(([pair, count], index) => {
+                              const totalVotes = Object.values(aggregatedResults).reduce((sum, c) => sum + c, 0)
+                              const percentage = totalVotes > 0 ? Math.round((count / totalVotes) * 100) : 0
+                              const isUserChoice = userVote?.pairs?.some((p: any) => `${p.left}-${p.right}` === pair)
+
+                              return (
+                                <div key={pair} className={`flex items-center justify-between p-3 rounded-lg border transition-all ${
+                                  isUserChoice ? "bg-white border-purple-300 shadow-sm" : "bg-white/50 border-gray-100"
+                                }`}>
+                                  <div className="flex items-center gap-3">
+                                    <Badge variant="outline" className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                      isUserChoice ? "bg-purple-100 text-purple-700 border-purple-200" : "bg-white"
+                                    }`}>
+                                      {index + 1}
+                                    </Badge>
+                                    <span className={`font-medium ${isUserChoice ? "text-purple-900 font-bold" : "text-gray-900"}`}>
+                                      {pair}
+                                    </span>
+                                    {isUserChoice && (
+                                      <Badge className="bg-purple-500 text-white text-[10px] h-5 px-1.5">내 픽</Badge>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <div className={`font-bold ${isUserChoice ? "text-purple-700" : "text-gray-700"}`}>{percentage}%</div>
+                                    <div className="text-xs text-gray-500">{count}표</div>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                        </div>
+                      ) : (
+                        <div className="py-8 text-center text-gray-500">
+                          <p>아직 투표 데이터가 없습니다.</p>
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
@@ -1000,14 +1087,18 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
                         </div>
                         <div className="text-center p-4 bg-muted/50 rounded-lg">
                           <p className="text-2xl font-bold text-accent">
-                            {mission.episodes || 8}회
+                            {(() => {
+                              const episodeStatuses = mission.episodeStatuses || {}
+                              const episodeNos = Object.keys(episodeStatuses).map(Number).sort((a, b) => b - a)
+                              return episodeNos[0] || mission.startEpisode || 1
+                            })()}회
                           </p>
-                          <p className="text-sm text-muted-foreground">총 회차</p>
+                          <p className="text-sm text-muted-foreground">현재 회차</p>
                         </div>
                         <div className="text-center p-4 bg-primary/5 rounded-lg">
                           <p className="text-lg font-bold text-primary">
                             {(() => {
-                              // 등급 업그레이드 비율 계산 (예시)
+                              // 등급 업그레이드 비율 계산
                               const ranking = Object.values(mission.result?.ranking || {})
                               if (ranking.length === 0) return "0%"
                               const sortedRanking = [...ranking].sort(
