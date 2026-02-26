@@ -520,7 +520,7 @@ export function YoutubeDealerRecruit() {
                 const cat = getMissionCategory(m)
                 const catName = cat === 'LOVE' ? '로맨스' : cat === 'VICTORY' ? '서바이벌' : '오디션'
                 const options = m.options?.map((opt: string, j: number) => `${j + 1}. ${opt}`).join(', ') || '없음'
-                return `[미션 ${m.displayIndex}]
+                return `[미션 추출 번호 ${m.displayIndex}]
 카테고리: ${catName}
 프로그램: ${getShowById(normalizeShowId(m.showId) || '')?.displayName || m.showId}
 제목: ${m.title}
@@ -552,15 +552,15 @@ ${missionsText}
 3. 분석 결과는 아래의 **세 가지 리포트** 형식으로 각각 정리해주세요.
 
 **리포트 1: 상세 분석 표 (카테고리 순: 로맨스 -> 서바이벌 -> 오디션)**
-| 카테고리 | 프로그램명 | 미션 번호 | 미션 제목 | 등급 | 등급 부여 사유 및 분석 |
+| 카테고리 | 프로그램명 | 미션 추출 번호 | 미션 제목 | 등급 | 등급 부여 사유 및 분석 |
 | :--- | :--- | :---: | :--- | :---: | :--- |
 
 **리포트 2: 등급별 미션 번호 요약 표**
-| 프로그램명 | A등급 미션 번호 | B등급 미션 번호 | C등급 미션 번호 | D등급 미션 번호 |
+| 프로그램명 | A등급 미션 추출 번호 | B등급 미션 추출 번호 | C등급 미션 추출 번호 | D등급 미션 추출 번호 |
 | :--- | :--- | :--- | :--- | :--- |
 (※ 미션 번호는 위 목록의 [미션 N] 번호를 기재해주세요.)
 
-**리포트 3: A등급 미션 번호 목록**
+**리포트 3: A등급 미션 추출 번호 목록**
 미션 N, 미션 M, 미션 X...
 (※ A등급에 해당하는 모든 미션 번호들만 콤마로 구분하여 일렬로 나열해주세요. 이 내용을 복사하여 바로 '번호 승인' 칸에 붙여넣을 수 있게 하기 위함입니다.)
 
@@ -617,7 +617,7 @@ ${missionsText}
             })
             const data = await res.json()
             if (data.success) {
-                toast({ title: `미션 ${mission.displayIndex} 승인 완료`, description: "미션이 정식 게시되었습니다." })
+                toast({ title: `미션 추출 ${mission.displayIndex} 승인 완료`, description: "미션이 정식 게시되었습니다." })
                 loadApprovedMissions()
                 return true
             } else {
@@ -1469,11 +1469,11 @@ ${missionsText}
                             <div className="flex items-center bg-green-50/50 border border-green-200 rounded-2xl p-3 gap-4 shadow-sm">
                                 <div className="flex items-center gap-2 shrink-0">
                                     <Check className="w-5 h-5 text-green-600" />
-                                    <span className="text-sm font-bold text-green-800 whitespace-nowrap">미션 번호 일괄 승인:</span>
+                                    <span className="text-sm font-bold text-green-800 whitespace-nowrap">미션 추출 번호 일괄 승인:</span>
                                 </div>
                                 <Input 
                                     type="text" 
-                                    placeholder="분석 리포트의 번호들을 복사해서 붙여넣으세요 (예: 1, 3, 5, 8)" 
+                                    placeholder="분석 리포트의 추출 번호들을 복사해서 붙여넣으세요 (예: 1, 3, 5, 8)" 
                                     value={missionNumberInput}
                                     onChange={(e) => setMissionNumberInput(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && handleApproveByNumber()}
@@ -1618,7 +1618,7 @@ ${missionsText}
                                                 <div className="flex-1 space-y-2 min-w-0">
                                                     <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-transparent">
                                                         <Badge variant="outline" className="text-sm px-3 py-1 bg-indigo-600 text-white border-none font-bold">
-                                                            미션 {mission.displayIndex}
+                                                            미션 추출 {mission.displayIndex}
                                                         </Badge>
                                                         <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 whitespace-nowrap bg-yellow-50 border-yellow-300 text-yellow-700">
                                                             승인 대기
