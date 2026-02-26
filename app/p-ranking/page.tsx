@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/c-ui/avatar"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/c-ui/tabs"
 import { Trophy, Star, TrendingUp, Crown, Medal, Award } from "lucide-react"
 import Link from "next/link"
+import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 
 export default function RankingPage() {
@@ -125,8 +126,11 @@ export default function RankingPage() {
   ]
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg">
+    <div className="min-h-screen bg-gray-50 pb-20 relative overflow-x-hidden">
+      <DesktopWingBanner side="left" />
+      <DesktopWingBanner side="right" />
+
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg relative z-10">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-16">
         <div className="container mx-auto px-4 h-full">

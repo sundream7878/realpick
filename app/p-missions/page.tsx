@@ -359,8 +359,11 @@ export default function MissionsPage() {
     }) : []
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-30 md:pb-0">
-      <div className="max-w-7xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 pb-30 md:pb-0 relative overflow-x-hidden">
+      <DesktopWingBanner side="left" />
+      <DesktopWingBanner side="right" />
+
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
         <AppHeader
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           onShowChange={() => { }}
@@ -385,8 +388,8 @@ export default function MissionsPage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-64 max-w-full overflow-hidden pb-32 md:pb-16">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-40 max-w-full overflow-hidden pb-32 md:pb-16">
+          <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-4">
                 <Button variant="ghost" size="sm" className="p-2" onClick={() => router.back()}>

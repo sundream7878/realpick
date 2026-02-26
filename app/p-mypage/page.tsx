@@ -20,6 +20,7 @@ import { MissionCard } from "@/components/c-mission/MissionCard"
 import MissionCreationModal from "@/components/c-mission-creation-modal/mission-creation-modal"
 import MyPickViewModal from "@/components/c-my-pick-view-modal/my-pick-view-modal"
 import LoginModal from "@/components/c-login-modal/login-modal"
+import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/firebase/missions"
@@ -1142,8 +1143,11 @@ export default function MyPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-30 md:pb-0">
-      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 pb-30 md:pb-0 relative overflow-x-hidden">
+      <DesktopWingBanner side="left" />
+      <DesktopWingBanner side="right" />
+
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
         <AppHeader
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           onShowChange={() => { }}
@@ -1169,8 +1173,8 @@ export default function MyPage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-40 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
+          <div className="max-w-5xl mx-auto">
             <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6">
               <Heart className="w-6 h-6 sm:w-7 sm:h-7 md:w-8 md:h-8 text-pink-600 fill-pink-600" />
               <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900">마이페이지</h1>

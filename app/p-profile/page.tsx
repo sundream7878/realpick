@@ -10,6 +10,7 @@ import { Edit2, LogOut, UserX, Bell, Mail, Clock } from "lucide-react"
 import { AppHeader } from "@/components/c-layout/AppHeader"
 import { PointHistoryModal } from "@/components/c-common/PointHistoryModal"
 import LoginModal from "@/components/c-login-modal/login-modal"
+import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import { BottomNavigation } from "@/components/c-bottom-navigation/bottom-navigation"
 import { BannerAd } from "@/components/c-banner-ad/banner-ad"
 import { SidebarNavigation } from "@/components/c-layout/SidebarNavigation"
@@ -296,8 +297,11 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative">
+    <div className="min-h-screen bg-gray-50 pb-20 relative overflow-x-hidden">
+      <DesktopWingBanner side="left" />
+      <DesktopWingBanner side="right" />
+
+      <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg flex flex-col relative z-10">
         <AppHeader
           selectedShow={selectedShowId ? (getShowById(selectedShowId)?.name as "나는솔로" | "돌싱글즈") || "나는솔로" : "나는솔로"}
           onShowChange={() => { }}
@@ -322,8 +326,8 @@ export default function ProfilePage() {
           showStatuses={showStatuses}
         />
 
-        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-35 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
-          <div className="max-w-7xl mx-auto">
+        <main className="flex-1 px-4 lg:px-8 py-6 md:ml-40 max-w-full overflow-hidden pb-32 md:pb-16 min-w-0">
+          <div className="max-w-5xl mx-auto">
             <div className="flex flex-col-reverse lg:flex-row gap-8">
               <div className="flex-1 space-y-6">
                 <div className="flex items-center justify-between mb-2">
