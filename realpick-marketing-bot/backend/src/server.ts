@@ -291,11 +291,12 @@ app.post('/api/video/render', async (req, res) => {
 });
 
 // 승인 대기 AI 미션 목록 (Firestore t_marketing_ai_missions)
-app.get('/api/admin/ai-missions/list', async (_req, res) => {
+app.get('/api/admin/ai-missions/list', async (req, res) => {
   try {
+    const status = req.query.status ? String(req.query.status).toUpperCase() : 'PENDING';
     const db = admin.firestore();
     const snapshot = await db.collection('t_marketing_ai_missions')
-      .where('status', '==', 'PENDING')
+      .where('status', '==', status)
       .orderBy('createdAt', 'desc')
       .limit(500)
       .get();

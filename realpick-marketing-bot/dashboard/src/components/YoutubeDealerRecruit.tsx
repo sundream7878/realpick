@@ -56,6 +56,7 @@ export function YoutubeDealerRecruit() {
     const [missionCategoryFilter, setMissionCategoryFilter] = useState<string>("ALL")
     const [missionShowFilter, setMissionShowFilter] = useState<string>("ALL")
     const [isClearingMissions, setIsClearingMissions] = useState(false)
+    const [approvalSubTab, setApprovalSubTab] = useState<"pending" | "approved">("pending")
     
     // 미션 수정 관련 상태
     const [editingMissionId, setEditingMissionId] = useState<string | null>(null)
@@ -259,11 +260,12 @@ export function YoutubeDealerRecruit() {
         } finally { setIsSendingEmail(null) }
     }
 
-    // 6. 승인 대기 중인 AI 미션 목록 불러오기 (ai_missions 컬렉션에서)
-    const loadApprovedMissions = async () => {
+    // 6. 승인 대기 또는 승인 완료 AI 미션 목록 불러오기
+    const loadApprovedMissions = async (status: string = approvalSubTab) => {
         setIsLoadingMissions(true)
         try {
-            const res = await fetch(`/api/admin/ai-missions/list?t=${Date.now()}`)
+            const apiStatus = status.toUpperCase()
+            const res = await fetch(`/api/admin/ai-missions/list?status=${apiStatus}&t=${Date.now()}`)
             const contentType = res.headers.get('content-type') ?? ''
             const text = await res.text()
             const trimmed = text.trim()
@@ -1377,16 +1379,16 @@ ${missionsText}
                 )}
             </TabsContent>
 
-            <TabsContent value="approve">
+            <TabsContent value="approve" className="space-y-6">
                 <Card className="border-purple-200 shadow-md">
-                    <CardHeader className="space-y-4">
-                        <div className="flex flex-col gap-4">
-                            <div className="flex flex-row items-center justify-between">
-                                <div>
-                                    <CardTitle className="text-2xl font-extrabold">미션 승인 관리 (AI 자동 생성)</CardTitle>
-                                    <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
-                                </div>
-                                <div className="flex gap-2">
+                    <CardHeader className="space-y-6">
+                        <div className="flex flex-row items-center justify-between">
+                            <div>
+                                <CardTitle className="text-2xl font-extrabold">미션 승인 관리 (AI 자동 생성)</CardTitle>
+                                <CardDescription className="text-base font-bold mt-2">AI가 생성한 미션을 확인하고 승인합니다. 승인 시 실제 페이지에 게시됩니다.</CardDescription>
+                            </div>
+                            <div className="flex gap-2">
+                                {approvalSubTab === "pending" && (
                                     <Button 
                                         onClick={handleAiVerify} 
                                         disabled={isAiVerifying || approvedMissions.length === 0}
@@ -1397,33 +1399,73 @@ ${missionsText}
                                         {isAiVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : <BrainCircuit className="w-5 h-5" />}
                                         미션 AI 검증
                                     </Button>
-                                    {approvedMissions.length > 0 && (
-                                        <>
-                                            <Button 
-                                                onClick={handleFixShowIds} 
-                                                disabled={isFixingShowIds}
-                                                variant="outline"
-                                                size="sm"
-                                                className="gap-2 bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 h-10 px-5 text-base font-bold rounded-xl"
-                                            >
-                                                {isFixingShowIds ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
-                                                showId 일괄 수정
-                                            </Button>
-                                            <Button 
-                                                onClick={handleClearAllMissions} 
-                                                disabled={isClearingMissions}
-                                                size="sm"
-                                                className="gap-2 h-10 px-5 text-base font-bold bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl"
-                                            >
-                                                {isClearingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
-                                                전체 삭제
-                                            </Button>
-                                        </>
-                                    )}
-                                </div>
+                                )}
+                                <Button 
+                                    onClick={() => loadApprovedMissions()} 
+                                    disabled={isLoadingMissions}
+                                    variant="outline"
+                                    size="sm"
+                                    className="gap-2 h-10 px-5 text-base font-bold bg-white border-gray-200 text-gray-700 hover:bg-gray-50 rounded-xl"
+                                >
+                                    {isLoadingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <RefreshCw className="w-5 h-5" />}
+                                    새로고침
+                                </Button>
+                                {approvedMissions.length > 0 && approvalSubTab === "pending" && (
+                                    <>
+                                        <Button 
+                                            onClick={handleFixShowIds} 
+                                            disabled={isFixingShowIds}
+                                            variant="outline"
+                                            size="sm"
+                                            className="gap-2 bg-blue-50 border-blue-200 text-blue-600 hover:bg-blue-100 h-10 px-5 text-base font-bold rounded-xl"
+                                        >
+                                            {isFixingShowIds ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5" />}
+                                            showId 일괄 수정
+                                        </Button>
+                                        <Button 
+                                            onClick={handleClearAllMissions} 
+                                            disabled={isClearingMissions}
+                                            size="sm"
+                                            className="gap-2 h-10 px-5 text-base font-bold bg-red-500 hover:bg-red-600 text-white border-0 rounded-xl"
+                                        >
+                                            {isClearingMissions ? <Loader2 className="w-5 h-5 animate-spin" /> : <Trash2 className="w-5 h-5" />}
+                                            전체 삭제
+                                        </Button>
+                                    </>
+                                )}
                             </div>
+                        </div>
 
-                            {/* 번호 승인 입력창 - 아래 줄로 이동 및 확장 */}
+                        {/* 서브 탭 (대기 / 승인) */}
+                        <div className="flex border-b border-gray-200">
+                            <button
+                                className={`px-8 py-3 text-lg font-bold border-b-4 transition-all ${approvalSubTab === "pending"
+                                    ? "border-purple-600 text-purple-600 bg-purple-50/50"
+                                    : "border-transparent text-gray-400 hover:text-gray-600"
+                                    }`}
+                                onClick={() => {
+                                    setApprovalSubTab("pending")
+                                    loadApprovedMissions("pending")
+                                }}
+                            >
+                                승인 대기
+                            </button>
+                            <button
+                                className={`px-8 py-3 text-lg font-bold border-b-4 transition-all ${approvalSubTab === "approved"
+                                    ? "border-green-600 text-green-600 bg-green-50/50"
+                                    : "border-transparent text-gray-400 hover:text-gray-600"
+                                    }`}
+                                onClick={() => {
+                                    setApprovalSubTab("approved")
+                                    loadApprovedMissions("approved")
+                                }}
+                            >
+                                승인 완료
+                            </button>
+                        </div>
+
+                        {/* 번호 승인 입력창 - 대기 탭에서만 표시 */}
+                        {approvalSubTab === "pending" && (
                             <div className="flex items-center bg-green-50/50 border border-green-200 rounded-2xl p-3 gap-4 shadow-sm">
                                 <div className="flex items-center gap-2 shrink-0">
                                     <Check className="w-5 h-5 text-green-600" />
@@ -1450,7 +1492,7 @@ ${missionsText}
                                     ) : "한꺼번에 승인하기"}
                                 </Button>
                             </div>
-                        </div>
+                        )}
                         
                         {/* 필터 영역 */}
                         <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
@@ -1782,62 +1824,70 @@ ${missionsText}
                                                     )}
                                                 </div>
                                                 <div className="flex items-center gap-1.5 shrink-0">
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-8 px-2 text-purple-600 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
-                                                        onClick={() => {
-                                                            setEditingMissionId(mission.id)
-                                                            setEditForm({
-                                                                title: mission.title || '',
-                                                                description: mission.description || '',
-                                                                deadline: mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
-                                                                options: [...(mission.options || [])],
-                                                                kind: mission.kind || 'MAJORITY'
-                                                            })
-                                                        }}
-                                                    >
-                                                        <Edit2 className="w-3 h-3" />
-                                                    </Button>
-                                                    <Button 
-                                                        variant="default" 
-                                                        size="sm" 
-                                                        className="h-8 px-2 bg-green-600 hover:bg-green-700 whitespace-nowrap"
-                                                        onClick={() => {
-                                                            if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
-                                                                approveMission(mission)
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Check className="w-3 h-3" />
-                                                    </Button>
-                                                    <Button 
-                                                        variant="outline" 
-                                                        size="sm" 
-                                                        className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 whitespace-nowrap"
-                                                        onClick={async () => {
-                                                            if (confirm("이 미션을 거부하시겠습니까?")) {
-                                                                try {
-                                                                    const res = await fetch("/api/admin/ai-missions/reject", {
-                                                                        method: "POST",
-                                                                        headers: { "Content-Type": "application/json" },
-                                                                        body: JSON.stringify({ missionId: mission.id })
+                                                    {approvalSubTab === "pending" ? (
+                                                        <>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-8 px-2 text-purple-600 border-purple-200 hover:bg-purple-50 whitespace-nowrap"
+                                                                onClick={() => {
+                                                                    setEditingMissionId(mission.id)
+                                                                    setEditForm({
+                                                                        title: mission.title || '',
+                                                                        description: mission.description || '',
+                                                                        deadline: mission.deadline || new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+                                                                        options: [...(mission.options || [])],
+                                                                        kind: mission.kind || 'MAJORITY'
                                                                     })
-                                                                    const data = await res.json()
-                                                                    if (data.success) {
-                                                                        toast({ title: "거부 완료", description: "미션이 거부되었습니다." })
-                                                                        loadApprovedMissions()
-                                                                    } else {
-                                                                        throw new Error(data.error)
+                                                                }}
+                                                            >
+                                                                <Edit2 className="w-3 h-3" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="default" 
+                                                                size="sm" 
+                                                                className="h-8 px-2 bg-green-600 hover:bg-green-700 whitespace-nowrap"
+                                                                onClick={() => {
+                                                                    if (confirm("이 미션을 승인하고 게시하시겠습니까?")) {
+                                                                        approveMission(mission)
                                                                     }
-                                                                } catch (error: any) {
-                                                                    toast({ title: "거부 실패", description: error.message, variant: "destructive" })
-                                                                }
-                                                            }
-                                                        }}
-                                                    >
-                                                        <Trash2 className="w-3 h-3" />
-                                                    </Button>
+                                                                }}
+                                                            >
+                                                                <Check className="w-3 h-3" />
+                                                            </Button>
+                                                            <Button 
+                                                                variant="outline" 
+                                                                size="sm" 
+                                                                className="h-8 px-2 text-red-500 hover:text-red-600 hover:bg-red-50 whitespace-nowrap"
+                                                                onClick={async () => {
+                                                                    if (confirm("이 미션을 거부하시겠습니까?")) {
+                                                                        try {
+                                                                            const res = await fetch("/api/admin/ai-missions/reject", {
+                                                                                method: "POST",
+                                                                                headers: { "Content-Type": "application/json" },
+                                                                                body: JSON.stringify({ missionId: mission.id })
+                                                                            })
+                                                                            const data = await res.json()
+                                                                            if (data.success) {
+                                                                                toast({ title: "거부 완료", description: "미션이 거부되었습니다." })
+                                                                                loadApprovedMissions()
+                                                                            } else {
+                                                                                throw new Error(data.error)
+                                                                            }
+                                                                        } catch (error: any) {
+                                                                            toast({ title: "거부 실패", description: error.message, variant: "destructive" })
+                                                                        }
+                                                                    }
+                                                                }}
+                                                            >
+                                                                <Trash2 className="w-3 h-3" />
+                                                            </Button>
+                                                        </>
+                                                    ) : (
+                                                        <Badge className="bg-green-100 text-green-700 border-green-200 px-3 py-1 font-bold">
+                                                            승인 완료
+                                                        </Badge>
+                                                    )}
                                                 </div>
                                             </div>
                                         </CardContent>
