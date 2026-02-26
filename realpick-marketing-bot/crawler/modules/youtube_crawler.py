@@ -91,6 +91,7 @@ class YouTubeCrawler:
     def get_recent_videos(self, channel_id: str, max_results: int = 10) -> List[Dict]:
         """채널의 최근 영상 목록 가져오기"""
         url = f"{self.base_url}/search"
+        published_after = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
         params = {
             'part': 'snippet',
             'channelId': channel_id,
@@ -98,7 +99,7 @@ class YouTubeCrawler:
             'order': 'date',
             'maxResults': max_results,
             'key': self.api_key,
-            'publishedAfter': (datetime.now() - timedelta(days=7)).isoformat() + 'Z'
+            'publishedAfter': published_after
         }
         
         try:
@@ -279,8 +280,8 @@ class YouTubeCrawler:
         최근 24시간 이내 업로드된 영상 중 조회수 상위 영상 반환"""
         url = f"{self.base_url}/search"
         
-        # 수집 버튼을 누른 시간으로부터 24시간 이내
-        published_after = (datetime.now() - timedelta(hours=hours_back)).isoformat() + 'Z'
+        # 수집 버튼을 누른 시간으로부터 hours_back 시간 이내 (RFC 3339 형식: YYYY-MM-DDThh:mm:ssZ)
+        published_after = (datetime.now() - timedelta(hours=hours_back)).strftime('%Y-%m-%dT%H:%M:%SZ')
         
         # 더 많은 결과를 가져와서 조회수로 정렬하기 위해 maxResults를 늘림
         # YouTube API는 최대 50개까지 한 번에 가져올 수 있음
