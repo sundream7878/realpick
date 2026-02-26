@@ -109,41 +109,51 @@ export function EpisodeSelector({
         </div>
 
         <div className="flex justify-center items-center gap-4 flex-wrap">
-          {Array.from({ length: totalEpisodes - startEpisode + 1 }, (_, i) => i + startEpisode).map((episodeNo) => {
-            const isSelected = selectedEpisodes.has(episodeNo)
-            const status = getEpisodeStatus(episodeNo)
-            const styles = getHeartStyles(status)
-            const isLocked = status === "preview"
+          {(() => {
+            // episodeStatuses에 명시적으로 있는 회차들 + (선택 사항: 다음 1개 회차를 잠금 상태로 보여줄지 여부)
+            const availableEpisodes = Object.keys(episodeStatuses).map(Number).sort((a, b) => a - b);
+            
+            // 만약 episodeStatuses가 비어있다면 최소한 startEpisode는 보여줌
+            if (availableEpisodes.length === 0) {
+              availableEpisodes.push(startEpisode);
+            }
 
-            return (
-              <button
-                key={episodeNo}
-                onClick={() => !disabled && !isLocked && onEpisodeToggle(episodeNo)}
-                disabled={disabled || isLocked}
-                className={cn(
-                  "relative flex flex-col items-center gap-2 transition-all duration-200",
-                  !isLocked && "hover:scale-110 active:scale-95 cursor-pointer",
-                  isLocked && "cursor-not-allowed opacity-70",
-                )}
-                aria-label={`${episodeNo}회차`}
-              >
-                <div className="relative">
-                  <Heart
-                    className={cn(
-                      "w-12 h-12 transition-all duration-200",
-                      styles.fill,
-                      styles.stroke,
-                      isSelected && "ring-2 ring-pink-500 ring-offset-2 rounded-full",
-                    )}
-                  />
-                  {styles.badge && (
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{styles.badge}</div>
+            return availableEpisodes.map((episodeNo) => {
+              const isSelected = selectedEpisodes.has(episodeNo)
+              const status = getEpisodeStatus(episodeNo)
+              const styles = getHeartStyles(status)
+              const isLocked = status === "preview"
+
+              return (
+                <button
+                  key={episodeNo}
+                  onClick={() => !disabled && !isLocked && onEpisodeToggle(episodeNo)}
+                  disabled={disabled || isLocked}
+                  className={cn(
+                    "relative flex flex-col items-center gap-2 transition-all duration-200",
+                    !isLocked && "hover:scale-110 active:scale-95 cursor-pointer",
+                    isLocked && "cursor-not-allowed opacity-70",
                   )}
-                </div>
-                <span className="text-xs font-medium text-gray-700">{episodeNo}회</span>
-              </button>
-            )
-          })}
+                  aria-label={`${episodeNo}회차`}
+                >
+                  <div className="relative">
+                    <Heart
+                      className={cn(
+                        "w-12 h-12 transition-all duration-200",
+                        styles.fill,
+                        styles.stroke,
+                        isSelected && "ring-2 ring-pink-500 ring-offset-2 rounded-full",
+                      )}
+                    />
+                    {styles.badge && (
+                      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">{styles.badge}</div>
+                    )}
+                  </div>
+                  <span className="text-xs font-medium text-gray-700">{episodeNo}회</span>
+                </button>
+              )
+            })
+          })()}
         </div>
       </div>
     </div>

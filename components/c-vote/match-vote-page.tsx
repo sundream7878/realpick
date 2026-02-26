@@ -82,7 +82,10 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
   const userId = getUserId() || "user123"
   // 커플매칭 미션은 항상 멀티 에피소드로 처리 (episodes가 없으면 기본값 8)
   const isMultiEpisode = mission.form === "match" ? true : (mission.episodes && mission.episodes > 1)
-  const totalEpisodes = mission.form === "match" ? (mission.episodes || 8) : (mission.episodes || 1)
+  const episodeStatuses = mission.episodeStatuses || {}
+  const totalEpisodes = mission.form === "match" 
+    ? Math.max(...Object.keys(episodeStatuses).map(Number), mission.startEpisode || 1)
+    : (mission.episodes || 1)
 
   const hasVoted = userVote !== null
   const canVote =
