@@ -36,14 +36,15 @@ export function MissionActionButtons({
 
       // 커플 매칭 미션인 경우: 회차별 완료 상태로 판단
       if (mission.form === "match") {
-        // status가 settled이면 마감
-        if (mission.status === "settled") return true
+        // status가 settled 또는 closed이면 마감
+        if (mission.status === "settled" || mission.status === "closed") return true
 
         // 모든 회차가 settled인지 확인
         if (mission.episodeStatuses) {
-          const totalEpisodes = mission.episodes || 8
-          for (let i = 1; i <= totalEpisodes; i++) {
-            if (mission.episodeStatuses[i] !== "settled") {
+          const episodeNos = Object.keys(mission.episodeStatuses).map(Number)
+          if (episodeNos.length === 0) return false
+          for (const epNo of episodeNos) {
+            if (mission.episodeStatuses[epNo] !== "settled") {
               return false // 하나라도 settled가 아니면 진행중
             }
           }

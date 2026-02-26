@@ -586,20 +586,24 @@ export default function ResultsPage({ params }: { params: { id: string } }) {
   let isMissionClosed = false
 
   if (mission.form === "match") {
-    // 커플 매칭: status가 settled이거나 모든 회차가 settled면 마감
-    if (mission.status === "settled") {
+    // 커플 매칭: status가 settled/closed이거나 모든 회차가 settled면 마감
+    if (mission.status === "settled" || mission.status === "closed") {
       isMissionClosed = true
     } else {
       const episodeStatuses = mission.episodeStatuses || {}
-      const totalEpisodes = mission.episodes || 8
-      let allEpisodesSettled = true
-      for (let i = 1; i <= totalEpisodes; i++) {
-        if (episodeStatuses[i] !== "settled") {
-          allEpisodesSettled = false
-          break
+      const episodeNos = Object.keys(episodeStatuses).map(Number)
+      if (episodeNos.length === 0) {
+        isMissionClosed = false
+      } else {
+        let allEpisodesSettled = true
+        for (const epNo of episodeNos) {
+          if (episodeStatuses[epNo] !== "settled") {
+            allEpisodesSettled = false
+            break
+          }
         }
+        isMissionClosed = allEpisodesSettled
       }
-      isMissionClosed = allEpisodesSettled
     }
   } else {
     // 일반 미션: 마감 시간이 지났거나 상태가 settled인 경우
