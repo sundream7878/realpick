@@ -467,7 +467,7 @@ export default function VotePage({ params }: { params: { id: string } }) {
                     </span>
                     명 참여
                   </div>
-                  {!isMissionClosed && mission.deadline && (
+                  {!isMissionClosed && mission.deadline && mission.form !== "match" && (
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Clock className="w-4 h-4" />
                       <span>{getTimeRemaining(mission.deadline)} 남음</span>

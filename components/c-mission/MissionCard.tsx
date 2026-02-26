@@ -113,7 +113,7 @@ export function MissionCard({
           </div>
           <div className="text-[9px] sm:text-xs text-gray-400 font-medium flex items-center gap-x-2 gap-y-0.5 ml-auto">
             <span className="whitespace-nowrap">게시: {formatDate(mission.createdAt)}</span>
-            {mission.deadline && (
+            {mission.deadline && mission.form !== "match" && (
               <span className="flex items-center gap-1 whitespace-nowrap">
                 <Clock className="w-2.5 h-2.5 sm:w-3 h-3 text-rose-500" />
                 <span className="text-gray-600 font-bold">마감:</span>

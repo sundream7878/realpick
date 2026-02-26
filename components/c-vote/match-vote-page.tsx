@@ -1136,13 +1136,6 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
                     : "마감까지 결과를 기다려주세요. 나중에 내가 선택한 커플 매칭을 확인할 수 있습니다."}
                 </p>
               </div>
-              {/* 커플매칭 미션은 회차별 관리이므로 마감 시간 표시하지 않음 */}
-              {mission.form !== "match" && mission.deadline && !isDeadlinePassed(mission.deadline) && (
-                <div className="flex items-center gap-2 text-sm text-gray-600">
-                  <Clock className="w-4 h-4" />
-                  <span>{getTimeRemaining(mission.deadline)}</span>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
