@@ -572,9 +572,9 @@ app.listen(PORT, async () => {
   console.log(`  - GET  http://localhost:${PORT}/`);
   console.log(`  - GET  http://localhost:${PORT}/api/health`);
   console.log(`\n⚠️  주의: 이 서버는 로컬에서만 실행되어야 합니다.\n`);
-  // 2분 뒤에 테스트 실행 (지난 5시간 영상 수집) - 테스트 재시작용 주석
+  // 2분 뒤에 테스트 실행 (지난 10시간 영상 수집) - 테스트 재시작용 주석
   setTimeout(async () => {
-    console.log('[테스트 실행] 2분 경과, 자동 미션 생성 시작 (지난 5시간 영상 대상)...');
+    console.log('[테스트 실행] 2분 경과, 자동 미션 생성 시작 (지난 10시간 영상 대상)...');
     try {
       const mainAppUrl = process.env.MAIN_APP_URL || 'http://localhost:3000';
       const botUrl = process.env.MARKETING_BOT_URL || `http://localhost:${PORT}`;
@@ -586,7 +586,7 @@ app.listen(PORT, async () => {
         await fetch(`${botUrl.replace(/\/$/, '')}/api/youtube/run-daily-auto-mission`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ keywords, baseUrl: mainAppUrl, hoursBack: 5 })
+          body: JSON.stringify({ keywords, baseUrl: mainAppUrl, hoursBack: 10 })
         });
         console.log('[테스트 실행] 자동 미션 생성 요청 완료');
       }

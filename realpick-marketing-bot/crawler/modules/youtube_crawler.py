@@ -91,7 +91,8 @@ class YouTubeCrawler:
     def get_recent_videos(self, channel_id: str, max_results: int = 10) -> List[Dict]:
         """채널의 최근 영상 목록 가져오기"""
         url = f"{self.base_url}/search"
-        published_after = (datetime.now() - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        from datetime import timezone
+        published_after = (datetime.now(timezone.utc) - timedelta(days=7)).strftime('%Y-%m-%dT%H:%M:%SZ')
         params = {
             'part': 'snippet',
             'channelId': channel_id,
@@ -281,7 +282,9 @@ class YouTubeCrawler:
         url = f"{self.base_url}/search"
         
         # 수집 버튼을 누른 시간으로부터 hours_back 시간 이내 (RFC 3339 형식: YYYY-MM-DDThh:mm:ssZ)
-        published_after = (datetime.now() - timedelta(hours=hours_back)).strftime('%Y-%m-%dT%H:%M:%SZ')
+        # UTC 시간으로 변환하여 전송 (YouTube API는 UTC 기준)
+        from datetime import timezone
+        published_after = (datetime.now(timezone.utc) - timedelta(hours=hours_back)).strftime('%Y-%m-%dT%H:%M:%SZ')
         
         # 더 많은 결과를 가져와서 조회수로 정렬하기 위해 maxResults를 늘림
         # YouTube API는 최대 50개까지 한 번에 가져올 수 있음
