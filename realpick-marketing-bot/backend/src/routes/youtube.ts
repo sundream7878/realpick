@@ -300,7 +300,7 @@ router.post('/run-daily-auto-mission', async (req, res) => {
       return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    const { keywords = [], baseUrl } = req.body as { keywords?: string[]; baseUrl?: string };
+    const { keywords = [], baseUrl, hoursBack = 24 } = req.body as { keywords?: string[]; baseUrl?: string; hoursBack?: number };
     if (!keywords.length || !baseUrl) {
       return res.status(400).json({
         success: false,
@@ -308,7 +308,7 @@ router.post('/run-daily-auto-mission', async (req, res) => {
       });
     }
 
-    const HOURS_BACK = 24;
+    const HOURS_BACK = hoursBack;
     const MAX_RESULTS = 15;
     const seenIds = new Set<string>();
     const allVideos: Array<{
