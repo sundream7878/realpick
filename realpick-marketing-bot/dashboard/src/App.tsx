@@ -10,7 +10,6 @@ const YoutubeDealerRecruit = lazy(() => import('./components/YoutubeDealerRecrui
 const CommunityViralManage = lazy(() => import('./components/CommunityViralManage').then(m => ({ default: m.CommunityViralManage })))
 const NaverCafeCrawl = lazy(() => import('./components/NaverCafeCrawl').then(m => ({ default: m.NaverCafeCrawl })))
 const SnsViralManage = lazy(() => import('./components/SnsViralManage').then(m => ({ default: m.SnsViralManage })))
-const FakeUserBotManage = lazy(() => import('./components/FakeUserBotManage').then(m => ({ default: m.FakeUserBotManage })))
 
 // 로딩 컴포넌트
 const TabLoading = () => (
@@ -92,7 +91,6 @@ function App() {
                       { value: 'auto', label: '완전 자동 미션 생성' },
                       { value: 'youtube', label: '유튜브 딜러 모집' },
                       { value: 'sns', label: 'SNS 바이럴 (영상 생성)' },
-                      { value: 'bots', label: '가짜 유저 봇' },
                       { value: 'community', label: '커뮤니티 바이럴' },
                     ].map((tab) => (
                       <TabsTrigger 
@@ -121,11 +119,6 @@ function App() {
                     {activeTab === 'sns' && (
                       <TabsContent value="sns" className="animate-in fade-in duration-300">
                         <SnsViralManage />
-                      </TabsContent>
-                    )}
-                    {activeTab === 'bots' && (
-                      <TabsContent value="bots" className="animate-in fade-in duration-300">
-                        <FakeUserBotManage />
                       </TabsContent>
                     )}
                     {activeTab === 'community' && (
