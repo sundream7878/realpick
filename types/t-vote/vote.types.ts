@@ -55,6 +55,8 @@ export interface CreateMissionData {
   placeholder?: string
   totalEpisodes?: number
   startEpisode?: number
+  broadcastDay?: string
+  broadcastTime?: string
   deadline: string
   resultVisibility: string
   referenceUrl?: string
@@ -88,6 +90,8 @@ export interface TMission {
   status: "open" | "closed" | "settled"
   episodes?: number // Number of episodes (for match missions)
   startEpisode?: number // Starting episode number (default: 1)
+  broadcastDay?: string // 방송 요일 (월, 화, 수, 목, 금, 토, 일)
+  broadcastTime?: string // 방송 시간 (HH:mm)
   episodeStatuses?: Record<number, "open" | "locked" | "settled"> // Status per episode
   finalAnswer?: Array<{ left: string; right: string }> // Final correct answer for match missions
   result?: TMissionResult

@@ -375,13 +375,15 @@ export default function MyPage() {
   }
 
   const isMatchMissionClosed = (mission: TMission) => {
-    if (mission.status === "settled") return true
+    if (mission.status === "settled" || mission.status === "closed") return true
 
     const episodeStatuses = mission.episodeStatuses || {}
-    const totalEpisodes = mission.episodes || 8
+    const episodeNos = Object.keys(episodeStatuses).map(Number)
 
-    for (let i = 1; i <= totalEpisodes; i++) {
-      if (episodeStatuses[i] !== "settled") {
+    if (episodeNos.length === 0) return false
+
+    for (const epNo of episodeNos) {
+      if (episodeStatuses[epNo] !== "settled") {
         return false
       }
     }
@@ -464,10 +466,11 @@ export default function MyPage() {
     
     if (mission.form === "match") {
       // 모든 회차가 마감되었는지 확인
-      const totalEpisodes = mission.episodes || 8
       const episodeStatuses = mission.episodeStatuses || {}
-      for (let i = 1; i <= totalEpisodes; i++) {
-        if (episodeStatuses[i] !== "settled") return false
+      const episodeNos = Object.keys(episodeStatuses).map(Number)
+      if (episodeNos.length === 0) return false
+      for (const epNo of episodeNos) {
+        if (episodeStatuses[epNo] !== "settled") return false
       }
       return true
     }
@@ -792,6 +795,36 @@ export default function MyPage() {
     const canSubmit = isClosedForDealer && !isSettled
     const isEditingAnswer = !!editingMissionAnswers[mission.id]
 
+    const handleFinalizeMatchMission = async (missionId: string) => {
+      if (!confirm("정말로 이 커플매칭 미션을 최종 마감하시겠습니까?\n마감 후에는 더 이상 투표할 수 없습니다.")) return
+
+      setSubmittingMissionId(missionId)
+      try {
+        const { updateDoc, doc, serverTimestamp } = await import("firebase/firestore")
+        const { db } = await import("@/lib/firebase/config")
+        
+        await updateDoc(doc(db, "missions2", missionId), {
+          status: "closed",
+          updatedAt: serverTimestamp()
+        })
+
+        toast({
+          title: "미션이 최종 마감되었습니다.",
+          description: "이제 정답을 입력하여 정산할 수 있습니다.",
+        })
+        await loadMissions()
+      } catch (error: any) {
+        console.error("미션 마감 중 오류:", error)
+        toast({
+          title: "미션 마감 실패",
+          description: error.message || "잠시 후 다시 시도해주세요.",
+          variant: "destructive",
+        })
+      } finally {
+        setSubmittingMissionId(null)
+      }
+    }
+
     if (mission.kind !== "predict") {
       return (
         <div className="flex items-center gap-2 text-sm text-gray-600">
@@ -808,8 +841,8 @@ export default function MyPage() {
       const currentPairs = matchAnswerDrafts[mission.id] || []
       const selection = matchPairSelections[mission.id] || {}
 
-      const totalEpisodes = mission.episodes || 8
       const episodeStatuses = mission.episodeStatuses || {}
+      const episodeNos = Object.keys(episodeStatuses).map(Number).sort((a, b) => a - b)
 
       return (
         <div className="space-y-4">
@@ -821,7 +854,7 @@ export default function MyPage() {
             </div>
             <p className="text-xs text-purple-700">각 회차의 투표를 열거나 마감할 수 있습니다.</p>
             <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
-              {Array.from({ length: totalEpisodes }, (_, i) => i + 1).map((episodeNo) => {
+              {episodeNos.map((episodeNo) => {
                 const status = episodeStatuses[episodeNo] || "locked"
                 const isProcessing = submittingMissionId === mission.id
 
@@ -1019,6 +1052,20 @@ export default function MyPage() {
                     : "마감 후 확정 가능"}
                 </Button>
               </div>
+              
+              {mission.status === "open" && (
+                <div className="flex justify-end pt-2">
+                  <Button
+                    variant="outline"
+                    className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                    disabled={submittingMissionId === mission.id}
+                    onClick={() => handleFinalizeMatchMission(mission.id)}
+                  >
+                    미션 최종 마감
+                  </Button>
+                </div>
+              )}
+              
               {!isClosedForDealer && (
                 <p className="text-xs text-gray-500">모든 회차가 마감되어야 최종 커플을 확정할 수 있습니다.</p>
               )}

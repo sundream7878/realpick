@@ -94,17 +94,16 @@ export async function createMission(missionData: CreateMissionData, userId: stri
         left: missionData.maleOptions || [],
         right: missionData.femaleOptions || []
       };
-      const totalEpisodes = missionData.totalEpisodes || 8;
       const startEpisode = missionData.startEpisode || 1;
       
-      missionPayload.totalEpisodes = totalEpisodes;
       missionPayload.startEpisode = startEpisode;
+      missionPayload.broadcastDay = missionData.broadcastDay || "수";
+      missionPayload.broadcastTime = missionData.broadcastTime || "22:30";
       
-      // startEpisode부터 totalEpisodes까지 episodeStatuses 초기화
-      missionPayload.episodeStatuses = {};
-      for (let i = startEpisode; i <= totalEpisodes; i++) {
-        missionPayload.episodeStatuses[i] = i === startEpisode ? "open" : "locked";
-      }
+      // 시작 회차만 open으로 초기화 (이후 방송일마다 자동 추가)
+      missionPayload.episodeStatuses = {
+        [startEpisode]: "open"
+      };
       
       missionPayload.aggregatedStats = {}; // Initialize aggregatedStats
     } else {

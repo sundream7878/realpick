@@ -563,6 +563,66 @@ function startDailyAutoMissionSchedule() {
   console.log('⏰ 매일 새벽 6시(KST) 자동 미션 생성 스케줄 등록됨');
 }
 
+// 커플매칭 에피소드 자동 오픈 스케줄러 (매 시간 정각에 실행)
+function startMatchMissionEpisodeScheduler() {
+  cron.schedule('0 * * * *', async () => {
+    console.log('[에피소드 스케줄러] 커플매칭 다음 회차 자동 오픈 체크 시작...');
+    try {
+      const db = admin.firestore();
+      const now = new Date();
+      const currentDayNum = now.getDay(); // 0(일) ~ 6(토)
+      const dayMap: Record<string, number> = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6 };
+      
+      // 진행 중인 커플매칭 미션 조회
+      const snapshot = await db.collection('missions2').where('status', '==', 'open').get();
+      
+      if (snapshot.empty) {
+        console.log('[에피소드 스케줄러] 진행 중인 커플매칭 미션 없음');
+        return;
+      }
+
+      for (const doc of snapshot.docs) {
+        const mission = doc.data();
+        const { broadcastDay, broadcastTime, episodeStatuses = {} } = mission;
+        
+        if (!broadcastDay || !broadcastTime) continue;
+        
+        const targetDayNum = dayMap[broadcastDay];
+        if (targetDayNum === undefined) continue;
+
+        // 현재 요일이 방송 요일인지 확인
+        if (currentDayNum === targetDayNum) {
+          const [hour, minute] = broadcastTime.split(':').map(Number);
+          const currentHour = now.getHours();
+          const currentMinute = now.getMinutes();
+
+          // 방송 시간이 지났는지 확인 (또는 현재 시간대인지)
+          if (currentHour > hour || (currentHour === hour && currentMinute >= minute)) {
+            // 현재 열려있는 가장 높은 회차 찾기
+            const episodeNos = Object.keys(episodeStatuses).map(Number).sort((a, b) => b - a);
+            const latestEp = episodeNos[0] || 0;
+            const latestStatus = episodeStatuses[latestEp];
+
+            // 만약 최신 회차가 'settled'라면 다음 회차를 'open'으로 생성
+            if (latestStatus === 'settled') {
+              const nextEp = latestEp + 1;
+              console.log(`[에피소드 스케줄러] 미션 ${doc.id}: ${nextEp}회차 자동 오픈`);
+              
+              await db.collection('missions2').doc(doc.id).update({
+                [`episodeStatuses.${nextEp}`]: 'open',
+                updatedAt: admin.firestore.FieldValue.serverTimestamp()
+              });
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[에피소드 스케줄러] 에러:', err);
+    }
+  });
+  console.log('⏰ 커플매칭 에피소드 자동 오픈 스케줄러 등록됨 (매 시간 체크)');
+}
+
 // 서버 시작
 app.listen(PORT, async () => {
   console.log(`\n🚀 마케팅 봇 백엔드 서버 시작`);
@@ -597,6 +657,7 @@ app.listen(PORT, async () => {
 
   await checkFirebase();
   startDailyAutoMissionSchedule();
+  startMatchMissionEpisodeScheduler();
 });
 
 export default app;
