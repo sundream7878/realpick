@@ -85,16 +85,16 @@ export function AppHeader({
 
   return (
     <header
-      className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-14 sm:h-16 md:h-18 lg:h-20 shadow-sm ${className}`}
+      className={`md:sticky md:top-0 z-50 bg-white border-b border-gray-200 h-12 sm:h-14 md:h-16 lg:h-18 shadow-sm ${className}`}
     >
       <div className="mx-auto px-2 sm:px-4 h-full max-w-5xl relative">
         <div className="flex items-center justify-between h-full gap-1 sm:gap-2">
           {/* 좌측 - 로고 영역 (사이드바 너비와 맞추어 메뉴 시작점 정렬) */}
-          <div className="flex-shrink-0 w-[45px] xs:w-[60px] md:w-[140px] flex items-center justify-start z-10">
+          <div className="flex-shrink-0 w-[55px] xs:w-[75px] md:w-[160px] flex items-center justify-start z-10">
             <img 
               src="/realpick-logo-new.png" 
               alt="리얼픽" 
-              className="w-auto cursor-pointer hover:opacity-80 transition-opacity h-6 sm:h-8 md:h-10 lg:h-12"
+              className="w-auto cursor-pointer hover:opacity-80 transition-opacity h-8 sm:h-10 md:h-12 lg:h-14"
               onClick={() => {
                 const homeUrl = isAuthenticated() ? "/?category=LOVE" : "/"
                 router.push(homeUrl)

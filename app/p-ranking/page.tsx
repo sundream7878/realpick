@@ -132,14 +132,14 @@ export default function RankingPage() {
 
       <div className="max-w-5xl mx-auto bg-white min-h-screen shadow-lg relative z-10">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-16">
+      <header className="sticky top-0 z-50 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/90 border-b border-gray-200 h-12 sm:h-14 md:h-16">
         <div className="container mx-auto px-4 h-full">
           <div className="flex items-center justify-between h-full gap-2">
             <Link href="/" className="flex-shrink-0">
               <img
                 src="/realpick-logo-new.png"
                 alt="RealPick"
-                className="w-auto h-8 md:h-10 cursor-pointer hover:opacity-80 transition-opacity"
+                className="w-auto h-8 sm:h-10 md:h-12 cursor-pointer hover:opacity-80 transition-opacity"
               />
             </Link>
 

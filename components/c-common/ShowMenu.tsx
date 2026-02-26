@@ -213,10 +213,10 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
             <button
                 onClick={toggleMenu}
                 className={`
-          relative flex items-center gap-1 sm:gap-1 md:gap-1.5 px-1 sm:px-1.5 md:px-2 py-1 sm:py-0.5 md:py-1 rounded-lg font-medium
+          relative flex items-center gap-1 sm:gap-1 md:gap-1.5 px-1 sm:px-1.5 md:px-2 py-0.5 sm:py-0.5 md:py-1 rounded-lg font-medium
           transition-all duration-200
           min-w-[45px] sm:min-w-[55px] md:min-w-[65px] lg:min-w-[75px]
-          h-8 sm:h-auto
+          h-7 sm:h-8
           cursor-pointer
           ${isOpen || isCategoryActive
                         ? `${theme.buttonOpen} text-white shadow-lg`
@@ -232,7 +232,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                     onClick={handleCategoryIconClick}
                     title={`${categoryInfo.description} 전체 미션 보기`}
                 />
-                <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-semibold">
+                <span className="text-[9px] sm:text-[10px] md:text-xs lg:text-sm whitespace-nowrap flex-1 text-center md:text-left overflow-hidden text-ellipsis font-bold">
                     {selectedShow ? selectedShow.displayName : (urlCategory === category ? categoryInfo.description : categoryInfo.description)}
                 </span>
                 <ChevronDown
@@ -246,7 +246,7 @@ export function ShowMenu({ category, selectedShowId, onShowSelect, activeShowIds
                             inline-flex items-center justify-center 
                             min-w-[16px] h-[16px] md:min-w-[20px] md:h-[20px] px-1
                             text-[9px] md:text-[11px] font-bold text-white
-                            ${isOpen || isCategoryActive ? 'bg-black/20' : 'bg-gray-100 text-gray-700'}
+                            ${isOpen || isCategoryActive ? 'bg-black/30' : 'bg-indigo-600'}
                             backdrop-blur-sm border border-white/20
                             rounded-full shadow-sm
                             transition-all duration-300

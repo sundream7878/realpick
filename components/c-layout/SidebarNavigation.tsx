@@ -244,7 +244,7 @@ export function SidebarNavigation({
   }
 
   return (
-    <aside className={`w-35 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-20 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
+    <aside className={`w-35 border-r flex-shrink-0 hidden md:block absolute h-full z-40 left-0 top-0 pt-18 ${theme.bgGradient ? theme.bgGradient : 'bg-white'} ${theme.border} transition-colors duration-300`}>
       <div className="p-1 mt-4">
         <nav className="space-y-4">
           {(userRole === 'DEALER' || userRole === 'MAIN_DEALER' || userRole === 'ADMIN') && (
