@@ -602,18 +602,21 @@ export default function MissionCreationModal({ isOpen, onClose, onMissionCreated
 
     // 🔔 알림 생성 (즉시 발송)
     try {
-      const { createGlobalNotification } = await import("@/lib/firebase/admin-notifications")
-      await createGlobalNotification({
-        missionId: result.missionId!,
-        missionTitle: missionData.title,
-        category: missionData.category || "LOVE",
-        showId: missionData.showId || "nasolo",
-        creatorId: user.uid,
-        creatorNickname: creatorNickname
-      })
-      console.log('[Notification] 새 미션 알림 생성 완료')
+      // 클라이언트 사이드에서 firebase-admin을 직접 사용할 수 없으므로 API 호출로 변경
+      await fetch('/api/admin/notifications/mission', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          missionId: result.missionId!,
+          missionTitle: missionData.title,
+          category: missionData.category || "LOVE",
+          showId: missionData.showId || "nasolo",
+          creatorNickname: creatorNickname
+        })
+      });
+      console.log('[Notification] 새 미션 알림 생성 요청 완료')
     } catch (notifError) {
-      console.error('[Notification] 알림 생성 중 오류:', notifError)
+      console.error('[Notification] 알림 생성 요청 중 오류:', notifError)
     }
 
     // 🔔 새 미션 생성 이벤트 발생 (로컬 UI 업데이트용)
