@@ -571,9 +571,9 @@ function getKstNow() {
   return { day: d.getUTCDay(), hour: d.getUTCHours(), minute: d.getUTCMinutes() };
 }
 
-// 커플매칭 에피소드 자동 오픈 스케줄러 (매 시간 정각, KST 기준 방송일·방송시간 지나면 다음 회차 오픈)
+// 커플매칭 에피소드 자동 오픈 스케줄러 (15분마다, KST 기준 방송일·방송시간 지나면 다음 회차 오픈)
 function startMatchMissionEpisodeScheduler() {
-  cron.schedule('0 * * * *', async () => {
+  cron.schedule('*/15 * * * *', async () => {
     console.log('[에피소드 스케줄러] 커플매칭 다음 회차 자동 오픈 체크 시작...');
     try {
       const db = admin.firestore();
@@ -613,7 +613,7 @@ function startMatchMissionEpisodeScheduler() {
       console.error('[에피소드 스케줄러] 에러:', err);
     }
   });
-  console.log('⏰ 커플매칭 에피소드 자동 오픈 스케줄러 등록됨 (매 시간, KST 기준)');
+  console.log('⏰ 커플매칭 에피소드 자동 오픈 스케줄러 등록됨 (15분마다, KST 기준)');
 }
 
 // 서버 시작

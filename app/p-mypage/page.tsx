@@ -24,6 +24,7 @@ import { DesktopWingBanner } from "@/components/c-banner-ad/desktop-wing-banner"
 import { useRouter, useSearchParams } from "next/navigation"
 import { getUserId, isAuthenticated } from "@/lib/auth-utils"
 import { getMissionsByCreator, getMissionsByParticipant, submitPredictMissionAnswer, updatePredictMissionAnswer, settleMissionWithFinalAnswer, updateEpisodeStatuses, settleMatchMission } from "@/lib/firebase/missions"
+import { auth } from "@/lib/firebase/config"
 import { getUserVotesMap } from "@/lib/firebase/votes"
 import { getUser } from "@/lib/firebase/users"
 import { isDeadlinePassed } from "@/lib/utils/u-time/timeUtils.util"
@@ -680,6 +681,36 @@ export default function MyPage() {
     }))
   }
 
+  const handleOpenNextEpisode = async (missionId: string) => {
+    setSubmittingMissionId(missionId)
+    try {
+      const token = await auth.currentUser?.getIdToken()
+      if (!token) {
+        toast({ title: "로그인이 필요합니다.", variant: "destructive" })
+        return
+      }
+      const res = await fetch(`/api/missions/${missionId}/open-next-episode`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      const data = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        toast({
+          title: data.error || "다음 회차 열기 실패",
+          variant: "destructive",
+        })
+        return
+      }
+      toast({ title: data.message || "다음 회차가 열렸습니다." })
+      await loadMissions()
+    } catch (e) {
+      console.error(e)
+      toast({ title: "다음 회차 열기 실패", variant: "destructive" })
+    } finally {
+      setSubmittingMissionId(null)
+    }
+  }
+
   const handleEpisodeStatusChange = async (missionId: string, episodeNo: number, status: "open" | "settled" | "locked") => {
     setSubmittingMissionId(missionId)
     try {
@@ -905,6 +936,18 @@ export default function MyPage() {
                 )
               })}
             </div>
+            {mission.status === "open" && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="mt-3 w-full border-purple-300 text-purple-700 hover:bg-purple-50"
+                disabled={submittingMissionId === mission.id}
+                onClick={() => handleOpenNextEpisode(mission.id)}
+              >
+                {submittingMissionId === mission.id ? "처리 중..." : "다음 회차 지금 열기"}
+              </Button>
+            )}
           </div>
 
           <div className="flex items-start gap-2 text-sm text-gray-700">

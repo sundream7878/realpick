@@ -26,24 +26,29 @@ const DAY_MAP: Record<string, number> = {
 };
 
 /**
- * 매 시간 호출되는 cron.
+ * 15분마다 호출되는 cron (또는 수동 호출).
  * 방송일·방송시간(KST)이 지난 커플매칭 미션에 대해 다음 회차를 자동으로 open 처리.
- * (이전 회차가 settled일 필요 없음 - 방송일이 지나면 다음 회차 오픈)
+ * 로컬 개발 시 인증 없이 GET 호출 가능 (쿼리 ?dev=1).
  */
 export async function GET(request: NextRequest) {
   try {
     const authHeader = request.headers.get("authorization");
     const cronSecret = process.env.CRON_SECRET;
     const isVercelCron = request.headers.get("x-vercel-cron") === "1";
+    const isDevManual =
+      process.env.NODE_ENV === "development" &&
+      request.nextUrl.searchParams.get("dev") === "1";
 
-    if (!cronSecret && !isVercelCron) {
-      return NextResponse.json(
-        { error: "CRON_SECRET not configured" },
-        { status: 501 }
-      );
-    }
-    if (!isVercelCron && authHeader !== `Bearer ${cronSecret}`) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!isDevManual) {
+      if (!cronSecret && !isVercelCron) {
+        return NextResponse.json(
+          { error: "CRON_SECRET not configured" },
+          { status: 501 }
+        );
+      }
+      if (!isVercelCron && authHeader !== `Bearer ${cronSecret}`) {
+        return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      }
     }
 
     if (!adminDb) {
