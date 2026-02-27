@@ -563,19 +563,24 @@ function startDailyAutoMissionSchedule() {
   console.log('⏰ 매일 새벽 6시(KST) 자동 미션 생성 스케줄 등록됨');
 }
 
-// 커플매칭 에피소드 자동 오픈 스케줄러 (매 시간 정각에 실행)
+// KST 기준 현재 시각 (요일 0-6, 시, 분)
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+function getKstNow() {
+  const kstMs = Date.now() + KST_OFFSET_MS;
+  const d = new Date(kstMs);
+  return { day: d.getUTCDay(), hour: d.getUTCHours(), minute: d.getUTCMinutes() };
+}
+
+// 커플매칭 에피소드 자동 오픈 스케줄러 (매 시간 정각, KST 기준 방송일·방송시간 지나면 다음 회차 오픈)
 function startMatchMissionEpisodeScheduler() {
   cron.schedule('0 * * * *', async () => {
     console.log('[에피소드 스케줄러] 커플매칭 다음 회차 자동 오픈 체크 시작...');
     try {
       const db = admin.firestore();
-      const now = new Date();
-      const currentDayNum = now.getDay(); // 0(일) ~ 6(토)
-      const dayMap: Record<string, number> = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6 };
-      
-      // 진행 중인 커플매칭 미션 조회
+      const kst = getKstNow();
+      const dayMap = { '일': 0, '월': 1, '화': 2, '수': 3, '목': 4, '금': 5, '토': 6 };
+
       const snapshot = await db.collection('missions2').where('status', '==', 'open').get();
-      
       if (snapshot.empty) {
         console.log('[에피소드 스케줄러] 진행 중인 커플매칭 미션 없음');
         return;
@@ -584,43 +589,31 @@ function startMatchMissionEpisodeScheduler() {
       for (const doc of snapshot.docs) {
         const mission = doc.data();
         const { broadcastDay, broadcastTime, episodeStatuses = {} } = mission;
-        
         if (!broadcastDay || !broadcastTime) continue;
-        
+
         const targetDayNum = dayMap[broadcastDay];
         if (targetDayNum === undefined) continue;
+        if (kst.day !== targetDayNum) continue;
 
-        // 현재 요일이 방송 요일인지 확인
-        if (currentDayNum === targetDayNum) {
-          const [hour, minute] = broadcastTime.split(':').map(Number);
-          const currentHour = now.getHours();
-          const currentMinute = now.getMinutes();
+        const [hour, minute] = broadcastTime.split(':').map(Number);
+        if (kst.hour < hour || (kst.hour === hour && kst.minute < minute)) continue;
 
-          // 방송 시간이 지났는지 확인 (또는 현재 시간대인지)
-          if (currentHour > hour || (currentHour === hour && currentMinute >= minute)) {
-            // 현재 열려있는 가장 높은 회차 찾기
-            const episodeNos = Object.keys(episodeStatuses).map(Number).sort((a, b) => b - a);
-            const latestEp = episodeNos[0] || 0;
-            const latestStatus = episodeStatuses[latestEp];
+        const episodeNos = Object.keys(episodeStatuses).map(Number).sort((a, b) => b - a);
+        const latestEp = episodeNos[0] ?? 0;
+        const nextEp = latestEp + 1;
+        if (episodeStatuses[nextEp] !== undefined) continue;
 
-            // 만약 최신 회차가 'settled'라면 다음 회차를 'open'으로 생성
-            if (latestStatus === 'settled') {
-              const nextEp = latestEp + 1;
-              console.log(`[에피소드 스케줄러] 미션 ${doc.id}: ${nextEp}회차 자동 오픈`);
-              
-              await db.collection('missions2').doc(doc.id).update({
-                [`episodeStatuses.${nextEp}`]: 'open',
-                updatedAt: admin.firestore.FieldValue.serverTimestamp()
-              });
-            }
-          }
-        }
+        await db.collection('missions2').doc(doc.id).update({
+          [`episodeStatuses.${nextEp}`]: 'open',
+          updatedAt: admin.firestore.FieldValue.serverTimestamp()
+        });
+        console.log(`[에피소드 스케줄러] 미션 ${doc.id}: ${nextEp}회차 자동 오픈`);
       }
     } catch (err) {
       console.error('[에피소드 스케줄러] 에러:', err);
     }
   });
-  console.log('⏰ 커플매칭 에피소드 자동 오픈 스케줄러 등록됨 (매 시간 체크)');
+  console.log('⏰ 커플매칭 에피소드 자동 오픈 스케줄러 등록됨 (매 시간, KST 기준)');
 }
 
 // 서버 시작

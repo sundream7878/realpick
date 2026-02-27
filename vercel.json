@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/daily-auto-mission",
       "schedule": "0 21 * * *"
+    },
+    {
+      "path": "/api/cron/match-episode-open",
+      "schedule": "0 * * * *"
     }
   ]
 }
