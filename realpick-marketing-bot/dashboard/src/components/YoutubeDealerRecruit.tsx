@@ -3,7 +3,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card"
 import { Button } from "./ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs"
-import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send, Video, Filter, BrainCircuit } from "lucide-react"
+import { Search, Youtube, Mail, Loader2, ExternalLink, RefreshCw, Check, Edit2, Zap, Trash2, Calendar, Users, Plus, X, Clock, Send, Video, Filter, BrainCircuit, LogIn } from "lucide-react"
 import { Input } from "./ui/input"
 import { useToast } from "../hooks/useToast"
 import { Badge } from "./ui/badge"
@@ -56,6 +56,7 @@ export function YoutubeDealerRecruit() {
     const [missionCategoryFilter, setMissionCategoryFilter] = useState<string>("ALL")
     const [missionShowFilter, setMissionShowFilter] = useState<string>("ALL")
     const [isClearingMissions, setIsClearingMissions] = useState(false)
+    const [isManualLoggingIn, setIsManualLoggingIn] = useState<string | null>(null)
     const [approvalSubTab, setApprovalSubTab] = useState<"pending" | "approved">("pending")
     
     // 미션 수정 관련 상태
@@ -261,10 +262,12 @@ export function YoutubeDealerRecruit() {
     }
 
     // 6. 승인 대기 또는 승인 완료 AI 미션 목록 불러오기
-    const loadApprovedMissions = async (status: string = approvalSubTab) => {
+    const loadApprovedMissions = async (status: any = approvalSubTab) => {
         setIsLoadingMissions(true)
         try {
-            const apiStatus = status.toUpperCase()
+            // status가 이벤트 객체일 경우를 대비하여 문자열인지 확인
+            const statusStr = typeof status === 'string' ? status : approvalSubTab
+            const apiStatus = statusStr.toUpperCase()
             const res = await fetch(`/api/admin/ai-missions/list?status=${apiStatus}&t=${Date.now()}`)
             const contentType = res.headers.get('content-type') ?? ''
             const text = await res.text()
@@ -336,7 +339,12 @@ export function YoutubeDealerRecruit() {
         setIsLoadingChannels2(true)
         try {
             const res = await fetch("/api/admin/dealers/videos")
-            const data = await res.json()
+            const contentType = res.headers.get('content-type') ?? ''
+            const text = await res.text()
+            if (!res.ok || !contentType.includes('application/json')) {
+                throw new Error(`서버 응답 오류 (${res.status})`)
+            }
+            const data = JSON.parse(text)
             if (data.success) {
                 setCollectedChannels(data.channels || [])
             } else throw new Error(data.error)
@@ -353,7 +361,12 @@ export function YoutubeDealerRecruit() {
         setIsLoadingVideos(true)
         try {
             const res = await fetch("/api/admin/dealers/videos-list")
-            const data = await res.json()
+            const contentType = res.headers.get('content-type') ?? ''
+            const text = await res.text()
+            if (!res.ok || !contentType.includes('application/json')) {
+                throw new Error(`서버 응답 오류 (${res.status})`)
+            }
+            const data = JSON.parse(text)
             if (data.success) {
                 setCollectedVideos(data.videos || [])
             } else throw new Error(data.error)
@@ -426,6 +439,28 @@ export function YoutubeDealerRecruit() {
         return approvedMissions.filter(m => getMissionCategory(m) === categoryKey).length
     }
     
+    // 14. 수동 로그인 처리
+    const handleManualLogin = async (siteId: string, url: string) => {
+        setIsManualLoggingIn(siteId)
+        try {
+            const res = await fetch("/api/auto-comment/manual-login", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ siteId, url })
+            })
+            const data = await res.json()
+            if (data.success) {
+                toast({ title: "로그인 성공", description: `${siteId} 쿠키가 저장되었습니다.` })
+            } else {
+                throw new Error(data.error)
+            }
+        } catch (error: any) {
+            toast({ title: "로그인 실패", description: error.message, variant: "destructive" })
+        } finally {
+            setIsManualLoggingIn(null)
+        }
+    }
+
     // 14. 모든 AI 미션 삭제
     const handleClearAllMissions = async () => {
         if (!confirm("⚠️ 정말 모든 승인 대기 중인 AI 미션을 삭제하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다!")) {

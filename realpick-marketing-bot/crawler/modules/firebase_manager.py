@@ -26,28 +26,44 @@ class FirebaseManager:
         try:
             if not firebase_admin._apps:
                 cert_data = None
-                key_paths = ["firebase-key.json", os.path.join(os.getcwd(), "firebase-key.json")]
-                
+
+                # 1순위: firebase-key.json 파일
+                key_paths = [
+                    "firebase-key.json",
+                    os.path.join(os.getcwd(), "firebase-key.json"),
+                    os.path.join(os.path.dirname(__file__), '..', 'firebase-key.json'),
+                ]
                 for path in key_paths:
                     if os.path.exists(path):
                         with open(path, 'r', encoding='utf-8') as f:
                             cert_data = json.load(f)
-                            break
-                
+                        break
+
+                # 2순위: 환경변수 (bridge.py 실행 시 .env.local 로드됨)
                 if not cert_data:
-                    try:
-                        import streamlit as st
-                        if "FIREBASE_SERVICE_ACCOUNT" in st.secrets:
-                            cert_data = json.loads(st.secrets["FIREBASE_SERVICE_ACCOUNT"])
-                    except ImportError:
-                        pass
-                
+                    project_id = os.environ.get('FIREBASE_PROJECT_ID')
+                    client_email = os.environ.get('FIREBASE_CLIENT_EMAIL')
+                    private_key_raw = os.environ.get('FIREBASE_PRIVATE_KEY')
+                    if project_id and client_email and private_key_raw:
+                        private_key = private_key_raw.replace('\\n', '\n')
+                        cert_data = {
+                            "type": "service_account",
+                            "project_id": project_id,
+                            "private_key_id": "env",
+                            "private_key": private_key,
+                            "client_email": client_email,
+                            "client_id": "",
+                            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                            "token_uri": "https://oauth2.googleapis.com/token",
+                        }
+
                 if cert_data:
                     cred = credentials.Certificate(cert_data)
                     firebase_admin.initialize_app(cred)
                 else:
+                    print("[Firebase] 인증 정보 없음 - Firestore 연결 건너뜀", file=sys.stderr)
                     return None
-            
+
             return firestore.client()
         except Exception as e:
             print(f"❌ Firebase 초기화 오류: {str(e)}", file=sys.stderr)

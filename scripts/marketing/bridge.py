@@ -36,6 +36,7 @@ from modules.gemini_analyzer import GeminiAnalyzer
 from modules.firebase_manager import FirebaseManager
 from modules.email_sender import EmailSender
 from modules.community_crawler import CommunityCrawler
+from modules.auto_commenter import AutoCommenter
 
 # Firebase 초기화 (전역으로 한 번만 실행, 실패해도 계속 진행)
 FIREBASE_AVAILABLE = False
@@ -560,6 +561,62 @@ def crawl_community(args):
     except Exception as e:
         return {"success": False, "error": str(e)}
 
+def manual_login(args):
+    """수동 로그인을 통한 쿠키 저장"""
+    try:
+        url = getattr(args, 'url', None)
+        site_id = getattr(args, 'site_id', None)
+        user_id = getattr(args, 'user_id', None)
+        user_pw = getattr(args, 'user_pw', None)
+        
+        if not url or not site_id:
+            return {"success": False, "error": "url과 site_id가 필요합니다."}
+            
+        commenter = AutoCommenter(headless=False)
+        if not commenter.start_browser():
+            return {"success": False, "error": "브라우저 시작 실패"}
+            
+        # 1. 전달받은 계정 정보가 있으면 자동 입력 시도
+        if user_id and user_pw:
+            print(f"[Bridge] {site_id} 자동 로그인 시도 중...", file=sys.stderr)
+            if site_id == 'clien':
+                commenter._login_clien(user_id, user_pw)
+            elif site_id == 'dcinside':
+                commenter._login_dcinside(user_id, user_pw)
+            elif site_id == 'fmkorea':
+                commenter._login_fmkorea(user_id, user_pw)
+            elif site_id == 'ruliweb':
+                commenter._login_ruliweb(user_id, user_pw)
+            elif site_id == 'ppomppu':
+                commenter._login_ppomppu(user_id, user_pw)
+            elif site_id == 'nate':
+                commenter._login_nate(user_id, user_pw)
+        
+        # 2. 수동 로그인 대기 및 쿠키 저장
+        result = commenter.manual_login(url, site_id)
+        commenter.close()
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def auto_comment(args):
+    """자동 댓글 등록"""
+    try:
+        url = getattr(args, 'url', None)
+        comment = getattr(args, 'comment', None)
+        site_id = getattr(args, 'site_id', None)
+        headless = getattr(args, 'headless', 'true').lower() == 'true'
+        
+        if not url or not comment:
+            return {"success": False, "error": "url과 comment가 필요합니다."}
+            
+        commenter = AutoCommenter(headless=headless)
+        result = commenter.post_comment(url, comment, site_id)
+        commenter.close()
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
 def main():
     # 모든 경고 메시지를 무시하여 JSON 출력만 깨끗하게 유지
     import warnings
@@ -605,6 +662,10 @@ def main():
             result = crawl_community(args)
         elif args.command == 'crawl-naver-cafe':
             result = crawl_naver_cafe(args)
+        elif args.command == 'manual-login':
+            result = manual_login(args)
+        elif args.command == 'auto-comment':
+            result = auto_comment(args)
         else:
             result = {
                 "success": False,

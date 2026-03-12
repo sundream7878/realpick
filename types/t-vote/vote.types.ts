@@ -93,6 +93,7 @@ export interface TMission {
   broadcastDay?: string // 방송 요일 (월, 화, 수, 목, 금, 토, 일)
   broadcastTime?: string // 방송 시간 (HH:mm)
   episodeStatuses?: Record<number, "open" | "locked" | "settled"> // Status per episode
+  episodeDates?: Record<number, string> // Open date per episode (YYYY-MM-DD, KST)
   finalAnswer?: Array<{ left: string; right: string }> // Final correct answer for match missions
   result?: TMissionResult
   stats: {

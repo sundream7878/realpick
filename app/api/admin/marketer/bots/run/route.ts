@@ -62,19 +62,25 @@ export async function POST(request: NextRequest) {
         getDocs(missions2Query)
       ]);
 
-      // 클라이언트 측에서 카테고리 필터링
+      // 클라이언트 측에서 카테고리 및 마감 기한 필터링
+      const now = new Date().toISOString();
+
       const missions1 = missions1Snap.docs
         .map(doc => ({ id: doc.id, ...doc.data(), type: "missions1" }))
         .filter((m: any) => {
           const missionCategory = m.category || "";
-          return missionCategory.toUpperCase() === category.toUpperCase();
+          const isCategoryMatch = missionCategory.toUpperCase() === category.toUpperCase();
+          const isNotExpired = !m.deadline || m.deadline > now;
+          return isCategoryMatch && isNotExpired;
         });
       
       const missions2 = missions2Snap.docs
         .map(doc => ({ id: doc.id, ...doc.data(), type: "missions2" }))
         .filter((m: any) => {
           const missionCategory = m.category || "";
-          return missionCategory.toUpperCase() === category.toUpperCase();
+          const isCategoryMatch = missionCategory.toUpperCase() === category.toUpperCase();
+          const isNotExpired = !m.deadline || m.deadline > now;
+          return isCategoryMatch && isNotExpired;
         });
       
       const allMissions = [...missions1, ...missions2];

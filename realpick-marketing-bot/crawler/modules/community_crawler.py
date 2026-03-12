@@ -8,18 +8,28 @@ import os
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional
 
+try:
+    import undetected_chromedriver as uc
+    from selenium.webdriver.common.by import By
+    from selenium.webdriver.support.ui import WebDriverWait
+    from selenium.webdriver.support import expected_conditions as EC
+    HAS_SELENIUM = True
+except ImportError:
+    HAS_SELENIUM = False
+
 class CommunityCrawler:
-    """대한민국 주요 커뮤니티 크롤러 - 맘카페 중심"""
+    """대한민국 주요 커뮤니티 크롤러
+    - 게시판형 커뮤니티(디시/에펨/루리웹/네이트판/클리앙/뽐뿌 등)
+    - (옵션) 맘카페/82cook 포함
+    """
     
-    def __init__(self):
+    def __init__(self, load_mamacafe: bool = False, use_browser: bool = False):
         self.headers = {
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
         }
-        # 프로그램별/카테고리별 타겟 커뮤니티 매핑
-        # 맘카페가 핵심 타겟 커뮤니티
         self.target_sites = {
-            'mamacafe': '맘카페',  # 핵심 타겟
-            '82cook': '82쿡',  # 요리 커뮤니티
+            'mamacafe': '맘카페',
+            '82cook': '82쿡',
             'dcinside': '디시인사이드',
             'fmkorea': '에펨코리아',
             'theqoo': '더쿠',
@@ -31,9 +41,97 @@ class CommunityCrawler:
             'nate': '네이트판',
             'clien': '클리앙'
         }
+        
+        # Selenium 강제 사용 (사용자가 요청함)
+        self.use_browser = True if HAS_SELENIUM else False
+        if not HAS_SELENIUM:
+            print("[Community Crawler] Selenium이 설치되지 않아 requests 모드로 동작합니다.", file=sys.stderr)
+            
+        self.driver = None
 
-        # 맘카페 리스트 로드
-        self.mamacafe_list = self._load_mamacafe_list()
+        # 맘카페 크롤링이 필요한 경우에만 리스트 로드
+        if load_mamacafe:
+            self.mamacafe_list = self._load_mamacafe_list()
+        else:
+            self.mamacafe_list = []
+
+    def start_browser(self):
+        """브라우저 시작"""
+        if not HAS_SELENIUM:
+            print("[Community Crawler] Selenium 미설치", file=sys.stderr)
+            return False
+            
+        if self.driver:
+            return True
+            
+        try:
+            options = uc.ChromeOptions()
+            options.add_argument("--headless=new")
+            options.add_argument("--no-sandbox")
+            options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-blink-features=AutomationControlled")
+            options.add_argument("--window-size=1920,1080")
+            
+            self.driver = uc.Chrome(options=options, version_main=145)
+            self.driver.set_page_load_timeout(30)
+            print("[Community Crawler] 브라우저 시작 완료", file=sys.stderr)
+            return True
+        except Exception as e:
+            print(f"[Community Crawler] 브라우저 시작 실패: {e}", file=sys.stderr)
+            return False
+
+    def close(self):
+        """브라우저 종료"""
+        if self.driver:
+            try:
+                self.driver.quit()
+            except:
+                pass
+            self.driver = None
+
+    def _fetch_url(self, url: str) -> str:
+        """URL 내용을 가져옴 (브라우저 우선)"""
+        if self.use_browser:
+            if not self.driver:
+                if not self.start_browser():
+                    # 브라우저 시작 실패 시 requests로 fallback
+                    print("[Community Crawler] 브라우저 시작 실패, requests로 전환", file=sys.stderr)
+                    try:
+                        response = requests.get(url, headers=self.headers, timeout=15)
+                        response.encoding = 'utf-8'
+                        return response.text
+                    except:
+                        return ""
+            
+            try:
+                print(f"[Community Crawler] 브라우저로 이동: {url[:60]}...", file=sys.stderr)
+                self.driver.get(url)
+                
+                # 페이지 로딩 대기 (5초로 증가)
+                time.sleep(5) 
+                
+                # 스크롤 다운 (내용 로딩 유도)
+                self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight/3);")
+                time.sleep(1)
+                
+                return self.driver.page_source
+            except Exception as e:
+                print(f"[Community Crawler] 브라우저 로딩 실패 ({url}): {e}", file=sys.stderr)
+                # 실패 시 requests로 재시도 (마지막 수단)
+                try:
+                    response = requests.get(url, headers=self.headers, timeout=15)
+                    response.encoding = 'utf-8'
+                    return response.text
+                except:
+                    return ""
+        else:
+            try:
+                response = requests.get(url, headers=self.headers, timeout=15)
+                response.encoding = 'utf-8'
+                return response.text
+            except Exception as e:
+                print(f"[Community Crawler] Requests 실패 ({url}): {e}", file=sys.stderr)
+                return ""
     
     def _load_mamacafe_list(self) -> List[Dict]:
         """맘카페 리스트 로드 (Firestore 우선, 없으면 JSON 파일)"""
@@ -83,32 +181,27 @@ class CommunityCrawler:
             return []
 
     def get_community_search_url(self, site: str, keyword: str, cafe_id: str = None) -> str:
-        """커뮤니티별 검색 URL 생성
-        
-        Args:
-            site: 사이트 ID
-            keyword: 검색 키워드
-            cafe_id: 맘카페 ID (맘카페인 경우)
-        """
+        """커뮤니티별 검색 URL 생성"""
+        import urllib.parse
+        kw_enc = urllib.parse.quote(keyword)
+
         if site == 'mamacafe' and cafe_id:
-            # 특정 맘카페 내 검색
-            return f"https://cafe.naver.com/{cafe_id}?iframe_url=/ArticleSearchList.nhn%3Fsearch.clubid={cafe_id}%26search.searchBy=0%26search.query={keyword}%26search.sortBy=date"
+            return f"https://cafe.naver.com/{cafe_id}?iframe_url=/ArticleSearchList.nhn%3Fsearch.clubid={cafe_id}%26search.searchBy=0%26search.query={kw_enc}%26search.sortBy=date"
         elif site == 'mamacafe':
-            # 전체 맘카페 검색 (모바일)
-            return f"https://m.cafe.naver.com/ca-fe/web/search/articles?q={keyword}&searchBy=0&sortBy=date&page=1"
-        
+            return f"https://m.cafe.naver.com/ca-fe/web/search/articles?q={kw_enc}&searchBy=0&sortBy=date&page=1"
+
         urls = {
-            '82cook': f"https://www.82cook.com/entiz/enti.php?bn=15&search={keyword}",
-            'dcinside': f"https://search.dcinside.com/combine/q/{keyword}",
-            'fmkorea': f"https://www.fmkorea.com/search.php?mid=home&search_keyword={keyword}",
-            'theqoo': f"https://theqoo.net/index.php?mid=home&search_keyword={keyword}",
-            'nate': f"https://pann.nate.com/search/pann?q={keyword}",
-            'mlbpark': f"https://mlbpark.donga.com/mp/b.php?searchSelect=s&searchKeyword={keyword}",
-            'ppomppu': f"https://www.ppomppu.co.kr/search_bbs.php?search_type=sub_memo&keyword={keyword}",
-            'clien': f"https://www.clien.net/service/search?q={keyword}",
-            'ruliweb': f"https://m.ruliweb.com/search?q={keyword}",
-            'inven': f"https://www.inven.co.kr/search/web/q/{keyword}",
-            'arcalive': f"https://arca.live/b/search?q={keyword}"
+            '82cook':   f"https://www.82cook.com/entiz/enti.php?bn=15&search={kw_enc}",
+            'dcinside': f"https://search.dcinside.com/combine/q/{kw_enc}",
+            'fmkorea':  f"https://www.fmkorea.com/search.php?act=IS&is_keyword={kw_enc}&search_target=title_content",
+            'theqoo':   f"https://theqoo.net/index.php?mid=square&search_keyword={kw_enc}&act=IS&where=document",
+            'nate':     f"https://pann.nate.com/search/talk?searchType=A&q={kw_enc}",
+            'ppomppu':  f"https://www.ppomppu.co.kr/search_bbs.php?keyword={kw_enc}",
+            'clien':    f"https://www.clien.net/service/search?q={kw_enc}&sort=recency&boardCd=&isBoard=false",
+            'ruliweb':  f"https://bbs.ruliweb.com/search?q={kw_enc}",
+            'inven':    f"https://www.inven.co.kr/search/web/q/{kw_enc}",
+            'arcalive': f"https://arca.live/b/search?q={kw_enc}",
+            'mlbpark':  f"https://mlbpark.donga.com/mp/b.php?searchSelect=s&searchKeyword={kw_enc}",
         }
         return urls.get(site, "")
 
@@ -332,19 +425,23 @@ class CommunityCrawler:
     def fetch_post_content(self, post_url: str, site_id: str) -> Dict:
         """게시글 URL에서 실제 본문 내용, 조회수, 댓글 수, 작성일 크롤링"""
         try:
-            response = requests.get(post_url, headers=self.headers, timeout=10)
-            response.encoding = 'utf-8'
-            soup = BeautifulSoup(response.text, 'html.parser')
+            html = self._fetch_url(post_url)
+            if not html:
+                return {'content': '', 'success': False, 'viewCount': 0, 'commentCount': 0, 'publishedDate': None}
+                
+            soup = BeautifulSoup(html, 'html.parser')
             
             # 사이트별 본문 선택자 (주요 사이트만 구현)
             content_selectors = {
                 'mamacafe': ['.article_viewer', '.se-main-container', '.article_body', '.view_content', '.content'],
-                '82cook': ['.content_view', '.post_content', '.article_content', '.content'],
-                'dcinside': ['div.view_content_wrap', 'div.view_content', '.writing_view_box'],
-                'fmkorea': ['.xe_content', '.content_wrapper', '.content'],
-                'theqoo': ['.xe_content', '.content', 'div[class*="content"]'],
-                'clien': ['.post_content', '.content_view', '.post-view'],
-                'nate': ['.view_content', '.content', 'div[class*="content"]'],
+                '82cook':   ['.content_view', '.post_content', '.article_content', '.content'],
+                'dcinside': ['div.view_content_wrap', 'div.view_content', '.writing_view_box', '.write_div'],
+                'fmkorea':  ['.xe_content', '.rd_body', '.content_wrapper', '.content'],
+                'theqoo':   ['.xe_content', '.content', 'div[class*="content"]'],
+                'clien':    ['.post_content', '.content_view', '.post-view', 'div.contents'],
+                'nate':     ['.post-content', '.view_content', '.content', 'div[class*="content"]'],
+                'ppomppu':  ['div.baseList-content', '.cont_area', 'td.baseList-content', '.bbsView_cont'],
+                'ruliweb':  ['.view_content', '.article_content', '.content_view', 'div.cont'],
             }
             
             content_text = ""
@@ -392,18 +489,190 @@ class CommunityCrawler:
         
         return False
 
-    def get_hot_posts(self, show_id: str, keywords: List[str], limit: int = 10) -> List[Dict]:
+    def _parse_search_results(self, site_id: str, soup: BeautifulSoup, kw: str) -> List[tuple]:
+        """사이트별 검색결과 HTML에서 (url, title) 리스트 반환"""
+        post_links = []
+
+        def add(href, title, base=''):
+            href = href.strip()
+            title = title.strip()
+            if not href or not title or len(title) < 3:
+                return
+            if href.startswith('//'):
+                href = 'https:' + href
+            elif href.startswith('/'):
+                href = base + href
+            elif not href.startswith('http'):
+                return
+            post_links.append((href, title))
+
+        try:
+            if site_id == 'dcinside':
+                # search.dcinside.com 검색결과 - 'a.tit-link' 또는 '.result-detail a'
+                for el in soup.select('a.tit-link, .result-detail .tit a, ul.result_list li a[href*="gall.dcinside"]')[:15]:
+                    add(el.get('href', ''), el.get_text(strip=True))
+                # fallback: href에 gall.dcinside 포함된 링크
+                if not post_links:
+                    for el in soup.select('a[href*="gall.dcinside.com/board"]')[:15]:
+                        title = el.get_text(strip=True) or el.get('title', '')
+                        add(el.get('href', ''), title)
+
+            elif site_id == 'fmkorea':
+                # fmkorea 검색결과 - '.title a' 또는 'a.subject_link'
+                # 통합검색(act=IS) 결과 구조 대응
+                
+                # 1. 통합검색 결과 리스트 (가장 일반적)
+                # ul.searchResult li dl dt a (2026-03-10 확인된 구조)
+                # ul.search_list li dl dt a (이전 구조)
+                for el in soup.select('ul.searchResult li dl dt a, ul.search_list li dl dt a, .search_list li .title a'):
+                    href = el.get('href', '')
+                    if not href.startswith('http'):
+                        href = 'https://www.fmkorea.com' + href
+                    
+                    # 댓글 링크 건너뛰기
+                    if '#comment' in href:
+                        continue
+                        
+                    # 검색 키워드 하이라이팅 태그 제거하고 텍스트만 추출
+                    for strong in el.find_all('strong', class_='searchContextDoc'):
+                        strong.unwrap()
+                        
+                    title = el.get_text(strip=True)
+                    if title:
+                        add(href, title)
+
+                # 2. 게시판형 리스트 (search_target 지정 시)
+                if not post_links:
+                    for el in soup.select('.board_list tr td.title a:not([class]), .bd_lst tr td.title a:not([class])'):
+                        href = el.get('href', '')
+                        # 댓글 링크 및 카테고리 링크 건너뛰기
+                        if '#comment' in href or 'category=' in href:
+                            continue
+                        if not href.startswith('http'):
+                            href = 'https://www.fmkorea.com' + href
+                        
+                        # span 태그 제거하고 텍스트만 추출
+                        for span in el.find_all('span'):
+                            span.unwrap()
+                            
+                        title = el.get_text(strip=True)
+                        if title:
+                            add(href, title)
+
+                # 3. 기존 구조 fallback
+                if not post_links:
+                    for el in soup.select('li.li h3.title a, .search_result_list li a, a.subject_link'):
+                        href = el.get('href', '')
+                        if not href.startswith('http'):
+                            href = 'https://www.fmkorea.com' + href
+                        
+                        for span in el.find_all('span', class_='search_keyword'):
+                            span.unwrap()
+                            
+                        title = el.get_text(strip=True)
+                        if title:
+                            add(href, title)
+                            
+                # 디버깅: 파싱 실패 시 HTML 저장
+                if not post_links:
+                    try:
+                        debug_path = os.path.join(os.path.dirname(__file__), '..', 'debug_fmkorea.html')
+                        with open(debug_path, 'w', encoding='utf-8') as f:
+                            f.write(str(soup))
+                        print(f"[Community Crawler] ⚠️ 에펨코리아 파싱 실패. 디버그 파일 저장됨: {debug_path}", file=sys.stderr)
+                    except:
+                        pass
+
+            elif site_id == 'clien':
+                # clien 검색결과 - 'a.list_subject' 또는 '.subject a'
+                for el in soup.select('a.list_subject, span.subject a, .subject_fixed a, .list_title a')[:15]:
+                    href = el.get('href', '')
+                    if not href.startswith('http'):
+                        href = 'https://www.clien.net' + href
+                    add(href, el.get_text(strip=True))
+                if not post_links:
+                    for el in soup.select('a[href*="/service/board"]')[:15]:
+                        add(el.get('href', ''), el.get_text(strip=True), 'https://www.clien.net')
+
+            elif site_id == 'nate':
+                # nate pann 검색결과
+                for el in soup.select('a.list_title, .pann_list a, ul.list_cont li a, a[href*="pann.nate.com/talk"]')[:15]:
+                    add(el.get('href', ''), el.get_text(strip=True))
+
+            elif site_id == 'ppomppu':
+                # 뽐뿌 검색결과 - view.php 링크
+                for el in soup.select('a[href*="view.php?id="], td.baseList-title a')[:15]:
+                    href = el.get('href', '')
+                    if not href.startswith('http'):
+                        href = 'https://www.ppomppu.co.kr/' + href.lstrip('/')
+                    title = el.get_text(strip=True) or el.get('title', '')
+                    if title and len(title) > 3:
+                        add(href, title)
+
+            elif site_id == 'ruliweb':
+                # ruliweb 검색결과
+                for el in soup.select('a.subject_link, .result_text a, a[href*="ruliweb.com/best"], a[href*="ruliweb.com/community"]')[:15]:
+                    href = el.get('href', '')
+                    if not href.startswith('http') and href.startswith('/'):
+                        href = 'https://m.ruliweb.com' + href
+                    title = el.get_text(strip=True) or el.get('title', '')
+                    if title and len(title) > 3 and 'search' not in href:
+                        add(href, title)
+
+            elif site_id == 'theqoo':
+                for el in soup.select('a.title_link, .list_title a, a[href*="theqoo.net/square"]')[:15]:
+                    href = el.get('href', '')
+                    if not href.startswith('http'):
+                        href = 'https://theqoo.net' + href
+                    add(href, el.get_text(strip=True))
+
+            elif site_id == '82cook':
+                for el in soup.select('a[href*="/entiz/read.php"], .list_tit a, td.title a')[:15]:
+                    href = el.get('href', '')
+                    if not href.startswith('http'):
+                        href = 'https://www.82cook.com' + href
+                    add(href, el.get_text(strip=True))
+
+        except Exception as e:
+            print(f"[Community Crawler] {site_id} 파싱 오류: {e}", file=sys.stderr)
+
+        return post_links[:12]
+
+    def get_hot_posts(self, show_id: str, keywords: List[str], limit: int = 10, include_mamacafe: bool = False, only_mamacafe: bool = False, target_sites: List[str] = None) -> List[Dict]:
         """주요 커뮤니티에서 프로그램 관련 핫게시물 수집 (실제 크롤링)
-        오늘 기준 2일 이내 게시글만 수집"""
+        오늘 기준 7일 이내 게시글만 수집"""
         all_posts = []
         
-        # 오늘 기준 2일 전 날짜 계산
+        # 오늘 기준 7일 전 날짜 계산 (더 넓은 범위로 수집)
         today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
-        two_days_ago = today - timedelta(days=2)
+        two_days_ago = today - timedelta(days=7)
         
-        # 실제 크롤링 가능한 사이트만 선택 (맘카페가 핵심)
-        crawlable_sites = ['mamacafe', '82cook', 'dcinside', 'fmkorea', 'theqoo', 'clien', 'nate']
+        # 실제 크롤링 가능한 사이트 선택
+        crawlable_sites = []
         
+        # 사용자가 명시적으로 사이트를 선택한 경우
+        if target_sites:
+            # target_sites에 있는 것들 중 self.target_sites에 정의된 것만 필터링
+            crawlable_sites = [s for s in target_sites if s in self.target_sites]
+            # 맘카페가 포함되어 있으면 리스트 로드
+            if 'mamacafe' in crawlable_sites and not self.mamacafe_list:
+                self.mamacafe_list = self._load_mamacafe_list()
+        else:
+            # 기존 로직 유지 (하위 호환성)
+            if only_mamacafe:
+                crawlable_sites = ['mamacafe']
+                if not self.mamacafe_list:
+                    self.mamacafe_list = self._load_mamacafe_list()
+            else:
+                # 기본: 게시판형 전체
+                crawlable_sites = ['dcinside', 'fmkorea', 'clien', 'nate', 'ruliweb', 'ppomppu', 'theqoo', '82cook', 'mlbpark', 'inven']
+                if include_mamacafe:
+                    if not self.mamacafe_list:
+                        self.mamacafe_list = self._load_mamacafe_list()
+                    crawlable_sites = ['mamacafe'] + crawlable_sites
+        
+        print(f"[Community Crawler] 크롤링 대상 사이트: {crawlable_sites}", file=sys.stderr)
+
         # 맘카페 우선 크롤링 (각 맘카페별로 검색)
         if 'mamacafe' in crawlable_sites and self.mamacafe_list:
             print(f"[Community Crawler] 맘카페 크롤링 시작: {len(self.mamacafe_list)}개 카페", file=sys.stderr)
@@ -506,169 +775,86 @@ class CommunityCrawler:
                     # 카페 간 딜레이
                     time.sleep(0.5)
         
-        # 기타 커뮤니티 크롤링 (맘카페가 limit에 도달하지 않은 경우)
+        # 게시판형 커뮤니티 크롤링
         for site_id, site_name in self.target_sites.items():
             if site_id not in crawlable_sites or site_id == 'mamacafe':
                 continue
-            
+
             if len(all_posts) >= limit:
                 break
-                
+
             for kw in keywords:
                 if len(all_posts) >= limit:
                     break
-                    
+
                 search_url = self.get_community_search_url(site_id, kw)
-                if not search_url: 
+                if not search_url:
                     continue
-                
+
                 try:
-                    # 검색 결과 페이지 크롤링
-                    response = requests.get(search_url, headers=self.headers, timeout=10)
-                    response.encoding = 'utf-8'
-                    soup = BeautifulSoup(response.text, 'html.parser')
+                    print(f"[Community Crawler] {site_name}에서 '{kw}' 검색 중... ({search_url[:80]})", file=sys.stderr)
                     
-                    # 사이트별 검색 결과 파싱 (간단한 예시)
-                    # 실제로는 각 사이트의 HTML 구조에 맞게 파싱해야 함
-                    post_links = []
-                    
-                    if site_id == 'mamacafe':
-                        # 맘카페 검색 결과 파싱 (네이버 카페 형식)
-                        # 맘카페는 네이버 카페 API 또는 웹 크롤링 필요
-                        # 검색 결과에서 게시글 링크 추출
-                        for link in soup.select('a[href*="/ArticleRead.nhn"], a[href*="/article/"], .article_item a, .search_item a')[:10]:
-                            href = link.get('href', '')
-                            if href:
-                                if href.startswith('/'):
-                                    # 상대 경로인 경우 네이버 카페 도메인 추가
-                                    href = f"https://m.cafe.naver.com{href}"
-                                elif not href.startswith('http'):
-                                    href = f"https://m.cafe.naver.com/{href}"
-                                title = link.get_text(strip=True) or link.get('title', '')
-                                if title and href:
-                                    post_links.append((href, title))
-                    elif site_id == 'dcinside':
-                        # 디시인사이드 검색 결과 파싱
-                        for link in soup.select('a[href*="/board/"]')[:10]:  # 더 많이 가져와서 필터링
-                            href = link.get('href', '')
-                            if href and href.startswith('/'):
-                                href = f"https://gall.dcinside.com{href}"
-                            post_links.append((href, link.get_text(strip=True)))
-                    elif site_id == 'fmkorea':
-                        # 에펨코리아 검색 결과 파싱
-                        for link in soup.select('a.subject_link')[:10]:
-                            href = link.get('href', '')
-                            if href and not href.startswith('http'):
-                                href = f"https://www.fmkorea.com{href}"
-                            post_links.append((href, link.get_text(strip=True)))
-                    elif site_id == 'theqoo':
-                        # 더쿠 검색 결과 파싱
-                        for link in soup.select('a.title_link, a[href*="/index.php"]')[:10]:
-                            href = link.get('href', '')
-                            if href and not href.startswith('http'):
-                                href = f"https://theqoo.net{href}"
-                            post_links.append((href, link.get_text(strip=True)))
-                    elif site_id == 'clien':
-                        # 클리앙 검색 결과 파싱
-                        for link in soup.select('a.subject_fixed, a.list_subject')[:10]:
-                            href = link.get('href', '')
-                            if href and not href.startswith('http'):
-                                href = f"https://www.clien.net{href}"
-                            post_links.append((href, link.get_text(strip=True)))
-                    elif site_id == '82cook':
-                        # 82쿡 검색 결과 파싱
-                        for link in soup.select('a[href*="/entiz/read.php"], .list_title a, .subject a')[:10]:
-                            href = link.get('href', '')
-                            if href:
-                                if href.startswith('/'):
-                                    href = f"https://www.82cook.com{href}"
-                                elif not href.startswith('http'):
-                                    href = f"https://www.82cook.com/{href}"
-                                title = link.get_text(strip=True) or link.get('title', '')
-                                if title and href:
-                                    post_links.append((href, title))
-                    
-                    # 각 게시글의 본문 크롤링 및 필터링
+                    html = self._fetch_url(search_url)
+                    if not html:
+                        continue
+                        
+                    soup = BeautifulSoup(html, 'html.parser')
+
+                    post_links = self._parse_search_results(site_id, soup, kw)
+                    print(f"[Community Crawler] {site_name} 검색결과 파싱: {len(post_links)}개 링크 발견", file=sys.stderr)
+
                     for post_url, title in post_links:
                         if len(all_posts) >= limit:
                             break
-                            
-                        if not post_url or not title:
+                        if not post_url or not title or len(title) < 3:
                             continue
-                        
-                        # 제목에서 키워드 확인 (빠른 필터링)
-                        if not any(kw.lower() in title.lower() for kw in keywords):
-                            # 제목에 키워드가 없으면 본문도 확인하지 않고 스킵
-                            continue
-                        
-                        # 본문 크롤링 (조회수, 댓글 수, 작성일 포함)
+
+                        # 본문 크롤링
                         content_data = self.fetch_post_content(post_url, site_id)
-                        
-                        if not content_data['success'] or not content_data['content']:
-                            continue
-                        
-                        # 작성일 확인: 오늘 기준 2일 이내인지 체크
+                        content_text = content_data.get('content', '')
+
+                        # 본문이 없으면 제목만으로 수집 (빈 본문 허용)
+                        if not content_text:
+                            content_text = title
+
+                        # 날짜 필터 (날짜 파싱 성공한 경우에만 적용)
                         if content_data.get('publishedDate'):
                             try:
                                 published_date = datetime.fromisoformat(content_data['publishedDate'].replace('Z', '+00:00'))
-                                # 타임존 제거하고 비교
                                 published_date = published_date.replace(tzinfo=None)
                                 if published_date < two_days_ago:
-                                    print(f"[Community Crawler] 2일 이전 게시글 필터링: {title[:50]}... (작성일: {published_date.date()})", file=sys.stderr)
+                                    print(f"[Community Crawler] 날짜 필터(7일): {title[:40]} ({published_date.date()})", file=sys.stderr)
                                     continue
-                            except Exception as e:
-                                print(f"[Community Crawler] 날짜 파싱 오류: {e}", file=sys.stderr)
-                                # 날짜 파싱 실패 시에도 수집 (안전장치)
-                        
-                        # 본문에서도 키워드 확인 (더 정확한 필터링)
-                        if not self.is_relevant_post(title, content_data['content'], keywords):
-                            print(f"[Community Crawler] 키워드와 관련 없는 게시글 필터링: {title[:50]}...", file=sys.stderr)
+                            except Exception:
+                                pass  # 날짜 파싱 실패 시 수집
+
+                        # 제목 또는 본문에 키워드 포함 여부 확인
+                        if not self.is_relevant_post(title, content_text, keywords):
+                            print(f"[Community Crawler] 키워드 불일치 스킵: {title[:40]}", file=sys.stderr)
                             continue
-                        
-                        # 관련 있는 게시글만 추가
+
                         published_at = content_data.get('publishedDate') or datetime.now().isoformat()
                         all_posts.append({
-                            'id': f"{site_id}_{int(time.time())}",
+                            'id': f"{site_id}_{int(time.time())}_{len(all_posts)}",
                             'source': site_id,
                             'sourceName': site_name,
-                            'title': title[:200],  # 제목 최대 200자
-                            'content': content_data['content'],  # 실제 본문 내용
+                            'title': title[:200],
+                            'content': content_text[:2000],
                             'url': post_url,
-                            'viewCount': content_data.get('viewCount', 0),  # 실제 파싱한 조회수
-                            'commentCount': content_data.get('commentCount', 0),  # 실제 파싱한 댓글 수
+                            'viewCount': content_data.get('viewCount', 0),
+                            'commentCount': content_data.get('commentCount', 0),
                             'showId': show_id,
                             'publishedAt': published_at,
                             'createdAt': datetime.now().isoformat()
                         })
-                        
-                        print(f"[Community Crawler] ✅ 관련 게시글 수집: {title[:50]}...", file=sys.stderr)
-                        
-                        # Rate limiting
-                        time.sleep(1)
-                            
+                        print(f"[Community Crawler] ✅ 수집 완료: [{site_name}] {title[:50]}", file=sys.stderr)
+                        time.sleep(0.5)
+
                 except Exception as e:
                     print(f"[Community Crawler] {site_id} 크롤링 오류: {e}", file=sys.stderr)
                     continue
-                
+
                 if len(all_posts) >= limit:
                     break
-        
-        # 본문이 없는 경우를 대비해 최소한의 데이터라도 반환
-        if len(all_posts) == 0:
-            # 폴백: 키워드 기반 더미 데이터 (하지만 실제 크롤링 시도했다는 표시)
-            for kw in keywords[:limit]:
-                all_posts.append({
-                    'id': f"fallback_{int(time.time())}",
-                    'source': 'fallback',
-                    'sourceName': '크롤링 실패',
-                    'title': f"[{kw}] 관련 게시글 (크롤링 필요)",
-                    'content': f"{kw} 관련 게시글을 찾았지만 본문 크롤링에 실패했습니다. 실제 커뮤니티 사이트의 HTML 구조에 맞게 크롤링 로직을 개선해야 합니다.",
-                    'url': '',
-                    'viewCount': 0,
-                    'commentCount': 0,
-                    'showId': show_id,
-                    'publishedAt': datetime.now().isoformat(),
-                    'createdAt': datetime.now().isoformat()
-                })
         
         return all_posts

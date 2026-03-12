@@ -24,7 +24,7 @@ from dotenv import load_dotenv
 bot_root = Path(__file__).parent.parent  # realpick-marketing-bot/
 env_path = bot_root / '.env.local'
 if env_path.exists():
-    load_dotenv(dotenv_path=env_path)
+    load_dotenv(dotenv_path=env_path, override=True)
     print(f"[Bridge] .env.local 로드됨: {env_path}", file=sys.stderr)
 else:
     # 로컬 .env도 시도
@@ -39,6 +39,7 @@ from modules.gemini_analyzer import GeminiAnalyzer
 from modules.firebase_manager import FirebaseManager
 from modules.email_sender import EmailSender
 from modules.community_crawler import CommunityCrawler
+from modules.auto_commenter import AutoCommenter
 try:
     from modules.naver_cafe_crawler import NaverCafeCrawler
     HAS_NAVER_CAFE = True
@@ -316,12 +317,31 @@ def crawl_community(args):
         if not gemini_key:
             return {"success": False, "error": "Gemini API 키가 필요합니다."}
             
-        crawler = CommunityCrawler()
         analyzer = GeminiAnalyzer(gemini_key)
         
         # limit 파라미터 받기 (기본값 30)
-        # args는 Namespace 객체이므로 getattr 사용
         limit = int(getattr(args, 'limit', 30))
+
+        # 선택된 프로그램(쇼) ID들 (대시보드에서 전달)
+        selected_show_ids_raw = getattr(args, 'selectedShowIds', None) or getattr(args, 'selected_show_ids', None) or ''
+        selected_show_ids = []
+        if isinstance(selected_show_ids_raw, str) and selected_show_ids_raw.strip():
+            selected_show_ids = [s.strip() for s in selected_show_ids_raw.split(',') if s.strip()]
+        elif isinstance(selected_show_ids_raw, list):
+            selected_show_ids = [str(s).strip() for s in selected_show_ids_raw if str(s).strip()]
+
+        # 게시판형/카페 포함 여부
+        mode = (getattr(args, 'mode', None) or 'board').strip().lower()
+        include_mamacafe = False if mode == 'board' else True
+        only_mamacafe = True if mode == 'cafe' else False
+
+        # board 모드에서는 맘카페 리스트 로드 불필요 (속도 개선 + 불필요한 로그 제거)
+        # 에펨코리아 등 봇 차단이 심한 사이트 대응을 위해 use_browser=True 설정
+        crawler = CommunityCrawler(load_mamacafe=(include_mamacafe or only_mamacafe), use_browser=True)
+        
+        # 브라우저 시작 (명시적 호출)
+        if not crawler.start_browser():
+            return {"success": False, "error": "브라우저 시작 실패"}
         
         # 리얼픽 주요 프로그램 키워드
         program_keywords = [
@@ -334,6 +354,16 @@ def crawl_community(args):
             {"showId": "culinary-class-wars2", "keywords": ["흑백요리사", "안성재", "백종원"]},
             {"showId": "goal-girls-8", "keywords": ["골때녀", "골 때리는 그녀들"]}
         ]
+
+        # 선택된 프로그램만 크롤링하도록 필터링 (핵심: 나솔 선택했는데 환승이 같이 나오는 문제 해결)
+        if selected_show_ids:
+            program_keywords = [p for p in program_keywords if p.get("showId") in selected_show_ids]
+        
+        # 크롤링할 대상 사이트 선택 (기본값: 전체)
+        target_sites_str = getattr(args, 'target_sites', '')
+        target_sites = []
+        if target_sites_str:
+            target_sites = [s.strip() for s in target_sites_str.split(',') if s.strip()]
         
         all_results = []
         # limit에 도달하면 중단하기 위한 플래그
@@ -354,7 +384,14 @@ def crawl_community(args):
                 reached_limit = True
                 break
                 
-            posts = crawler.get_hot_posts(show_id, kws, limit=remaining_limit)
+            posts = crawler.get_hot_posts(
+                show_id,
+                kws,
+                limit=remaining_limit,
+                include_mamacafe=include_mamacafe,
+                only_mamacafe=only_mamacafe,
+                target_sites=target_sites  # 선택된 사이트 전달
+            )
             
             for post in posts:
                 # limit에 도달하면 중단
@@ -363,8 +400,15 @@ def crawl_community(args):
                     break
                     
                 # AI 댓글 생성
-                comment = analyzer.generate_viral_comment(post.get('content', ''), post.get('title', ''))
-                post['suggestedComment'] = comment
+                try:
+                    comment = analyzer.generate_viral_comment(post.get('content', ''), post.get('title', ''))
+                    post['suggestedComment'] = comment
+                    # API 호출 간 딜레이 추가 (Rate Limit 방지)
+                    time.sleep(2) 
+                except Exception as e:
+                    print(f"⚠️ 댓글 생성 실패: {e}", file=sys.stderr)
+                    post['suggestedComment'] = "댓글 생성 실패"
+                
                 all_results.append(post)
                 
         # 조회수 순으로 정렬하여 상위 결과 반환
@@ -375,7 +419,124 @@ def crawl_community(args):
             "posts": all_results[:limit] # limit만큼만 반환
         }
     except Exception as e:
+        import traceback
+        print(f"[Community Crawler] 오류: {e}", file=sys.stderr)
+        print(traceback.format_exc(), file=sys.stderr)
         return {"success": False, "error": str(e)}
+    finally:
+        # 브라우저 종료
+        if crawler:
+            crawler.close()
+
+def manual_login(args):
+    """수동 로그인을 통한 쿠키 저장 (환경변수 자동 로그인 지원)"""
+    try:
+        url = getattr(args, 'url', None)
+        site_id = getattr(args, 'site_id', None)
+        user_id = getattr(args, 'user_id', None)
+        user_pw = getattr(args, 'user_pw', None)
+        
+        if not url or not site_id:
+            return {"success": False, "error": "url과 site_id가 필요합니다."}
+            
+        # 환경 변수에서 계정 정보 로드 시도 (args에 없을 경우)
+        if not user_id and site_id:
+            env_map = {
+                'clien': ('CLIEN_ID', 'CLIEN_PW'),
+                'dcinside': ('DC_ID', 'DC_PW'),
+                'fmkorea': ('FM_ID', 'FM_PW'),
+                'nate': ('NATE_ID', 'NATE_PW'),
+                'ruliweb': ('RULIWEB_ID', 'RULIWEB_PW'),
+                'ppomppu': ('PPOMPPU_ID', 'PPOMPPU_PW'),
+            }
+            if site_id in env_map:
+                id_key, pw_key = env_map[site_id]
+                env_id = os.getenv(id_key)
+                env_pw = os.getenv(pw_key)
+                if env_id and env_pw:
+                    user_id = env_id
+                    user_pw = env_pw
+                    print(f"[Bridge] {site_id} 계정 정보를 환경 변수({id_key})에서 로드함: {user_id[:2]}***", file=sys.stderr)
+
+        commenter = AutoCommenter(headless=False)
+        if not commenter.start_browser():
+            return {"success": False, "error": "브라우저 시작 실패"}
+            
+        # 1. 전달받은 계정 정보가 있으면 자동 입력 시도
+        if user_id and user_pw:
+            print(f"[Bridge] {site_id} 자동 로그인 시도 중...", file=sys.stderr)
+            if site_id == 'clien':
+                commenter._login_clien(user_id, user_pw)
+            elif site_id == 'dcinside':
+                commenter._login_dcinside(user_id, user_pw)
+            elif site_id == 'fmkorea':
+                commenter._login_fmkorea(user_id, user_pw)
+            elif site_id == 'ruliweb':
+                commenter._login_ruliweb(user_id, user_pw)
+            elif site_id == 'ppomppu':
+                commenter._login_ppomppu(user_id, user_pw)
+            elif site_id == 'nate':
+                commenter._login_nate(user_id, user_pw)
+        
+        # 2. 수동 로그인 대기 및 쿠키 저장
+        result = commenter.manual_login(url, site_id)
+        commenter.close()
+        return result
+    except Exception as e:
+        return {"success": False, "error": str(e)}
+
+def auto_comment(args):
+    """크롤링된 게시글에 자동으로 댓글 등록"""
+    try:
+        # 디버깅: 환경 변수 로드 상태 확인
+        clien_id = os.getenv('CLIEN_ID')
+        if clien_id:
+            print(f"[Bridge] CLIEN_ID 환경변수 확인됨: {clien_id[:2]}***", file=sys.stderr)
+        else:
+            print(f"[Bridge] ⚠️ 경고: CLIEN_ID가 환경변수에 없습니다.", file=sys.stderr)
+            # 비상: 다시 한 번 로드 시도
+            try:
+                bot_root = Path(__file__).parent.parent
+                env_path = bot_root / '.env.local'
+                if env_path.exists():
+                    load_dotenv(dotenv_path=env_path, override=True)
+                    print(f"[Bridge] .env.local 재로드 시도 완료", file=sys.stderr)
+            except:
+                pass
+
+        from modules.auto_commenter import AutoCommenter, HAS_SELENIUM
+
+        if not HAS_SELENIUM:
+            return {
+                "success": False,
+                "error": "Selenium이 설치되어 있지 않습니다. pip install undetected-chromedriver selenium"
+            }
+
+        url = getattr(args, 'url', None)
+        comment_text = getattr(args, 'comment', None)
+        site_id = getattr(args, 'site_id', None) or None
+        headless = str(getattr(args, 'headless', 'false')).lower() == 'true'
+
+        if not url:
+            return {"success": False, "error": "url이 필요합니다."}
+        if not comment_text:
+            return {"success": False, "error": "comment 텍스트가 필요합니다."}
+
+        commenter = AutoCommenter(headless=headless)
+        try:
+            result = commenter.post_comment(url, comment_text, site_id)
+            return result
+        finally:
+            commenter.close()
+
+    except Exception as e:
+        import traceback
+        return {
+            "success": False,
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }
+
 
 def main():
     # 모든 경고 메시지를 무시하여 JSON 출력만 깨끗하게 유지
@@ -422,6 +583,10 @@ def main():
             result = crawl_community(args)
         elif args.command == 'crawl-naver-cafe':
             result = crawl_naver_cafe(args)
+        elif args.command == 'manual-login':
+            result = manual_login(args)
+        elif args.command == 'auto-comment':
+            result = auto_comment(args)
         else:
             result = {
                 "success": False,

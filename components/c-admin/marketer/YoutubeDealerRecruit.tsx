@@ -263,10 +263,12 @@ export function YoutubeDealerRecruit() {
     }
 
     // 6. 승인 대기 또는 승인 완료 AI 미션 목록 불러오기
-    const loadApprovedMissions = async (status: string = approvalSubTab) => {
+    const loadApprovedMissions = async (status: any = approvalSubTab) => {
         setIsLoadingMissions(true)
         try {
-            const apiStatus = status.toUpperCase()
+            // status가 이벤트 객체일 경우를 대비하여 문자열인지 확인
+            const statusStr = typeof status === 'string' ? status : approvalSubTab
+            const apiStatus = statusStr.toUpperCase()
             const res = await fetch(`/api/admin/ai-missions/list?status=${apiStatus}&t=${Date.now()}`)
             const contentType = res.headers.get('content-type') ?? ''
             const text = await res.text()

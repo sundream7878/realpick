@@ -2,6 +2,18 @@ import { adminDb, adminAuth } from "@/lib/firebase/admin";
 import { FieldValue } from "firebase-admin/firestore";
 import { NextRequest, NextResponse } from "next/server";
 
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const LAST_AUTO_OPEN_DATE_KEY_FIELD = "lastAutoOpenDateKey";
+
+function getKstDateKey() {
+  const kstMs = Date.now() + KST_OFFSET_MS;
+  const d = new Date(kstMs);
+  const year = d.getUTCFullYear();
+  const month = d.getUTCMonth() + 1;
+  const date = d.getUTCDate();
+  return `${year}-${String(month).padStart(2, "0")}-${String(date).padStart(2, "0")}`;
+}
+
 /**
  * 커플매칭 미션의 다음 회차를 수동으로 open 처리.
  * 생성자 또는 관리자만 호출 가능.
@@ -66,8 +78,7 @@ export async function POST(
       );
     }
 
-    const episodeStatuses: Record<number, string> =
-      data.episodeStatuses ?? {};
+    const episodeStatuses: Record<number, string> = data.episodeStatuses ?? {};
     const episodeNos = Object.keys(episodeStatuses)
       .map(Number)
       .filter((n) => !Number.isNaN(n))
@@ -83,10 +94,43 @@ export async function POST(
       });
     }
 
-    await missionRef.update({
+    const kstDateKey = getKstDateKey();
+    const updateData: Record<string, any> = {
       [`episodeStatuses.${nextEp}`]: "open",
+      [`episodeDates.${nextEp}`]: kstDateKey,
       updatedAt: FieldValue.serverTimestamp(),
-    });
+    };
+    // 새 회차가 열리면 이전 회차는 settled 처리
+    if (latestEp > 0) {
+      updateData[`episodeStatuses.${latestEp}`] = "settled";
+    }
+
+    // 수동 오픈이 방송일/방송시간 이후에 이뤄진 경우, 자동 오픈 중복 방지를 위해 날짜키도 같이 기록
+    // (방송일이 아니거나 방송시간 전이라면 기록하지 않음)
+    const broadcastDay = data.broadcastDay as string | undefined;
+    const broadcastTime = data.broadcastTime as string | undefined;
+    if (broadcastDay && broadcastTime) {
+      const kstMs = Date.now() + KST_OFFSET_MS;
+      const now = new Date(kstMs);
+      const day = now.getUTCDay();
+      const hour = now.getUTCHours();
+      const minute = now.getUTCMinutes();
+      const dayMap: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 };
+      const targetDayNum = dayMap[broadcastDay];
+      if (targetDayNum !== undefined && day === targetDayNum) {
+        const [hRaw, mRaw] = broadcastTime.split(":");
+        const h = Number(hRaw);
+        const m = Number(mRaw);
+        if (!Number.isNaN(h) && !Number.isNaN(m)) {
+          const past = hour > h || (hour === h && minute >= m);
+          if (past) {
+            updateData[LAST_AUTO_OPEN_DATE_KEY_FIELD] = getKstDateKey();
+          }
+        }
+      }
+    }
+
+    await missionRef.update(updateData);
 
     return NextResponse.json({
       success: true,

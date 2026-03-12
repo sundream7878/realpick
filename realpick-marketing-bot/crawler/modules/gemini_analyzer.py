@@ -10,7 +10,7 @@ class GeminiAnalyzer:
         genai.configure(api_key=api_key)
         self.model = genai.GenerativeModel('gemini-2.0-flash')
     
-    def _call_with_retry(self, prompt: str, max_retries: int = 3, base_delay: float = 2.0) -> Optional[str]:
+    def _call_with_retry(self, prompt: str, max_retries: int = 10, base_delay: float = 5.0) -> Optional[str]:
         """재시도 로직이 포함된 Gemini API 호출 (429 에러 처리)"""
         for attempt in range(max_retries):
             try:
@@ -21,10 +21,14 @@ class GeminiAnalyzer:
                 # 429 에러인 경우에만 재시도
                 if "429" in error_str or "Resource exhausted" in error_str:
                     if attempt < max_retries - 1:
-                        # Exponential backoff: 2초, 4초, 8초
-                        delay = base_delay * (2 ** attempt)
-                        print(f"⚠️ Gemini API 429 에러 발생. {delay}초 후 재시도 ({attempt + 1}/{max_retries})...", file=sys.stderr)
-                        time.sleep(delay)
+                        # Exponential backoff with jitter
+                        import random
+                        delay = min(base_delay * (2 ** attempt), 60.0) # 최대 60초 대기
+                        jitter = random.uniform(0, 1.0)
+                        final_delay = delay + jitter
+                        
+                        print(f"⚠️ Gemini API 429 에러 발생. {final_delay:.1f}초 후 재시도 ({attempt + 1}/{max_retries})...", file=sys.stderr)
+                        time.sleep(final_delay)
                         continue
                     else:
                         print(f"❌ Gemini API 429 에러: 최대 재시도 횟수 초과. {error_str}", file=sys.stderr)

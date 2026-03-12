@@ -1173,6 +1173,9 @@ export function MatchVotePage({ mission }: MatchVotePageProps) {
             selectedEpisodes={selectedEpisodes}
             savedEpisodes={submittedEpisodes}
             episodeStatuses={effectiveEpisodeStatuses}
+            episodeDates={mission.episodeDates}
+            broadcastDay={mission.broadcastDay}
+            missionCreatedAt={mission.createdAt}
             onEpisodeToggle={handleEpisodeToggle}
             disabled={false}
           />

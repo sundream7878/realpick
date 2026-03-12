@@ -9,8 +9,55 @@ interface EpisodeSelectorProps {
   selectedEpisodes: Set<number>
   savedEpisodes: Set<number>
   episodeStatuses?: Record<number, "open" | "settled" | "locked" | "preview">
+  episodeDates?: Record<number, string>
+  broadcastDay?: string
+  missionCreatedAt?: string | { seconds: number; nanoseconds: number }
   onEpisodeToggle: (episodeNo: number) => void
   disabled?: boolean
+}
+
+const DAY_MAP: Record<string, number> = { 일: 0, 월: 1, 화: 2, 수: 3, 목: 4, 금: 5, 토: 6 }
+
+function toDate(val: string | { seconds: number; nanoseconds: number } | undefined): Date | null {
+  if (!val) return null
+  if (typeof val === "string") return new Date(val)
+  if (typeof val === "object" && "seconds" in val) return new Date(val.seconds * 1000)
+  return null
+}
+
+function estimateEpisodeDate(
+  episodeNo: number,
+  startEpisode: number,
+  createdAt: string | { seconds: number; nanoseconds: number } | undefined,
+  broadcastDay: string | undefined,
+): string | null {
+  const base = toDate(createdAt)
+  if (!base) return null
+
+  const offset = episodeNo - startEpisode
+
+  if (offset === 0) {
+    const y = base.getFullYear()
+    const m = String(base.getMonth() + 1).padStart(2, "0")
+    const d = String(base.getDate()).padStart(2, "0")
+    return `${y}-${m}-${d}`
+  }
+
+  if (!broadcastDay) return null
+  const targetDay = DAY_MAP[broadcastDay]
+  if (targetDay === undefined) return null
+
+  const cur = new Date(base)
+  let count = 0
+  while (count < offset) {
+    cur.setDate(cur.getDate() + 1)
+    if (cur.getDay() === targetDay) count++
+  }
+
+  const y = cur.getFullYear()
+  const m = String(cur.getMonth() + 1).padStart(2, "0")
+  const d = String(cur.getDate()).padStart(2, "0")
+  return `${y}-${m}-${d}`
 }
 
 export function EpisodeSelector({
@@ -19,9 +66,21 @@ export function EpisodeSelector({
   selectedEpisodes,
   savedEpisodes, // This now receives submittedEpisodes from parent
   episodeStatuses = {},
+  episodeDates = {},
+  broadcastDay,
+  missionCreatedAt,
   onEpisodeToggle,
   disabled = false,
 }: EpisodeSelectorProps) {
+  const formatEpisodeDate = (dateStr: string) => {
+    const [, month, day] = dateStr.split("-")
+    return `${Number(month)}/${Number(day)}`
+  }
+
+  const getEpisodeDateStr = (episodeNo: number): string | null => {
+    if (episodeDates[episodeNo]) return episodeDates[episodeNo]
+    return estimateEpisodeDate(episodeNo, startEpisode, missionCreatedAt, broadcastDay)
+  }
   const getEpisodeStatus = (episodeNo: number) => {
     const episodeStatus = episodeStatuses[episodeNo] || "open"
     const isSaved = savedEpisodes.has(episodeNo)
@@ -150,6 +209,14 @@ export function EpisodeSelector({
                     )}
                   </div>
                   <span className="text-xs font-medium text-gray-700">{episodeNo}회</span>
+                  {(() => {
+                    const dateStr = getEpisodeDateStr(episodeNo)
+                    return dateStr ? (
+                      <span className="text-[10px] text-gray-400 leading-none -mt-1">
+                        {formatEpisodeDate(dateStr)}
+                      </span>
+                    ) : null
+                  })()}
                 </button>
               )
             })

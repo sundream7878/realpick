@@ -106,7 +106,10 @@ export default function VotePage({ params }: { params: { id: string } }) {
               seasonNumber: missionData.seasonNumber || undefined,
               options: missionData.matchPairs, // TMatchPairs 형식
               episodes: missionData.totalEpisodes || 8,
+              startEpisode: missionData.startEpisode || 1,
+              broadcastDay: missionData.broadcastDay,
               episodeStatuses: missionData.episodeStatuses || {},
+              episodeDates: missionData.episodeDates || {},
               deadline: missionData.deadline,
               revealPolicy: missionData.revealPolicy,
               status: missionData.status,

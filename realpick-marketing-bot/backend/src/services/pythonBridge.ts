@@ -12,12 +12,27 @@ const __dirname = dirname(__filename);
  * crawler/bridge.py를 실행하는 공통 유틸리티 (로컬 전용)
  * 한글 인코딩 문제 해결을 위해 JSON 파일로 인자 전달
  */
-export async function runMarketerBridge(command: string, args: Record<string, any> = {}) {
+export async function runMarketerBridge(
+  command: string,
+  args: Record<string, any> = {},
+  options?: { onLogLine?: (line: string) => void }
+) {
   return new Promise((resolve) => {
     try {
       // 1. 경로 설정 (realpick-marketing-bot/crawler)
       const botRoot = path.resolve(__dirname, "..", "..", "..");
-      const crawlerPath = path.join(botRoot, "crawler");
+      let crawlerPath = path.join(botRoot, "crawler");
+      
+      // crawler 디렉토리가 없으면 상위 디렉토리에서 찾기
+      if (!fs.existsSync(crawlerPath)) {
+        const altCrawlerPath = path.join(path.dirname(botRoot), "crawler");
+        if (fs.existsSync(altCrawlerPath)) {
+          console.log(`[Python Bridge] crawler 디렉토리를 대체 경로에서 발견: ${altCrawlerPath}`);
+          crawlerPath = altCrawlerPath;
+        } else {
+          throw new Error(`crawler 디렉토리를 찾을 수 없습니다: ${crawlerPath}, ${altCrawlerPath}`);
+        }
+      }
       const pythonPath = process.platform === 'win32' ? 'py' : 'python3';
 
       console.log(`[Python Bridge] 봇 루트: ${botRoot}`);
@@ -45,13 +60,26 @@ export async function runMarketerBridge(command: string, args: Record<string, an
 
       let stdout = "";
       let stderr = "";
+      let stderrBuf = "";
 
       child.stdout?.on("data", (data) => {
         stdout += data.toString('utf8');
       });
 
       child.stderr?.on("data", (data) => {
-        stderr += data.toString('utf8');
+        const chunk = data.toString('utf8');
+        stderr += chunk;
+
+        // 실시간 로그 라인 스트리밍 (대시보드 진행현황용)
+        if (options?.onLogLine) {
+          stderrBuf += chunk;
+          const lines = stderrBuf.split(/\r?\n/);
+          stderrBuf = lines.pop() ?? "";
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (trimmed) options.onLogLine(trimmed);
+          }
+        }
       });
 
       child.on("close", (code) => {

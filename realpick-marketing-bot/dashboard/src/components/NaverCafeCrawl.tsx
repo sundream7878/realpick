@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/
 import { Button } from "./ui/button"
 import { Badge } from "./ui/badge"
 import { Loader2, CheckCircle2, X, Calendar, ExternalLink, RefreshCw, Search, MessageSquare, Trash2, ChevronDown } from "lucide-react"
+import { AutoCommentButton } from "./AutoCommentButton"
 import { useToast } from "../hooks/useToast"
 import { getShowById, SHOWS, CATEGORIES } from "../lib/shows"
 import type { TShow } from "../lib/shows"
@@ -98,7 +99,8 @@ export function NaverCafeCrawl() {
   const loadPosts = async () => {
     try {
       const timestamp = Date.now()
-      const res = await fetch(`/api/admin/marketer/naver-cafe/crawl?_t=${timestamp}`, {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/admin/marketer/naver-cafe/crawl?_t=${timestamp}`, {
         cache: 'no-store'
       })
       const data = await res.json()
@@ -137,7 +139,8 @@ export function NaverCafeCrawl() {
 
     const pollProgress = async () => {
       try {
-        const res = await fetch(`/api/admin/marketer/naver-cafe/crawl?progressId=${progressId}`)
+        const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+        const res = await fetch(`${base}/api/admin/marketer/naver-cafe/crawl?progressId=${progressId}`)
         const data = await res.json()
         
         if (data.success && data.progress) {
@@ -220,7 +223,7 @@ export function NaverCafeCrawl() {
       status: "running",
       current: 0,
       total: limit,
-      message: "🌐 Chrome 브라우저 실행 중... 네이버 로그인 후 자동으로 크롤링이 시작됩니다.",
+      message: "🔍 맘카페 이슈 검색 시작 중...",
       startedAt: new Date().toISOString()
     })
     setProgressId(null)
@@ -228,12 +231,14 @@ export function NaverCafeCrawl() {
     try {
       const keywords = generateKeywords()
       
-      const res = await fetch("/api/admin/marketer/naver-cafe/crawl", {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/admin/marketer/naver-cafe/crawl`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           keywords: keywords,
           limit: limit,
+          selectedShowIds: selectedShows.map(s => s.id).join(','),
           startDate: startDate,
           endDate: endDate
         })
@@ -302,7 +307,8 @@ export function NaverCafeCrawl() {
     if (!confirm("이 게시글을 삭제하시겠습니까?")) return
     
     try {
-      const res = await fetch(`/api/admin/marketer/naver-cafe/crawl?id=${id}`, {
+      const base = typeof import.meta !== 'undefined' && import.meta.env?.DEV ? 'http://localhost:3001' : ''
+      const res = await fetch(`${base}/api/admin/marketer/naver-cafe/crawl?id=${id}`, {
         method: "DELETE"
       })
       
@@ -545,11 +551,10 @@ export function NaverCafeCrawl() {
               {isLoading && (
                 <div className="mt-4 p-3 bg-white/70 rounded-lg border border-blue-200">
                   <p className="text-sm text-gray-700">
-                    💡 <strong>참고:</strong> Chrome 브라우저가 백그라운드에서 실행 중입니다. 
-                    {progress?.id === "initial" && " 처음 실행 시 네이버 로그인이 필요할 수 있습니다."}
+                    💡 <strong>수집 대상:</strong> 맘카페 커뮤니티에서 선택한 프로그램 관련 게시글을 검색합니다.
                   </p>
                   <p className="text-xs text-gray-500 mt-1">
-                    여러 카페를 순회하며 게시글을 수집하고 있습니다. 각 카페에서 게시글이 없으면 자동으로 다음 카페로 이동합니다.
+                    여러 맘카페를 순회하며 게시글을 수집하고 있습니다. 아래 실시간 로그에서 진행 상황을 확인하세요.
                   </p>
                 </div>
               )}
@@ -661,6 +666,11 @@ export function NaverCafeCrawl() {
                         원문 이동
                       </a>
                     </Button>
+                    <AutoCommentButton
+                      postId={post.id}
+                      collectionType="cafe"
+                      initialStatus={(post as any).commentStatus ?? null}
+                    />
                     <Button 
                       onClick={() => handleComplete(post.id)}
                       disabled={post.status === 'completed'}
