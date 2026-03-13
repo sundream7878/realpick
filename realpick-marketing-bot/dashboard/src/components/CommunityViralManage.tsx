@@ -962,7 +962,7 @@ export function CommunityViralManage() {
                       onClick={() => handleComplete(post.id)}
                       disabled={post.status === 'completed'}
                       size="default"
-                      className={`h-10 px-4 ${post.status === 'completed' ? "bg-green-500 hover:bg-green-600" : "bg-gray-900 hover:bg-gray-800"}`}
+                      className={`h-10 px-4 text-white ${post.status === 'completed' ? "bg-green-500 hover:bg-green-600" : "bg-gray-900 hover:bg-gray-800"}`}
                     >
                       {post.status === 'completed' ? (
                         <><CheckCircle2 className="w-4 h-4 mr-2" /> 완료됨</>

@@ -121,6 +121,7 @@ class AutoCommenter:
                     options.add_experimental_option("prefs", {"intl.accept_languages": "ko,ko_KR"})
 
                     # 현재 설치된 크롬 버전(145)에 맞춰 드라이버 버전을 명시하여 생성 (버전 불일치 에러 방지)
+                    options.page_load_strategy = 'eager'
                     self.driver = uc.Chrome(options=options, version_main=145)
                     break
                 except Exception as e:
@@ -304,6 +305,33 @@ class AutoCommenter:
             
         return {'success': False, 'error': '로그인 대기 시간 초과'}
 
+    def write_post(self, board_url: str, title: str, content: str, site_id: str = None) -> dict:
+        """새 게시글 작성 (현재는 에펨코리아만 지원)"""
+        if not self.driver:
+            if not self.start_browser():
+                return {'success': False, 'error': '브라우저 시작 실패'}
+
+        if not site_id:
+            site_id = self.detect_site(board_url)
+
+        print(f"[AutoCommenter] 글쓰기 시작: [{site_id}] {board_url[:60]}", file=sys.stderr)
+
+        handlers = {
+            'fmkorea': self._write_fmkorea,
+        }
+
+        handler = handlers.get(site_id)
+        if not handler:
+            return {'success': False, 'error': f'글쓰기를 지원하지 않는 사이트: {site_id}'}
+
+        try:
+            return handler(board_url, title, content)
+        except Exception as e:
+            import traceback
+            print(f"[AutoCommenter] 글쓰기 오류: {e}", file=sys.stderr)
+            print(traceback.format_exc(), file=sys.stderr)
+            return {'success': False, 'error': str(e)}
+
     def post_comment(self, url: str, comment_text: str, site_id: str = None) -> dict:
         if not self.driver:
             if not self.start_browser():
@@ -345,10 +373,16 @@ class AutoCommenter:
         pw_ = os.environ.get('DC_PW', '')
 
         try:
+            # 타임아웃 방지를 위해 페이지 로드 제한 시간 설정 (기본 30초 -> 10초로 단축)
+            self.driver.set_page_load_timeout(10)
             self.driver.get(url)
         except Exception as e:
-            print(f"[AutoCommenter] 페이지 이동 중 타임아웃/오류 발생 (무시하고 진행): {e}", file=sys.stderr)
-            # 타임아웃이 발생해도 DOM이 일부 로드되었으면 진행 가능할 수 있음
+            print(f"[AutoCommenter] 디시 페이지 로드 타임아웃 (무시하고 진행): {e}", file=sys.stderr)
+            # 로딩 중지하고 진행 시도
+            try:
+                self.driver.execute_script("window.stop();")
+            except:
+                pass
 
         self._human_wait(2, 4)
 
@@ -363,7 +397,13 @@ class AutoCommenter:
                 if not logged:
                     # 쿠키 없으면 로그인 페이지로 이동하여 로그인 후 복귀
                     self._login_dcinside(id_, pw_)
-                    self.driver.get(url) # 로그인 후 다시 원글로 이동
+                    try:
+                        self.driver.get(url) # 로그인 후 다시 원글로 이동
+                    except:
+                        try:
+                            self.driver.execute_script("window.stop();")
+                        except:
+                            pass
                     self._human_wait(2, 3)
 
         # 댓글창까지 스크롤
@@ -388,6 +428,7 @@ class AutoCommenter:
         # 2. 일반적인 셀렉터들
         selectors.extend([
             (By.CSS_SELECTOR, 'textarea[id^="memo_"]'), # 디시인사이드 특유의 memo_숫자 ID 대응
+            (By.CSS_SELECTOR, 'textarea.comment_write'), # 추가된 셀렉터
             (By.CSS_SELECTOR, 'textarea.tx'),
             (By.CSS_SELECTOR, '#comment_memo'),
             (By.CSS_SELECTOR, 'textarea[name="memo"]'),
@@ -400,14 +441,18 @@ class AutoCommenter:
         self._scroll_to_element(comment_box)
         self._human_type(comment_box, text)
 
-        # 닉네임/비번 (비회원)
-        if not id_:
-            nick_box = self._safe_find([(By.CSS_SELECTOR, 'input[name="name"]')], timeout=3)
-            pw_box = self._safe_find([(By.CSS_SELECTOR, 'input[name="password"]')], timeout=3)
-            if nick_box:
+        # 닉네임/비번 (비회원 또는 로그인 풀림)
+        # 환경변수 ID가 있어도 실제 로그인이 안 된 상태라면 입력창이 뜨므로 무조건 확인해서 채워야 함
+        nick_box = self._safe_find([(By.CSS_SELECTOR, 'input[name="name"]')], timeout=2)
+        pw_box = self._safe_find([(By.CSS_SELECTOR, 'input[name="password"]')], timeout=2)
+        
+        if nick_box:
+            # 값이 비어있을 때만 입력
+            if not nick_box.get_attribute('value'):
                 self._human_type(nick_box, '익명')
-            if pw_box:
-                self._human_type(pw_box, '1234')
+                
+        if pw_box:
+            self._human_type(pw_box, '1234')
 
         submit = self._safe_find([
             (By.CSS_SELECTOR, 'button.repley_add'), # 디시인사이드 등록 버튼 클래스 추가
@@ -423,8 +468,57 @@ class AutoCommenter:
         self._human_wait(0.5, 1.2)
         submit.click()
         self._human_wait(2, 3)
-        print(f"[AutoCommenter] ✅ 디시인사이드 댓글 등록 완료", file=sys.stderr)
-        return {'success': True, 'site': site_id}
+
+        # 팝업(Alert) 처리 추가
+        try:
+            WebDriverWait(self.driver, 5).until(EC.alert_is_present())
+            alert = self.driver.switch_to.alert
+            alert_text = alert.text
+            print(f"[AutoCommenter] 디시 알림창 감지: {alert_text}", file=sys.stderr)
+            alert.accept()
+            
+            # 실패 키워드 확인
+            fail_keywords = ['코드', '캡차', '도배', '금지어', '오류', '실패', '비밀번호', '입력', '권한']
+            if any(k in alert_text for k in fail_keywords):
+                return {'success': False, 'error': f'댓글 등록 실패 (알림창): {alert_text}'}
+
+            # 성공 메시지인지 확인
+            if "등록" in alert_text or "완료" in alert_text:
+                pass # 성공으로 간주하고 검증 단계로 진행
+            else:
+                # 애매한 메시지인 경우 경고 출력 후 검증 진행
+                print(f"[AutoCommenter] ⚠️ 디시 알림창 내용이 모호함: {alert_text}", file=sys.stderr)
+
+        except:
+            # 알림창이 안 떴으면 바로 등록되었을 가능성 있음
+            pass
+
+        # 2차 검증: 실제 페이지에 댓글 내용이 있는지 확인
+        self._human_wait(2, 3)
+        
+        # 페이지가 새로고침되지 않았을 수 있으므로 명시적 새로고침 (선택사항이나, 디시는 보통 리로드됨)
+        # 하지만 비동기 댓글 로딩일 수 있으므로 page_source에서 바로 확인
+        
+        page_source = self.driver.page_source
+        
+        # 텍스트 전처리 (공백 등 제거하고 비교)
+        clean_comment = text.strip()
+        if len(clean_comment) > 20:
+            clean_comment = clean_comment[:20] # 앞부분 20자만 확인
+            
+        if clean_comment in page_source:
+            print(f"[AutoCommenter] ✅ 디시인사이드 댓글 등록 검증 완료 (내용 확인됨)", file=sys.stderr)
+            return {'success': True, 'site': site_id}
+        else:
+            # 혹시 모르니 한 번 더 새로고침 후 확인
+            print("[AutoCommenter] 댓글 내용 미발견 - 페이지 새로고침 후 재확인...", file=sys.stderr)
+            self.driver.refresh()
+            self._human_wait(2, 4)
+            if clean_comment in self.driver.page_source:
+                print(f"[AutoCommenter] ✅ 디시인사이드 댓글 등록 검증 완료 (새로고침 후 확인됨)", file=sys.stderr)
+                return {'success': True, 'site': site_id}
+            
+            return {'success': False, 'error': '댓글 등록 후 내용이 확인되지 않음 (차단/삭제/캡차 가능성)'}
 
     def _login_dcinside(self, id_: str, pw_: str):
         try:
@@ -464,6 +558,10 @@ class AutoCommenter:
         id_ = os.environ.get('FM_ID', '')
         pw_ = os.environ.get('FM_PW', '')
 
+        # URL 정규화 (www.fmkorea.com 강제) - 세션 유지 문제 해결을 위해 도메인 통일
+        if '://fmkorea.com' in url:
+            url = url.replace('://fmkorea.com', '://www.fmkorea.com')
+
         self.driver.get(url)
         self._human_wait(2, 4)
 
@@ -489,12 +587,25 @@ class AutoCommenter:
                     if not login_success:
                          return {'success': False, 'error': '로그인 실패 (아이디/비번 확인 필요)'}
 
+                    # 로그인 성공 후, 세션이 확실히 적용되도록 잠시 대기
+                    self._human_wait(2, 3)
+                    
+                    print(f"[AutoCommenter] 로그인 성공 후 원글로 이동: {url}", file=sys.stderr)
                     self.driver.get(url) # 로그인 후 다시 원글로 이동
                     self._human_wait(3, 5)
                     
                     # 로그인 재확인
                     if self._safe_find([(By.CSS_SELECTOR, '.cmt_disable.bd_login')], timeout=2):
-                        return {'success': False, 'error': '로그인 후에도 권한이 없습니다 (로그인 풀림)'}
+                        print("[AutoCommenter] 로그인 후에도 권한 없음 감지. 페이지 새로고침 시도...", file=sys.stderr)
+                        self.driver.refresh()
+                        self._human_wait(3, 5)
+                        
+                        if self._safe_find([(By.CSS_SELECTOR, '.cmt_disable.bd_login')], timeout=2):
+                            # 최후의 수단: 쿠키 다시 로드 후 새로고침
+                            print("[AutoCommenter] 최후의 수단: 쿠키 다시 로드 시도", file=sys.stderr)
+                            self.load_cookies(site_id, url)
+                            if self._safe_find([(By.CSS_SELECTOR, '.cmt_disable.bd_login')], timeout=2):
+                                return {'success': False, 'error': '로그인 후에도 권한이 없습니다 (로그인 풀림 - 도메인/세션 문제)'}
 
         comment_box = self._safe_find([
             (By.CSS_SELECTOR, '.simple_wrt textarea'),
@@ -531,6 +642,8 @@ class AutoCommenter:
 
     def _login_fmkorea(self, id_: str, pw_: str) -> bool:
         try:
+            print(f"[AutoCommenter] 에펨코리아 로그인 시도: {id_}", file=sys.stderr)
+            
             # 현재 URL 저장
             current_url = self.driver.current_url
             
@@ -538,59 +651,228 @@ class AutoCommenter:
             self.driver.get('https://www.fmkorea.com/index.php?act=dispMemberLoginForm')
             self._human_wait(2, 3)
             
-            id_input = self._safe_find([(By.CSS_SELECTOR, 'input[name="user_id"]')], timeout=5)
-            pw_input = self._safe_find([(By.CSS_SELECTOR, 'input[name="password"]')], timeout=5)
+            # 아이디 입력창 찾기 (사용자 제보 ID: n_uid)
+            id_input = self._safe_find([
+                (By.ID, 'n_uid'),
+                (By.CSS_SELECTOR, 'input.iText[name="user_id"]'),
+                (By.NAME, 'user_id')
+            ], timeout=5)
+            
+            # 비밀번호 입력창 찾기 (사용자 제보 ID: n_upw)
+            pw_input = self._safe_find([
+                (By.ID, 'n_upw'),
+                (By.CSS_SELECTOR, 'input.iText[name="password"]'),
+                (By.NAME, 'password')
+            ], timeout=5)
             
             if id_input and pw_input:
+                # 로그인 유지 체크박스 체크 (Alert 처리 필요)
+                keep_signed = self._safe_find([(By.ID, 'keepid')], timeout=1)
+                if keep_signed:
+                    try:
+                        print("[AutoCommenter] 로그인 유지 체크박스 클릭", file=sys.stderr)
+                        keep_signed.click()
+                        try:
+                            WebDriverWait(self.driver, 2).until(EC.alert_is_present())
+                            self.driver.switch_to.alert.accept()
+                        except:
+                            pass
+                    except:
+                        pass
+
+                # 아이디 입력 (값 확인 및 JS 강제 주입)
+                try:
+                    id_input.click()
+                    id_input.clear()
+                except: pass
                 self._human_type(id_input, id_)
+                
+                # 입력 안됐으면 JS로
+                if not id_input.get_attribute('value'):
+                    print("[AutoCommenter] 아이디 JS 강제 입력", file=sys.stderr)
+                    self.driver.execute_script("arguments[0].value = arguments[1];", id_input, id_)
+                
+                self._human_wait(0.5, 1.0)
+
+                # 비밀번호 입력
+                try:
+                    pw_input.click()
+                    pw_input.clear()
+                except: pass
                 self._human_type(pw_input, pw_)
+                
+                # 입력 안됐으면 JS로
+                if not pw_input.get_attribute('value'):
+                    print("[AutoCommenter] 비밀번호 JS 강제 입력", file=sys.stderr)
+                    self.driver.execute_script("arguments[0].value = arguments[1];", pw_input, pw_)
+                
+                self._human_wait(0.5, 1.0)
                 
                 # 로그인 버튼 찾기 시도
                 login_btn = self._safe_find([
+                    (By.CSS_SELECTOR, '.btn_pack.strong input[type="submit"]'), 
+                    (By.CSS_SELECTOR, 'input[value="로그인"]'),
                     (By.CSS_SELECTOR, 'button.login_btn'), 
-                    (By.CSS_SELECTOR, 'input[type="submit"]'),
-                    (By.CSS_SELECTOR, '.btn_login')
+                    (By.XPATH, '//input[@type="submit" and @value="로그인"]')
                 ], timeout=2)
                 
+                # 클릭 시도
+                clicked = False
                 if login_btn:
-                    login_btn.click()
-                else:
+                    try:
+                        print("[AutoCommenter] 로그인 버튼 클릭 시도", file=sys.stderr)
+                        login_btn.click()
+                        clicked = True
+                    except:
+                        try:
+                            self.driver.execute_script("arguments[0].click();", login_btn)
+                            clicked = True
+                        except:
+                            pass
+                
+                # 버튼 클릭 안됐으면 엔터키
+                if not clicked:
+                    print("[AutoCommenter] 엔터키로 로그인 시도", file=sys.stderr)
                     pw_input.send_keys(Keys.RETURN)
                     
                 self._human_wait(3, 5)
                 
-                # 로그인 성공 여부 확인
-                # 1. URL이 변경되었는지 (dispMemberLoginForm이 아니거나, act=IS 등으로 변경)
-                # 2. 에러 메시지가 있는지
+                # 로그인 성공 여부 검증
+                # 1. URL 변경 확인
+                if "dispMemberLoginForm" not in self.driver.current_url:
+                    print("[AutoCommenter] 에펨 로그인 성공 (URL 변경됨)", file=sys.stderr)
+                    self.save_cookies(site_id='fmkorea')
+                    return True
+
+                # 2. 로그아웃 버튼 확인
+                if self._safe_find([(By.CSS_SELECTOR, '.btn_logout'), (By.CSS_SELECTOR, 'a[href*="logout"]')], timeout=2):
+                    print("[AutoCommenter] 에펨 로그인 성공 (로그아웃 버튼 확인)", file=sys.stderr)
+                    self.save_cookies(site_id='fmkorea')
+                    return True
                 
-                if "dispMemberLoginForm" in self.driver.current_url:
-                     # 여전히 로그인 페이지라면 에러 메시지 확인
-                    error_msg = self._safe_find([(By.CSS_SELECTOR, '.error_message'), (By.CSS_SELECTOR, '.validation-error')], timeout=1)
-                    if error_msg:
-                        print(f"[AutoCommenter] 에펨 로그인 실패 메시지: {error_msg.text}", file=sys.stderr)
-                        return False
-                    
-                    # URL은 그대로지만 로그인이 되었을 수도 있으니 로그아웃 버튼 확인
-                    if self._safe_find([(By.CSS_SELECTOR, '.btn_logout'), (By.CSS_SELECTOR, 'a[href*="logout"]')], timeout=2):
-                        print("[AutoCommenter] 에펨 로그인 성공 (URL 유지)", file=sys.stderr)
-                        self.save_cookies(site_id='fmkorea')
-                        return True
-                        
-                    print("[AutoCommenter] 에펨 로그인 실패: 페이지 이동 안함", file=sys.stderr)
+                # 3. 에러 메시지 확인
+                error_msg = self._safe_find([(By.CSS_SELECTOR, '.error_message'), (By.CSS_SELECTOR, '.validation-error')], timeout=1)
+                if error_msg:
+                    print(f"[AutoCommenter] 에펨 로그인 실패 메시지: {error_msg.text}", file=sys.stderr)
                     return False
                 
-                # URL이 변경됨 -> 성공 가능성 높음
-                self.save_cookies(site_id='fmkorea')
-                print("[AutoCommenter] 에펨 로그인 성공 (URL 변경)", file=sys.stderr)
-                return True
+                # 타임아웃
+                print("[AutoCommenter] 에펨 로그인 실패: 페이지 변화 없음", file=sys.stderr)
+                return False
 
             else:
                 print("[AutoCommenter] 에펨 로그인 입력창 못찾음", file=sys.stderr)
                 return False
                 
         except Exception as e:
-            print(f"[AutoCommenter] 에펨 로그인 실패: {e}", file=sys.stderr)
+            print(f"[AutoCommenter] 에펨 로그인 예외 발생: {e}", file=sys.stderr)
             return False
+
+    def _write_fmkorea(self, board_url: str, title: str, content: str) -> dict:
+        site_id = 'fmkorea'
+        id_ = os.environ.get('FM_ID', '')
+        pw_ = os.environ.get('FM_PW', '')
+
+        self.driver.get(board_url)
+        self._human_wait(2, 4)
+
+        # 로그인 확인
+        is_logged_in = False
+        if self._safe_find([(By.CSS_SELECTOR, '.btn_logout'), (By.CSS_SELECTOR, 'a[href*="logout"]')]):
+            is_logged_in = True
+        
+        if not is_logged_in:
+            # 쿠키 로드 시도
+            logged = self.load_cookies(site_id, board_url)
+            if not logged:
+                # 로그인 시도
+                if not self._login_fmkorea(id_, pw_):
+                    return {'success': False, 'error': '로그인 실패'}
+                self.driver.get(board_url)
+                self._human_wait(2, 3)
+
+        # 글쓰기 버튼 찾기
+        write_btn = self._safe_find([
+            (By.CSS_SELECTOR, 'a[href*="act=dispBoardWrite"]'),
+            (By.CSS_SELECTOR, '.btn_img.write'),
+            (By.LINK_TEXT, '쓰기')
+        ])
+
+        if write_btn:
+            write_btn.click()
+        else:
+            # 버튼이 없으면 URL에 act=dispBoardWrite 추가해서 이동 시도
+            if 'act=dispBoardWrite' not in self.driver.current_url:
+                if '?' in board_url:
+                    write_url = board_url + '&act=dispBoardWrite'
+                else:
+                    write_url = board_url + '?act=dispBoardWrite'
+                self.driver.get(write_url)
+        
+        self._human_wait(2, 3)
+
+        # 제목 입력
+        title_input = self._safe_find([
+            (By.CSS_SELECTOR, 'input[name="title"]'),
+            (By.CSS_SELECTOR, '.title_input')
+        ])
+        if not title_input:
+             # 로그인 풀렸거나 권한 없음
+             if self._safe_find([(By.CSS_SELECTOR, 'input[name="user_id"]')]):
+                 return {'success': False, 'error': '글쓰기 페이지 접근 실패 (로그인 필요)'}
+             return {'success': False, 'error': '제목 입력창을 찾을 수 없음'}
+
+        self._human_type(title_input, title)
+
+        # 본문 입력 (CKEditor 대응)
+        content_set = False
+        
+        # 1. 텍스트에어리어 직접 찾기 (모바일/심플 에디터)
+        textarea = self._safe_find([(By.CSS_SELECTOR, 'textarea#content'), (By.CSS_SELECTOR, 'textarea[name="content"]')], timeout=2)
+        if textarea and textarea.is_displayed():
+            self._human_type(textarea, content)
+            content_set = True
+        
+        # 2. 아이프레임 에디터 (CKEditor)
+        if not content_set:
+            frames = self.driver.find_elements(By.TAG_NAME, 'iframe')
+            for frame in frames:
+                try:
+                    # 에디터 프레임인지 확인 (contenteditable body를 가진 프레임 찾기)
+                    self.driver.switch_to.frame(frame)
+                    body = self.driver.find_elements(By.TAG_NAME, 'body')
+                    if body and body[0].get_attribute('contenteditable') == 'true':
+                        body[0].click()
+                        self._human_type(body[0], content)
+                        content_set = True
+                        self.driver.switch_to.default_content()
+                        break
+                    self.driver.switch_to.default_content()
+                except:
+                    self.driver.switch_to.default_content()
+
+        if not content_set:
+            return {'success': False, 'error': '본문 입력창을 찾을 수 없음'}
+
+        # 등록 버튼
+        submit_btn = self._safe_find([
+            (By.CSS_SELECTOR, 'input[type="submit"]'),
+            (By.CSS_SELECTOR, 'button[type="submit"]'),
+            (By.CSS_SELECTOR, '.btn_insert'),
+            (By.XPATH, "//button[contains(text(), '등록')]"),
+            (By.XPATH, "//input[@value='등록']")
+        ])
+        
+        if not submit_btn:
+            return {'success': False, 'error': '등록 버튼을 찾을 수 없음'}
+
+        self._scroll_to_element(submit_btn)
+        self._human_wait(0.5, 1.5)
+        submit_btn.click()
+        self._human_wait(3, 5)
+        
+        print(f"[AutoCommenter] ✅ 에펨코리아 글쓰기 완료", file=sys.stderr)
+        return {'success': True, 'site': site_id}
 
     # ──────────────────────────────────────────────
     # 클리앙

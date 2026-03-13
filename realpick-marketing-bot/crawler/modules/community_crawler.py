@@ -66,11 +66,22 @@ class CommunityCrawler:
             
         try:
             options = uc.ChromeOptions()
+            options.page_load_strategy = 'eager'
             options.add_argument("--headless=new")
             options.add_argument("--no-sandbox")
             options.add_argument("--disable-dev-shm-usage")
+            options.add_argument("--disable-gpu")
             options.add_argument("--disable-blink-features=AutomationControlled")
             options.add_argument("--window-size=1920,1080")
+            
+            # 렌더러 타임아웃 방지
+            options.add_argument("--disable-renderer-backgrounding")
+            options.add_argument("--disable-background-timer-throttling")
+            options.add_argument("--disable-backgrounding-occluded-windows")
+            options.add_argument("--disable-client-side-phishing-detection")
+            options.add_argument("--disable-crash-reporter")
+            options.add_argument("--disable-extensions")
+            options.add_argument("--disable-popup-blocking")
             
             self.driver = uc.Chrome(options=options, version_main=145)
             self.driver.set_page_load_timeout(30)

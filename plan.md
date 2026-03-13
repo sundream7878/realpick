@@ -531,3 +531,19 @@ NEXT_PUBLIC_SUPABASE_URL: Supabase 프로젝트 URL
 NEXT_PUBLIC_SUPABASE_ANON_KEY: Supabase Anon Key
 
 NEXT_PUBLIC_SITE_URL: 배포 사이트 URL (Magic Link 리다이렉트용)
+
+14. 마케팅 봇 기능 고도화 (2026-03-12)
+
+14.1. 유튜브 딜러 모집 페이지 개선
+- 기능: 페이지 진입 시 '승인 대기' 미션 목록 자동 로드 (버튼 클릭 불필요).
+- UI: '작성 완료 처리' 버튼 텍스트 색상 변경 (흰색)으로 가시성 개선.
+
+14.2. 커뮤니티 자동 댓글/글쓰기 봇 개선
+- 공통: 브라우저 렌더러 타임아웃 방지 옵션 추가 (`page_load_strategy = 'eager'`).
+- 디시인사이드:
+  - 비회원/로그인 풀림 상태 감지 시 닉네임/비밀번호 자동 입력 로직 추가.
+  - 댓글 등록 성공/실패 감지 로직 강화 (Alert 창 텍스트 분석).
+- 에펨코리아:
+  - 로그인 로직 전면 개편 (ID/PW 입력창 선택자 `n_uid`, `n_upw` 적용, JS 강제 주입, 엔터키 전송 등).
+  - '글쓰기(새 게시글 작성)' 기능 추가 (CKEditor/iframe 대응).
+  - 로그인 세션 유지 문제 해결 (URL을 `www.fmkorea.com`으로 통일, '로그인 유지' 체크박스 자동 선택).

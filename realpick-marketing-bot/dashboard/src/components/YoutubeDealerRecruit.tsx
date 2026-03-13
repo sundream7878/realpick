@@ -763,6 +763,11 @@ ${missionsText}
         }
     }
 
+    // 컴포넌트 마운트 시 승인 대기 미션 목록 자동 로드
+    useEffect(() => {
+        loadApprovedMissions()
+    }, [])
+
     // 데이터 가공 (videoList는 렌더링 시마다 계산해도 무방)
     if (crawlResults?.channels) {
         Object.entries(crawlResults.channels).forEach(([kw, data]: [string, any]) => {
