@@ -8,7 +8,7 @@ import { v4 as uuidv4 } from 'uuid';
 
 export function isAuthenticated(): boolean {
   if (typeof window === "undefined") return false
-  const currentUser = !!auth.currentUser
+  const currentUser = !!auth?.currentUser
   const hasToken = !!localStorage.getItem("rp_auth_token")
   const result = currentUser || hasToken
   console.log('[Auth] isAuthenticated 호출 - currentUser:', currentUser, '/ hasToken:', hasToken, '/ result:', result)

@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+
+<html lang="ko"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>OCR Scanning &amp; Result</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-error": "#ffffff",
+                        "on-error-container": "#93000a",
+                        "on-background": "#171c1f",
+                        "on-tertiary": "#ffffff",
+                        "secondary": "#575e70",
+                        "secondary-container": "#d9dff5",
+                        "secondary-fixed-dim": "#c0c6db",
+                        "on-primary": "#ffffff",
+                        "inverse-primary": "#ffb2b7",
+                        "on-tertiary-fixed": "#002112",
+                        "on-secondary-fixed": "#141b2b",
+                        "surface": "#f6fafe",
+                        "surface-tint": "#bc0b3b",
+                        "on-secondary-fixed-variant": "#404758",
+                        "primary-container": "#dc2c4f",
+                        "surface-container": "#eaeef2",
+                        "on-primary-fixed-variant": "#92002a",
+                        "inverse-surface": "#2c3134",
+                        "on-secondary": "#ffffff",
+                        "background": "#f6fafe",
+                        "surface-bright": "#f6fafe",
+                        "outline": "#8f6f71",
+                        "surface-container-high": "#e4e9ed",
+                        "secondary-fixed": "#dce2f7",
+                        "tertiary-container": "#008656",
+                        "surface-variant": "#dfe3e7",
+                        "inverse-on-surface": "#edf1f5",
+                        "primary-fixed-dim": "#ffb2b7",
+                        "on-tertiary-fixed-variant": "#005233",
+                        "on-primary-container": "#fffbff",
+                        "surface-container-highest": "#dfe3e7",
+                        "error-container": "#ffdad6",
+                        "tertiary-fixed-dim": "#64dca0",
+                        "outline-variant": "#e3bdbf",
+                        "primary": "#b90538",
+                        "on-secondary-container": "#5c6274",
+                        "surface-dim": "#d6dade",
+                        "surface-subtle": "#FDF2F8",
+                        "surface-container-lowest": "#ffffff",
+                        "on-surface": "#171c1f",
+                        "on-surface-variant": "#5b4041",
+                        "surface-container-low": "#f0f4f8",
+                        "error": "#ba1a1a",
+                        "tertiary-fixed": "#82f9ba",
+                        "tertiary": "#006a43",
+                        "on-primary-fixed": "#40000d",
+                        "on-tertiary-container": "#f6fff6",
+                        "primary-fixed": "#ffdadb",
+                        "white": "#FFFFFF"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "xl": "32px",
+                        "xs": "4px",
+                        "lg": "24px",
+                        "base": "4px",
+                        "md": "16px",
+                        "sm": "8px",
+                        "gutter": "12px",
+                        "margin-mobile": "16px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Geist"],
+                        "body-sm": ["Geist"],
+                        "headline-md": ["Geist"],
+                        "label-md": ["Geist"],
+                        "headline-lg-mobile": ["Geist"],
+                        "body-lg": ["Geist"],
+                        "headline-lg": ["Geist"]
+                    },
+                    "fontSize": {
+                        "body-md": ["14px", { "lineHeight": "20px", "fontWeight": "400" }],
+                        "body-sm": ["12px", { "lineHeight": "16px", "fontWeight": "500" }],
+                        "headline-md": ["18px", { "lineHeight": "24px", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+                        "label-md": ["11px", { "lineHeight": "14px", "letterSpacing": "0.05em", "fontWeight": "600" }],
+                        "headline-lg-mobile": ["20px", { "lineHeight": "28px", "fontWeight": "700" }],
+                        "body-lg": ["16px", { "lineHeight": "24px", "fontWeight": "400" }],
+                        "headline-lg": ["24px", { "lineHeight": "32px", "letterSpacing": "-0.02em", "fontWeight": "700" }]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .viewfinder-corner {
+            width: 40px;
+            height: 40px;
+            border-color: #ffb2b7; /* inverse-primary */
+            border-style: solid;
+            position: absolute;
+        }
+        .corner-tl { top: 0; left: 0; border-width: 4px 0 0 4px; border-top-left-radius: 16px; }
+        .corner-tr { top: 0; right: 0; border-width: 4px 4px 0 0; border-top-right-radius: 16px; }
+        .corner-bl { bottom: 0; left: 0; border-width: 0 0 4px 4px; border-bottom-left-radius: 16px; }
+        .corner-br { bottom: 0; right: 0; border-width: 0 4px 4px 0; border-bottom-right-radius: 16px; }
+        
+        .scanning-line {
+            position: absolute;
+            width: 100%;
+            height: 2px;
+            background: #dc2c4f; /* primary-container */
+            box-shadow: 0 0 10px #dc2c4f;
+            animation: scan 2s infinite linear;
+        }
+
+        @keyframes scan {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-surface text-on-surface font-body-md min-h-screen flex flex-col relative pb-32">
+<!-- TopAppBar -->
+<header class="docked full-width top-0 z-50 bg-surface dark:bg-surface-dim text-primary dark:text-primary-fixed-dim flex items-center justify-between px-margin-mobile h-16 w-full max-w-[480px] mx-auto">
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full" data-icon="menu">menu</button>
+<div class="text-headline-lg-mobile font-headline-lg-mobile text-primary tracking-tighter">RealPick</div>
+<button class="material-symbols-outlined text-primary hover:bg-surface-container-high transition-colors p-2 rounded-full" data-icon="install_mobile">install_mobile</button>
+</header>
+<main class="w-full max-w-[480px] mx-auto px-margin-mobile flex-grow flex flex-col gap-lg mt-md">
+<!-- Viewfinder Section -->
+<section class="relative w-full aspect-[4/3] bg-on-background rounded-xl overflow-hidden shadow-[0_15px_15px_rgba(0,0,0,0.08)]">
+<!-- Simulated Camera Feed -->
+<img class="absolute inset-0 w-full h-full object-cover opacity-80" data-alt="A simulated smartphone camera view aiming at a modern television screen in a dimly lit living room. The TV displays a vibrant, high-definition reality show intro screen with bold, colorful Korean typography on a bright background. The camera view is slightly tilted, suggesting a handheld device capturing the screen content for optical character recognition. The overall lighting is moody with the bright TV screen being the primary light source." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBaCbwcwkPKpxS44piYrCeyiFp9V2meANVYBkOu9FDv8DwGhgt__711tON5zgv5pZFJAOlb7NPHFQHz5oWJuLrDsTrfzA9EvTPzOG9oSjRU9ZVJj_4e3NXkLEmmZYj09xKPXbMliGeq-YVQB5lPd_hLOxgdcJXaLtG2Xkw6p7qP2R7jldUqSjKRqQRH3TMlgmA8HyESfZ-mnLtBkuN3__QALp6lomN_8FULizY6eSdSw3XljeRQ2GDmLNxraSM-HJeoe_XRmIVQh04"/>
+<!-- Viewfinder Overlay -->
+<div class="absolute inset-4 relative">
+<div class="viewfinder-corner corner-tl"></div>
+<div class="viewfinder-corner corner-tr"></div>
+<div class="viewfinder-corner corner-bl"></div>
+<div class="viewfinder-corner corner-br"></div>
+<div class="scanning-line"></div>
+</div>
+<div class="absolute bottom-4 left-0 right-0 flex justify-center">
+<p class="bg-surface/80 text-on-surface px-4 py-2 rounded-full text-body-sm font-body-sm backdrop-blur-sm">
+                    TV 화면의 프로그램 제목을 스캔하세요
+                </p>
+</div>
+</section>
+<!-- Scan Action -->
+<section class="flex flex-col gap-md items-center">
+<button class="bg-primary text-on-primary w-full py-4 rounded-full flex items-center justify-center gap-sm text-headline-md font-headline-md shadow-lg hover:bg-on-primary-fixed-variant transition-colors active:scale-95 duration-150">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">qr_code_scanner</span>
+                인식하기
+            </button>
+</section>
+<!-- Results Section -->
+<section class="mt-lg">
+<h2 class="text-headline-md font-headline-md mb-md">인식 결과 (유사도 순)</h2>
+<div class="flex flex-col gap-sm">
+<!-- Result Card 1 -->
+<button class="w-full bg-surface-container-lowest p-md rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.08)] flex items-center justify-between hover:bg-surface-subtle transition-colors group text-left">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A small, square thumbnail image for a Korean reality TV show. The image features a bright, playful background with stylized graphic text indicating the show title 'I am Solo'. The design is vibrant and eye-catching, typical of modern broadcast companion app icons, utilizing a lively color palette with high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBLdtL__YEmtdj4JomsMnKwZS0tGrpHHGHcdwEtrthXXeoSNssQtNdiRJ8b1kTbOsGwRd3aDTmJvu07htwVoFH0barqQqwBt93eGQB59U-rH68ICVJWhBqFD-1lSVzbT-TNi-VozO5ifQBllNjXU9NzXhnPHxBHLQejuR7H89U85m47BCN1BNIJt0Kgh7Z-tFF4CneCay-gbCDHPOTtAN0j4M6HyrfW3ENxlHP9IdnPcFHws2CJubJEOk_vXTIhlyujZAO6K4YvJLw"/>
+</div>
+<div>
+<h3 class="text-body-lg font-body-lg font-bold group-hover:text-primary transition-colors">나는 솔로 28기</h3>
+<p class="text-body-sm font-body-sm text-secondary">수요일 오후 10:30 • SBS Plus</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="bg-tertiary-container text-on-tertiary-container px-2 py-1 rounded text-label-md font-label-md">98% 일치</span>
+<span class="material-symbols-outlined text-secondary mt-1 group-hover:text-primary">chevron_right</span>
+</div>
+</button>
+<!-- Result Card 2 -->
+<button class="w-full bg-surface-container-lowest p-md rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.08)] flex items-center justify-between hover:bg-surface-subtle transition-colors group text-left">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-surface-container overflow-hidden flex-shrink-0">
+<img class="w-full h-full object-cover" data-alt="A small, square thumbnail image for a Korean reality TV show, representing a slightly older season. The image features a bright, playful background with stylized graphic text indicating the show title 'I am Solo' for season 27. The aesthetic is consistent with the primary show branding but has subtle color variations to differentiate it from the current season thumbnail." src="https://lh3.googleusercontent.com/aida-public/AB6AXuD9tRctYyzkNxPpEtOBTbZElScyh4_GK7lhBfBxuCqcPA1vz4f_cEc08Zt3Xj0yOB6wTSbwNZdiMqMPY26LKs4vyWpvTRXlABQoE1B2g6FsMFfWp5dsFw69MdbacaQyOl6AI_jj-lQStiCeuAF4flVvhHUoWxa5PcqTYk_J9GgsA3avC9_PszZr-e-9UaUQDs0pOheAiBGsZecJCq4mRqCAIFEplU1OhSl99b3FHV7aEr-yyWbV3WeXEqzLW5lYDeQCjgB28AEmqVI"/>
+</div>
+<div>
+<h3 class="text-body-lg font-body-lg font-bold group-hover:text-primary transition-colors">나는 솔로 27기</h3>
+<p class="text-body-sm font-body-sm text-secondary">수요일 오후 10:30 • SBS Plus</p>
+</div>
+</div>
+<div class="flex flex-col items-end">
+<span class="bg-surface-variant text-on-surface-variant px-2 py-1 rounded text-label-md font-label-md">65% 일치</span>
+<span class="material-symbols-outlined text-secondary mt-1 group-hover:text-primary">chevron_right</span>
+</div>
+</button>
+</div>
+<p class="text-body-sm font-body-sm text-secondary mt-lg text-center bg-surface-container p-3 rounded-lg">
+                원하는 프로그램이 없나요? <a class="text-primary font-bold hover:underline" href="#">직접 검색하기</a>
+</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-4 pt-2 max-w-[480px] left-1/2 -translate-x-1/2 bg-surface-container-lowest dark:bg-surface-container-low rounded-t-xl shadow-[0_-4px_15px_rgba(0,0,0,0.08)]">
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="text-label-md font-label-md mt-1">홈</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">tv</span>
+<span class="text-label-md font-label-md mt-1">프로그램</span>
+</a>
+<a class="flex flex-col items-center justify-center bg-surface-subtle text-primary rounded-xl px-3 py-1 scale-90 duration-150" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">details</span>
+<span class="text-label-md font-label-md mt-1 font-bold">OCR 인식</span>
+</a>
+<a class="flex flex-col items-center justify-center text-secondary hover:text-primary transition-all" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="text-label-md font-label-md mt-1">마이</span>
+</a>
+</nav>
+</body></html>
